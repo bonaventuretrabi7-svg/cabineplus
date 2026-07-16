@@ -1,0 +1,23 @@
+{
+  "name": "kbineplus",
+  "version": "1.0.0",
+  "description": "KBINE PLUS — application mobile Android (wrapper Capacitor de l'espace client web)",
+  "private": true,
+  "scripts": {
+    "build:www": "node scripts/build-www.js",
+    "build:dist": "node scripts/build-dist.js",
+    "build:dist:client": "node scripts/build-dist-client.js",
+    "cap:sync": "npm run build:www && npx cap sync android",
+    "cap:open:android": "npx cap open android",
+    "android:assembleRelease": "npm run cap:sync && cd android && gradlew assembleRelease",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "capacitor-native-biometric": "^4.2.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}

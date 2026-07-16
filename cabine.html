@@ -1,0 +1,1431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KBINE PLUS | Espace Cabine</title>
+  <link rel="icon" type="image/png" href="img/logo%20officiel.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="css/style.css?v=20" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    /* ── Modal "Déconnexion" — cartes pleine couleur (modèle E) ──────
+       Chaque option est un bloc en dégradé (vert/orange), texte blanc —
+       plus affirmé que l'ancien modèle "carte + accent icône" (voir
+       artefact de propositions validé). Scopé à cette page (cabine.html
+       n'a pas de bloc <style> propre jusqu'ici, contrairement à
+       admin.html) pour ne rien changer à css/style.css, partagé avec
+       client.html/admin.html. */
+    .lo-opt {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 15px 14px;
+      border: none; border-radius: 16px; cursor: pointer; text-align: left;
+      color: #fff; font-family: inherit; transition: transform .15s ease, box-shadow .15s ease;
+      margin-bottom: 10px;
+    }
+    .lo-opt:last-child { margin-bottom: 0; }
+    .lo-opt:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px var(--shadow-c); }
+    .lo-opt .lo-ic {
+      width: 38px; height: 38px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      background: rgba(255,255,255,.22); color: #fff; flex-shrink: 0; font-size: 1rem;
+    }
+    .lo-opt .lo-tx { flex: 1; min-width: 0; }
+    .lo-opt .lo-lbl { font-size: .84rem; font-weight: 800; color: #fff; }
+    .lo-opt .lo-sub { font-size: .72rem; color: rgba(255,255,255,.85); margin-top: 2px; }
+    .lo-opt .lo-chev { color: rgba(255,255,255,.8); flex-shrink: 0; }
+    .lo-opt.green  { background: linear-gradient(135deg, #00B84F, #007A36); --shadow-c: rgba(0,154,68,.35); }
+    .lo-opt.orange { background: linear-gradient(135deg, #FF7A29, #E85200); --shadow-c: rgba(255,98,0,.35); }
+
+    /* ── Modal "Couleur de la carte" (tableau de solde) — modèle B :
+       aperçu en direct (vraie mini-carte, réutilise .cbc-card/.cbc-card--c-*
+       pour un rendu identique à la carte réelle) + bandeau de teintes. */
+    .cab-color-sub { font-size: .75rem; color: var(--gray-500); margin: 0 0 14px; line-height: 1.5; }
+    .cab-color-preview { padding: 14px 14px 12px; margin-bottom: 16px; border-radius: 16px; transition: background .2s ease; }
+    .cab-color-strip { display: flex; justify-content: space-between; }
+    .cab-color-dot {
+      width: 34px; height: 34px; border-radius: 50%; border: 2px solid transparent; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; color: #fff; font-size: .7rem;
+      transition: transform .15s ease, border-color .15s ease;
+    }
+    .cab-color-dot.sel { border-color: var(--primary); transform: scale(1.1); }
+    .cab-color-strip-lbls { display: flex; justify-content: space-between; margin-top: 6px; }
+    .cab-color-strip-lbl { font-size: .56rem; font-weight: 700; color: var(--gray-500); width: 34px; text-align: center; }
+
+    /* ── Modals "motif requis" (Mettre en pause / Renvoyer la commande) —
+       modèle B : icône illustrée + légende sobre au lieu du bandeau
+       d'avertissement encadré, liste de motifs à cocher au lieu du menu
+       déroulant (celui-ci reste dans le DOM, masqué, pour ne rien changer
+       à la logique déjà en place — voir _cabPickReason() dans cabine.js).
+       Format réduit par rapport au modal d'origine (padding/polices/
+       bouton plus compacts). */
+    .cqk-reason-body { padding: 16px 18px 18px; text-align: center; }
+    .cqk-reason-icon {
+      width: 44px; height: 44px; border-radius: 50%; background: rgba(239,68,68,.1);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 10px;
+      color: #EF4444; font-size: 1rem;
+    }
+    .cqk-reason-caption { font-size: .72rem; color: var(--gray-500); line-height: 1.45; max-width: 260px; margin: 0 auto 14px; }
+    .cqk-reason-list { text-align: left; border: 1px solid var(--gray-200); border-radius: 12px; overflow: hidden; margin-bottom: 12px; }
+    .cqk-reason-row {
+      display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+      border-bottom: 1px solid var(--gray-200); cursor: pointer;
+      font-size: .76rem; font-weight: 600; color: var(--gray-800);
+    }
+    .cqk-reason-row:last-child { border-bottom: none; }
+    .cqk-reason-row:hover { background: var(--gray-100); }
+    .cqk-reason-radio {
+      width: 14px; height: 14px; border-radius: 50%; border: 1.5px solid var(--gray-300);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    }
+    .cqk-reason-row.sel { background: rgba(239,68,68,.05); }
+    .cqk-reason-row.sel .cqk-reason-radio { border-color: #EF4444; }
+    .cqk-reason-row.sel .cqk-reason-radio::after { content: ''; width: 7px; height: 7px; border-radius: 50%; background: #EF4444; }
+    .cqk-reason-btn {
+      width: 100%; padding: 11px; border-radius: 12px; border: none; cursor: pointer;
+      background: linear-gradient(135deg,#EF4444,#DC2626); color: #fff; font-size: .8rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; gap: 7px; font-family: inherit;
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- ══ ÉCRAN DE CHARGEMENT ══ -->
+<div id="page-loader">
+  <div class="pl-spinner-wrap">
+    <div class="pl-ring"></div>
+    <img src="img/logo.png" alt="KBINE PLUS" class="pl-logo-img">
+  </div>
+  <div class="pl-label">Chargement…</div>
+</div>
+
+<!-- ══ APP CABINE ══ -->
+<div class="cab-app" id="cab-app" style="display:none;">
+
+  <!-- Bandeau visible uniquement pendant une impersonation admin (voir
+       Auth.startImpersonation() dans js/auth.js) -->
+  <div id="impersonation-banner" class="impersonation-banner" style="display:none;">
+    <i class="fa-solid fa-user-shield"></i>
+    <span>Connecté en tant que partenaire par <strong id="impersonation-admin-name">—</strong></span>
+    <button onclick="returnFromImpersonation()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Retour à l'administration</button>
+  </div>
+
+  <!-- ── TOP NAV ── -->
+  <nav class="cab-topnav">
+    <div class="cab-tnav-left">
+      <div class="cab-tnav-avatar" id="cab-tnav-avatar" title="Photo d'identité">
+        <img id="cab-tnav-avatar-img" alt="" style="display:none">
+        <span id="cab-tnav-avatar-fallback">?</span>
+      </div>
+    </div>
+    <div class="cab-tnav-network-wrap">
+      <div id="cab-missing-network-alert" class="net-chip" style="display:none;" title="Aucune cabine en ligne sur ces réseaux">
+        <span class="net-chip-pulse"></span>
+        <span class="net-chip-text" id="cab-missing-network-text">—</span>
+      </div>
+    </div>
+    <div class="cab-tnav-right">
+      <button class="cab-online-badge" title="Cabines connectées en temps réel">
+        <span class="cab-online-dot"></span>
+        <i class="fa-solid fa-user"></i>
+        <span id="cab-online-count">0</span>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ── CONTENU ── -->
+  <div class="cab-content">
+
+    <!-- ════════════════════════════════════════════
+         SECTION ACCUEIL
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section active" id="cab-sec-home">
+
+      <!-- ── TABLEAU DE SOLDE ── -->
+      <div class="cbs-wrapper cbs-wrapper--white">
+
+        <!-- Carte solde — palette selon le palier d'abonnement, ou couleur
+             personnalisée choisie par la cabine (voir loadCabBalanceCard()
+             dans cabine.js pour le choix de la classe .cbc-card--premium /
+             --vip / --vvip / --c-* et openCabCardColorPicker()). -->
+        <div class="cbc-card" id="cbc-card">
+
+          <div class="cbc-glow cbc-glow--1"></div>
+          <div class="cbc-glow cbc-glow--2"></div>
+          <img src="img/logo officiel.png" alt="" class="cbc-logo-watermark">
+
+          <div class="cbc-topline">
+            <div class="cbc-kicker-row">
+              <img src="img/logo officiel.png" alt="KBINE PLUS" class="cbc-kicker-logo">
+              <span class="cbc-kicker-text">KBINE PLUS</span>
+            </div>
+            <div style="display:flex;gap:6px;position:relative;z-index:1;">
+              <button class="cbc-eye-btn" onclick="openCabCardColorPicker()" title="Changer la couleur">
+                <i class="fa-solid fa-palette"></i>
+              </button>
+              <button class="cbc-eye-btn" onclick="toggleCabBalance()">
+                <i class="fa-solid fa-eye" id="cab-eye-icon"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="cbc-name-row">
+            <div id="cbc-cabine-name-tag" class="cbc-name">—</div>
+            <span class="cab-prof-badge"><i class="fa-solid fa-check"></i></span>
+          </div>
+
+          <div class="cbc-badges-row">
+            <div class="cbc-subs-pill" id="cbc-subs-pill">
+              <i class="fa-solid fa-sparkles"></i>
+              <span id="cab-subs-type">—</span>
+            </div>
+            <div id="cbc-status-pill" style="display:inline-flex;align-items:center;gap:5px;background:#16a34a;border-radius:99px;padding:4px 12px;">
+              <span style="width:6px;height:6px;border-radius:50%;background:#fff;display:inline-block;"></span>
+              <span id="cab-status-text" style="font-size:.65rem;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.06em;">—</span>
+            </div>
+          </div>
+
+          <!-- Séparation "ticket perforé" entre l'identité et les montants. -->
+          <div class="cbc-perf"></div>
+
+          <div class="cbc-amounts-row">
+            <div class="cbc-amount-col">
+              <div class="cbc-amount-lbl"><i class="fa-regular fa-clock"></i> Solde en attente</div>
+              <div id="cab-bal-pending" class="cbc-amount-val">—</div>
+            </div>
+            <div class="cbc-amount-divider"></div>
+            <button type="button" class="cbc-amount-col cbc-amount-col--btn" onclick="showCabSection('retraits'); loadCabRetraits();" title="Voir l'historique des virements">
+              <div class="cbc-amount-lbl"><i class="fa-regular fa-circle-check"></i> Total payé</div>
+              <div id="cab-bal-paid" class="cbc-amount-val cbc-amount-val--paid">—</div>
+            </button>
+          </div>
+
+          <div class="cbc-pillbtn-row">
+            <button type="button" class="cbc-pillbtn" onclick="showCabSection('transfert'); loadCabTransferHistory();">
+              <i class="fa-solid fa-right-left"></i> Transfert
+            </button>
+            <!-- Historique des transactions (débits) de la cabine — mêmes
+                 codes que ceux affichés dans "Total payé"/"Transfert"
+                 ci-dessus, ex. la preuve de débit d'un réabonnement (voir
+                 business.resubscribeCabine, js/db.js). -->
+            <button type="button" class="cbc-pillbtn" onclick="showCabSection('historique'); loadCabHistory();">
+              <i class="fa-solid fa-clock-rotate-left"></i> Historique
+            </button>
+            <!-- Recharge UV en libre-service, payée exclusivement par le
+                 solde en attente de la cabine, mais assignée à une AUTRE
+                 cabine pour traitement (voir DB.business.cabineSelfRecharge,
+                 js/db.js, et openCabUvModal/cabUvShowRecap/cabUvConfirmPayment, js/cabine.js). -->
+            <button type="button" class="cbc-pillbtn" id="cbc-uv-btn" onclick="openCabUvModal()">
+              <i class="fa-solid fa-bolt-lightning"></i> Recharge UV
+            </button>
+          </div>
+
+        </div>
+
+        <!-- Visible uniquement si le compte est suspendu (auto ou manuel)
+             — voir _refreshSuspensionBanner() dans js/cabine.js, appelée
+             depuis loadCabBalanceCard(). -->
+        <div id="cab-suspension-banner" class="cab-suspension-banner" style="display:none;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div class="cab-suspension-text">
+            <div class="cab-suspension-title">Compte suspendu</div>
+            <div id="cab-suspension-motif">—</div>
+            <div id="cab-suspension-until"></div>
+          </div>
+        </div>
+
+        <!-- Visible tant qu'au moins une réclamation n'a pas été traitée
+             (preuve fournie ou remboursement demandé) — voir DB.business.
+             hasBlockingReclamation() dans js/db.js, qui bloque aussi
+             l'assignation de nouvelles commandes tant que ce bandeau est
+             visible. Même format que le tableau de solde (carte arrondie,
+             ici teintée orange plutôt que rouge). -->
+        <div id="recla-block-banner" class="recla-block-banner" style="display:none;">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <div class="recla-block-text-wrap">
+            <div class="recla-block-title">Réclamation en attente</div>
+            <span id="recla-block-text">—</span>
+          </div>
+          <button onclick="showCabSection('reclamations'); loadCabReclamations();"><i class="fa-solid fa-arrow-right"></i> Voir mes réclamations</button>
+        </div>
+      </div>
+
+      <!-- 1bis. Actions rapides — segmented control orange, compact -->
+      <div class="cbs-wrapper cbs-wrapper--bare">
+      <div class="cqk-bar cqk-bar--narrow">
+        <button class="cqk-btn" id="cqk-dark-btn" onclick="toggleCabDarkMode()" title="Mode sombre">
+          <span class="cqk-ico"><i class="fa-regular fa-moon" id="cqk-dark-ico"></i></span>
+          <span class="cqk-lbl" id="cqk-dark-lbl">Mode sombre</span>
+        </button>
+        <button class="cqk-btn" id="cqk-pause-btn" onclick="toggleCabPause()" title="Pause">
+          <span class="cqk-ico" id="cqk-pause-ico-wrap"><i class="fa-regular fa-circle-pause" id="cqk-pause-ico"></i></span>
+          <span class="cqk-lbl" id="cqk-pause-lbl">Pause</span>
+        </button>
+        <button class="cqk-btn" onclick="refreshCabPage(this)" title="Actualiser">
+          <span class="cqk-ico"><i class="fa-solid fa-arrows-rotate" id="cqk-refresh-ico"></i></span>
+          <span class="cqk-lbl">Actualiser</span>
+        </button>
+      </div>
+      <div class="cqk-pause-status" id="cqk-pause-status" style="display:none">
+        <i class="fa-solid fa-circle-pause"></i>
+        En pause depuis <strong id="cqk-pause-since">—</strong>
+      </div>
+      </div>
+
+      <!-- 1ter. Quota de commission du forfait — carte Premium sombre -->
+      <div class="cbs-wrapper cbs-wrapper--bare">
+      <div class="cqt-wrapper" id="cqt-wrapper">
+        <div class="cqt-glow"></div>
+        <img src="img/logo officiel.png" alt="" class="cbc-logo-watermark">
+
+        <div class="cqt-head">
+          <div class="cqt-badge"><i class="fa-solid fa-crown"></i> Abonnement <span id="cqt-plan">Premium</span></div>
+          <div class="cqt-expiry-chip"><i class="fa-regular fa-calendar"></i> <span id="cqt-expiry">—</span></div>
+        </div>
+
+        <div class="cqt-body">
+          <div class="cqt-ring-wrap">
+            <div class="cqt-ring" id="cqt-ring" style="--pct:0">
+              <span class="cqt-ring-pct" id="cqt-ring-pct">0%</span>
+            </div>
+          </div>
+          <div class="cqt-nums">
+            <div class="cqt-nums-lbl">Quota utilisé</div>
+            <div class="cqt-nums-amt"><strong id="cqt-current">—</strong> <span>/ <span id="cqt-quota">—</span></span></div>
+          </div>
+        </div>
+
+        <div class="cqt-note" id="cqt-note">—</div>
+
+      </div>
+      </div>
+
+      <!-- 2. Statistiques — cartes groupées (titre + 2 colonnes séparées par un trait) -->
+      <div class="cst-group-wrap">
+
+        <div class="cst-group-card">
+          <img src="img/logo officiel.png" alt="" class="cbc-logo-watermark">
+          <div class="cst-group-title">Aujourd'hui</div>
+          <div class="cst-group-cols">
+            <div class="cst-group-col">
+              <div class="cst-group-lbl">Commandes 24h</div>
+              <div class="cst-group-val" id="cab-cmd24">—</div>
+              <div class="cst-group-sub">Dernières 24 heures</div>
+            </div>
+            <div class="cst-group-col">
+              <div class="cst-group-lbl">Commissions 24h</div>
+              <div class="cst-group-val cst-group-val--money" id="cab-comm24">—</div>
+              <div class="cst-group-sub">Dernières 24 heures</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="cst-group-card">
+          <img src="img/logo officiel.png" alt="" class="cbc-logo-watermark">
+          <div class="cst-group-title">Cumul</div>
+          <div class="cst-group-cols">
+            <button type="button" class="cst-group-col cst-group-col--btn" onclick="showCabSection('cmd-daily'); loadCabCmdDaily();">
+              <div class="cst-group-lbl">Cumul commandes</div>
+              <div class="cst-group-val" id="cab-cmd-total">—</div>
+              <div class="cst-group-sub">Détail par jour <i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+            <button type="button" class="cst-group-col cst-group-col--btn" onclick="showCabSection('comm-daily'); loadCabCommDaily();">
+              <div class="cst-group-lbl">Cumul commissions</div>
+              <div class="cst-group-val cst-group-val--money" id="cab-comm-total-home">—</div>
+              <div class="cst-group-sub">Détail par jour <i class="fa-solid fa-chevron-right"></i></div>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 3. Module réseaux -->
+      <div class="cab-net-card">
+        <div class="cab-net-header">
+          <i class="fa-solid fa-signal"></i>
+          <span>État des réseaux</span>
+        </div>
+        <div class="cab-net-list">
+          <div class="cab-net-line cab-net-line--orange" onclick="toggleNetwork('orange', document.getElementById('toggle-orange'))" role="button" tabindex="0" aria-label="Activer/désactiver Orange">
+            <span class="cab-net-ico-badge"><i class="fa-solid fa-signal cab-net-ico"></i></span>
+            <span class="cab-net-name">ORANGE</span>
+            <button class="cab-toggle active" id="toggle-orange" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            <span class="cab-net-status" id="status-orange" hidden>Actif</span>
+          </div>
+          <div class="cab-net-line cab-net-line--moov" onclick="toggleNetwork('moov', document.getElementById('toggle-moov'))" role="button" tabindex="0" aria-label="Activer/désactiver Moov">
+            <span class="cab-net-ico-badge"><i class="fa-solid fa-signal cab-net-ico"></i></span>
+            <span class="cab-net-name">MOOV</span>
+            <button class="cab-toggle active" id="toggle-moov" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            <span class="cab-net-status" id="status-moov" hidden>Actif</span>
+          </div>
+          <div class="cab-net-line cab-net-line--mtn" onclick="toggleNetwork('mtn', document.getElementById('toggle-mtn'))" role="button" tabindex="0" aria-label="Activer/désactiver MTN">
+            <span class="cab-net-ico-badge"><i class="fa-solid fa-signal cab-net-ico"></i></span>
+            <span class="cab-net-name">MTN</span>
+            <button class="cab-toggle active" id="toggle-mtn" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            <span class="cab-net-status" id="status-mtn" hidden>Actif</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3bis. Section recherche de commande -->
+      <div class="cab-search-card">
+        <div class="cab-search-header">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <span>Rechercher une commande</span>
+        </div>
+        <div class="cab-search-wrap">
+          <i class="fa-solid fa-magnifying-glass cab-search-ico"></i>
+          <input type="text" class="cab-search-input" id="cab-order-search"
+                 placeholder="Rechercher par ID de commande…"
+                 oninput="searchCabOrder(this.value)">
+          <button class="cab-search-clear" id="cab-search-clear" onclick="clearCabSearch()" style="display:none">
+            <i class="fa-solid fa-xmark"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3ter. Statistiques temps réel -->
+      <div class="crt-card">
+        <div class="crt-stats-row">
+          <div class="crt-stat">
+            <div class="crt-stat-icwrap crt-stat-icwrap--cream"><i class="fa-solid fa-clock"></i></div>
+            <div class="crt-stat-val crt-stat-val--cream" id="crt-en-cours">—</div>
+            <div class="crt-stat-lbl">En cours</div>
+          </div>
+          <div class="crt-stat">
+            <div class="crt-stat-icwrap crt-stat-icwrap--green"><i class="fa-solid fa-check"></i></div>
+            <div class="crt-stat-val crt-stat-val--green" id="crt-terminees">—</div>
+            <div class="crt-stat-lbl">Terminées</div>
+          </div>
+          <div class="crt-stat">
+            <div class="crt-stat-icwrap crt-stat-icwrap--pink"><i class="fa-solid fa-triangle-exclamation"></i></div>
+            <div class="crt-stat-val crt-stat-val--pink" id="crt-retards">—</div>
+            <div class="crt-stat-lbl">Retards</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4bis. Section spécialisée : filtre par statut — segmented control -->
+      <div class="cof-filter-card">
+        <div class="cof-tabs">
+          <button class="cof-ctab active" data-filter="all" onclick="filterCabOrders('all', this)">
+            <i class="fa-solid fa-layer-group"></i> Toutes
+          </button>
+          <button class="cof-ctab" data-filter="en_attente" onclick="filterCabOrders('en_attente', this)">
+            <i class="fa-solid fa-hourglass-half"></i> En cours
+            <span class="cof-ctab-badge" id="pending-badge" style="display:none">0</span>
+          </button>
+          <button class="cof-ctab" data-filter="terminé" onclick="filterCabOrders('terminé', this)">
+            <i class="fa-solid fa-circle-check"></i> Traitées
+          </button>
+        </div>
+      </div>
+
+      <!-- Liste des commandes -->
+      <div class="cof-list-wrapper">
+        <div id="cab-orders-list">
+          <div class="cab-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+        </div>
+        <!-- Visible uniquement dans l'onglet "Toutes" quand il y a plus de
+             30 commandes validées — voir loadCabOrders() dans js/cabine.js. -->
+        <button type="button" id="cab-orders-history-link" class="cab-orders-history-link" style="display:none;" onclick="showCabSection('commissions'); loadCommissions();">
+          <i class="fa-solid fa-clock-rotate-left"></i> Voir l'historique complet des commandes validées
+          <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION HISTORIQUE RETRAITS
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-retraits">
+      <div class="rh2-card">
+        <div class="rh2-row">
+          <button class="rh2-back" onclick="showCabSection('home')"><i class="fa-solid fa-arrow-left"></i></button>
+          <div class="rh2-ico"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <div>
+            <div class="rh2-title">Historique des retraits</div>
+            <div class="rh2-sub">Vos retraits effectués</div>
+          </div>
+        </div>
+        <div class="rh2-stats">
+          <div class="rh2-stat"><div class="rh2-stat-val" id="cab-retraits-count">—</div><div class="rh2-stat-lbl">Retraits</div></div>
+          <div class="rh2-stat"><div class="rh2-stat-val" id="cab-retraits-total">—</div><div class="rh2-stat-lbl">Total retiré</div></div>
+        </div>
+      </div>
+      <div id="cab-retraits-list">
+        <div class="cab-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION TRANSFÉRER (cabine-à-cabine)
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-transfert">
+      <div class="tf-card">
+        <div class="tf-head">
+          <button class="tf-back" onclick="showCabSection('home')"><i class="fa-solid fa-arrow-left"></i></button>
+          <div class="tf-head-ico"><i class="fa-solid fa-right-left"></i></div>
+          <div class="tf-head-text">
+            <div class="tf-title">Transférer à un cabiniste</div>
+            <div class="tf-sub">Frais de service : <b>150 FCFA</b> à votre charge</div>
+          </div>
+        </div>
+
+        <div class="tf-body">
+          <div>
+            <div class="tf-field-label"><i class="fa-solid fa-store"></i> Cabine destinataire</div>
+            <div class="tf-input-wrap">
+              <span class="tf-input-ico"><i class="fa-solid fa-shop"></i></span>
+              <input type="text" class="tf-input" id="cab-transfer-nom" placeholder="Ex : KBINE Plus Yopougon"
+                oninput="handleCabTransferLookup(this.value)" autocomplete="off" />
+            </div>
+            <div id="cab-transfer-preview"></div>
+          </div>
+
+          <div>
+            <div class="tf-field-label"><i class="fa-solid fa-coins"></i> Montant à envoyer</div>
+            <div class="tf-amount-wrap">
+              <span class="tf-amount-prefix">F</span>
+              <input type="number" min="1" class="tf-amount-input" id="cab-transfer-montant"
+                placeholder="0" oninput="handleCabTransferMontantChange()" />
+              <span class="tf-amount-unit">FCFA</span>
+            </div>
+            <div class="tf-amount-chips">
+              <button type="button" class="tf-amount-chip" data-amount="5000" onclick="pickCabTransferAmount(5000)">5 000</button>
+              <button type="button" class="tf-amount-chip" data-amount="25000" onclick="pickCabTransferAmount(25000)">25 000</button>
+              <button type="button" class="tf-amount-chip" data-amount="50000" onclick="pickCabTransferAmount(50000)">50 000</button>
+              <button type="button" class="tf-amount-chip" data-amount="100000" onclick="pickCabTransferAmount(100000)">100 000</button>
+            </div>
+          </div>
+
+          <div class="tf-total">
+            <div class="tf-total-lbl">
+              <span>Total débité</span>
+              <span>Frais de service inclus</span>
+            </div>
+            <div class="tf-total-val" id="cab-transfer-total">—</div>
+          </div>
+
+          <button type="button" class="tf-submit" id="cab-transfer-submit-btn" disabled onclick="handleCabTransferSubmit()">
+            <i class="fa-solid fa-paper-plane"></i> Envoyer
+          </button>
+        </div>
+      </div>
+
+      <div class="tfh-card">
+        <div class="tfh-ico"><i class="fa-solid fa-clock-rotate-left"></i></div>
+        <div class="tfh-title">Historique des transferts</div>
+        <div class="tfh-sub">Envoyés &amp; reçus</div>
+      </div>
+      <div id="cab-transfer-history-list">
+        <div class="cab-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION HISTORIQUE (transactions de la cabine —
+         débits comme un réabonnement, même patron visuel
+         que l'historique client, .hoc-card/TYPE_META)
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-historique">
+      <div class="rh2-card">
+        <div class="rh2-row">
+          <button class="rh2-back" onclick="showCabSection('home')"><i class="fa-solid fa-arrow-left"></i></button>
+          <div class="rh2-ico"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <div>
+            <div class="rh2-title">Historique</div>
+            <div class="rh2-sub">Vos transactions (réabonnements, débits…)</div>
+          </div>
+        </div>
+      </div>
+      <div id="cab-historique-list">
+        <div class="cab-empty-state"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION COMMISSIONS
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-commissions">
+      <div class="cs-sec-bar">
+        <div class="cs-sec-bar-ico cs-sec-bar-ico--comm"><i class="fa-solid fa-coins"></i></div>
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Historique des commandes</div>
+        </div>
+      </div>
+      <div class="ccm-search-wrap">
+        <i class="fa-solid fa-magnifying-glass ccm-search-ico"></i>
+        <input type="text" id="cab-comm-search" class="ccm-search-input" placeholder="Rechercher par numéro de téléphone ou ID" oninput="searchCabCommissions()" autocomplete="off">
+      </div>
+      <div id="comm-list" class="ccm-list">
+        <div class="cab-empty-state cab-empty-state--light"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION CUMUL COMMISSIONS — DÉTAIL PAR JOUR
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-comm-daily">
+      <div class="cs-sec-bar">
+        <button class="cs-sec-back" onclick="showCabSection('home')"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="cs-sec-bar-ico cs-sec-bar-ico--comm"><i class="fa-solid fa-sack-dollar"></i></div>
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Cumul commissions</div>
+          <div class="cs-sec-bar-sub">Total par jour</div>
+        </div>
+      </div>
+      <div id="cab-comm-daily-list">
+        <div class="cab-empty-state cab-empty-state--light"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION CUMUL COMMANDES — DÉTAIL PAR JOUR
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-cmd-daily">
+      <div class="cs-sec-bar">
+        <button class="cs-sec-back" onclick="showCabSection('home')"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="cs-sec-bar-ico cs-sec-bar-ico--orders"><i class="fa-solid fa-chart-line"></i></div>
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Cumul commandes</div>
+          <div class="cs-sec-bar-sub">Total par jour</div>
+        </div>
+      </div>
+      <div id="cab-cmd-daily-list">
+        <div class="cab-empty-state cab-empty-state--light"><i class="fa-solid fa-spinner fa-spin"></i> Chargement…</div>
+      </div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION RÉCLAMATIONS
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-reclamations">
+      <div class="cs-sec-bar">
+        <div class="cs-sec-bar-ico cs-sec-bar-ico--recla"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Réclamations clients</div>
+          <div class="cs-sec-bar-sub">Litiges à traiter</div>
+        </div>
+      </div>
+      <div class="cof-filter-card">
+        <div class="cof-tabs">
+          <button class="cof-ctab active" data-filter="en_attente" onclick="filterCabReclamations('en_attente', this)">
+            <i class="fa-solid fa-hourglass-half"></i> En cours
+            <span class="cof-ctab-badge" id="recla-tab-badge-attente" style="display:none">0</span>
+          </button>
+          <button class="cof-ctab" data-filter="resolues" onclick="filterCabReclamations('resolues', this)">
+            <i class="fa-solid fa-circle-check"></i> Terminées
+          </button>
+        </div>
+      </div>
+      <div class="ccm-search-wrap">
+        <i class="fa-solid fa-magnifying-glass ccm-search-ico"></i>
+        <input type="text" id="recla-search" class="ccm-search-input" placeholder="Rechercher par client, référence ou motif" oninput="searchCabReclamations(this.value)" autocomplete="off">
+      </div>
+      <div id="recla-list" class="recla-list"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION NOTIFICATIONS
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-notifications">
+      <div class="cs-sec-bar">
+        <div class="cs-sec-bar-ico cs-sec-bar-ico--notif"><i class="fa-solid fa-bell"></i></div>
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Notifications</div>
+          <div class="cs-sec-bar-sub">Alertes &amp; messages</div>
+        </div>
+        <button class="cs-sec-action" onclick="markAllCabRead()">
+          <i class="fa-solid fa-check-double"></i> Tout lire
+        </button>
+      </div>
+      <div id="cab-notif-list" class="notif-list"></div>
+    </div>
+
+    <!-- ════════════════════════════════════════════
+         SECTION PROFIL
+    ═════════════════════════════════════════════ -->
+    <div class="cab-section" id="cab-sec-profile">
+      <div class="cs-sec-bar">
+        <div class="cs-sec-bar-info">
+          <div class="cs-sec-bar-title">Mon profil</div>
+          <div class="cs-sec-bar-sub">Compte &amp; paramètres</div>
+        </div>
+      </div>
+
+      <!-- Carte profil -->
+      <div class="cab-prof-card">
+        <div class="cab-prof-top">
+          <div class="cab-prof-avatar" id="cab-prof-avatar">?</div>
+          <div class="cab-prof-id">
+            <div class="cab-prof-name-row">
+              <div class="cab-prof-name" id="cab-prof-name">—</div>
+              <span class="cab-prof-badge"><i class="fa-solid fa-check"></i></span>
+            </div>
+            <span class="cab-prof-role"><i class="fa-solid fa-store"></i> Cabine KBINE PLUS <span class="cab-prof-badge cab-prof-badge--sm"><i class="fa-solid fa-check"></i></span></span>
+          </div>
+        </div>
+        <div class="cab-prof-stats">
+          <div class="cab-prof-stat">
+            <div class="cab-prof-stat-lbl"><i class="fa-solid fa-calendar-days"></i> Membre depuis</div>
+            <div class="cab-prof-stat-val" id="cab-prof-member">—</div>
+          </div>
+          <div class="cab-prof-stat">
+            <div class="cab-prof-stat-lbl"><i class="fa-solid fa-circle-check"></i> Statut</div>
+            <div class="cab-prof-stat-val cab-prof-stat-val--status"><span class="cab-prof-dot" id="cab-prof-status-dot"></span><span id="cab-prof-status">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Groupe "Compte" : Informations personnelles + Changer le mot de passe -->
+      <p class="cab-settings-eyebrow">Compte</p>
+      <div class="cab-settings-group">
+      <button type="button" class="cab-settings-row" id="cab-pinfo-btn" onclick="toggleCabPersonalInfo()">
+        <span class="cab-settings-row-ic cab-settings-row-ic--blue"><i class="fa-solid fa-id-card"></i></span>
+        <span class="cab-settings-row-lbl">Informations personnelles</span>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-pinfo-icon"></i>
+      </button>
+        <div id="cab-pinfo-body" style="display:none;padding:14px;">
+
+          <!-- Avertissement lecture seule -->
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(234,179,8,.1);border:1px solid rgba(234,179,8,.3);border-radius:10px;padding:9px 12px;margin-bottom:14px;">
+            <i class="fa-solid fa-lock" style="color:#FBBF24;font-size:.75rem;flex-shrink:0;"></i>
+            <span style="font-size:.65rem;color:#FDE68A;line-height:1.4;">Ces informations ont été enregistrées lors de votre inscription. Seul un administrateur peut les modifier.</span>
+          </div>
+
+          <div class="cab-form-row2">
+            <div class="cab-fgroup">
+              <label class="cab-flabel">Prénom</label>
+              <div class="cab-info-field" id="cab-prof-prenom-view">—</div>
+            </div>
+            <div class="cab-fgroup">
+              <label class="cab-flabel">Nom</label>
+              <div class="cab-info-field" id="cab-prof-nom-view">—</div>
+            </div>
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Téléphone</label>
+            <div class="cab-info-field" id="cab-prof-tel-view">—</div>
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Email</label>
+            <div class="cab-info-field" id="cab-prof-email-view">—</div>
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Nom de la cabine</label>
+            <div class="cab-info-field" id="cab-prof-cabnom-view">—</div>
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">WhatsApp</label>
+            <div class="cab-info-field" id="cab-prof-wa-view">—</div>
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Zone / Quartier</label>
+            <div class="cab-info-field" id="cab-prof-zone-view">—</div>
+          </div>
+
+          <!-- Formulaire d'édition admin uniquement (masqué par défaut) -->
+          <div id="cab-prof-admin-edit" style="display:none;margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,.1);">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:12px;">
+              <i class="fa-solid fa-shield-halved" style="color:#C4B5FD;font-size:.8rem;"></i>
+              <span style="font-size:.72rem;font-weight:800;color:#C4B5FD;">Modification administrateur</span>
+            </div>
+            <form onsubmit="handleCabineProfileUpdate(event)">
+              <div class="cab-form-row2">
+                <div class="cab-fgroup">
+                  <label class="cab-flabel">Prénom</label>
+                  <input type="text" class="cab-finput" id="cab-prof-prenom" required />
+                </div>
+                <div class="cab-fgroup">
+                  <label class="cab-flabel">Nom</label>
+                  <input type="text" class="cab-finput" id="cab-prof-nom" required />
+                </div>
+              </div>
+              <div class="cab-fgroup">
+                <label class="cab-flabel">Nom de la cabine</label>
+                <input type="text" class="cab-finput" id="cab-prof-cabnom" />
+              </div>
+              <div class="cab-fgroup">
+                <label class="cab-flabel">Téléphone</label>
+                <input type="tel" class="cab-finput" id="cab-prof-tel" maxlength="14" oninput="formatPhoneInput(this)" />
+              </div>
+              <div class="cab-fgroup">
+                <label class="cab-flabel">WhatsApp</label>
+                <input type="tel" class="cab-finput" id="cab-prof-wa" maxlength="14" oninput="formatPhoneInput(this)" />
+              </div>
+              <div class="cab-fgroup">
+                <label class="cab-flabel">Email (Gmail)</label>
+                <input type="email" class="cab-finput" id="cab-prof-email" placeholder="exemple@gmail.com" required />
+              </div>
+              <div class="cab-fgroup">
+                <label class="cab-flabel">Zone / Quartier</label>
+                <input type="text" class="cab-finput" id="cab-prof-zone" />
+              </div>
+              <button type="submit" class="cab-btn-primary"><i class="fa-solid fa-save"></i> Enregistrer</button>
+            </form>
+          </div>
+        </div>
+
+      <!-- Changer le mot de passe (accordéon) -->
+      <button type="button" class="cab-settings-row" id="cab-pwd-btn" onclick="toggleCabPwdSection()">
+        <span class="cab-settings-row-ic cab-settings-row-ic--red"><i class="fa-solid fa-lock"></i></span>
+        <span class="cab-settings-row-lbl">Changer le mot de passe</span>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-pwd-icon"></i>
+      </button>
+        <div id="cab-pwd-body" style="display:none;padding:14px;">
+        <form id="cab-pwd-form" onsubmit="handleCabinePwdChange(event)">
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Mot de passe actuel</label>
+            <input type="password" class="cab-finput" id="cab-pwd-current" required />
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Nouveau code PIN (4 chiffres)</label>
+            <input type="password" class="cab-finput" id="cab-pwd-new" required inputmode="numeric" maxlength="4" pattern="[0-9]{4}" />
+          </div>
+          <div class="cab-fgroup">
+            <label class="cab-flabel">Confirmer</label>
+            <input type="password" class="cab-finput" id="cab-pwd-confirm" required inputmode="numeric" maxlength="4" pattern="[0-9]{4}" />
+          </div>
+          <button type="submit" class="cab-btn-secondary"><i class="fa-solid fa-key"></i> Modifier</button>
+        </form>
+        </div>
+      </div>
+
+      <!-- Groupe "Paiements" : Retrait + Réabonnement -->
+      <p class="cab-settings-eyebrow">Paiements</p>
+      <div class="cab-settings-group">
+      <button type="button" class="cab-settings-row" id="cab-retrait-btn" onclick="toggleCabRetraitSection()">
+        <span class="cab-settings-row-ic cab-settings-row-ic--green"><i class="fa-solid fa-wallet"></i></span>
+        <span class="cab-settings-row-lbl">Retrait</span>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-retrait-icon"></i>
+      </button>
+        <div id="cab-retrait-body" style="display:none;padding:14px;">
+          <p class="cab-reabo-intro">Choisissez le réseau et le numéro sur lesquels vous souhaitez recevoir le paiement de vos ventes du jour. Modifiable une seule fois toutes les 24h.</p>
+
+          <div class="prg-pay-grid" id="cab-retrait-grid">
+            <div class="prg-pay-card" data-pay="Orange Money" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#FF6200;"></div>
+              <span>Orange Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="MTN MoMo" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#FFCC00;"></div>
+              <span>MTN MoMo</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Moov Money" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#0066CC;"></div>
+              <span>Moov Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Djamo" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#7c3aed;"></div>
+              <span>Djamo</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Wave Business" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <span>Wave Business</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Wave Normal" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <span>Wave Normal</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Compte bancaire" onclick="cabSelectRetraitReseau(this)">
+              <div class="prg-pay-dot" style="background:#374151;"></div>
+              <span>Compte bancaire</span>
+            </div>
+          </div>
+
+          <div class="cab-fgroup" style="margin-top:12px;">
+            <label class="cab-flabel">Numéro de réception</label>
+            <input type="text" class="cab-finput" id="cab-retrait-numero" placeholder="Numéro mobile money ou compte bancaire" oninput="formatPhoneInput(this)" />
+          </div>
+
+          <div class="cab-reabo-summary-warning" id="cab-retrait-lock-msg" style="display:none;">
+            <i class="fa-solid fa-clock"></i> <span id="cab-retrait-lock-text"></span>
+          </div>
+
+          <button type="button" class="cab-btn-primary" id="cab-retrait-save-btn" onclick="confirmCabRetrait()">
+            <i class="fa-solid fa-floppy-disk"></i> Enregistrer
+          </button>
+        </div>
+
+      <!-- Réabonnement (accordéon) -->
+      <button type="button" class="cab-settings-row" id="cab-reabo-btn" onclick="toggleCabReaboSection()">
+        <span class="cab-settings-row-ic cab-settings-row-ic--purple"><i class="fa-solid fa-rotate"></i></span>
+        <span class="cab-settings-row-lbl">Réabonnement</span>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-reabo-icon"></i>
+      </button>
+        <div id="cab-reabo-body" style="display:none;padding:14px;">
+          <p class="cab-reabo-intro" id="cab-reabo-intro">Choisissez une formule pour repartir sur un nouveau cycle de commission. Le paiement se fait exclusivement avec votre solde — un solde insuffisant est autorisé, le montant restant sera à rembourser.</p>
+          <div class="cab-reabo-grid" id="cab-reabo-grid">
+            <div class="cab-reabo-card cbc-card cbc-card--premium" data-formule="Premium" onclick="cabSelectReaboFormule('Premium')">
+              <div class="cab-reabo-card-badge" id="cab-reabo-badge-Premium" style="display:none;">Formule actuelle</div>
+              <div class="cab-reabo-card-check" id="cab-reabo-check-Premium"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="cab-reabo-card-name">Premium</div>
+              <div class="cab-reabo-card-price" id="cab-reabo-price-Premium">—</div>
+              <div class="cab-reabo-card-quota" id="cab-reabo-quota-Premium">—</div>
+            </div>
+            <div class="cab-reabo-card cbc-card cbc-card--vip" data-formule="VIP" onclick="cabSelectReaboFormule('VIP')">
+              <div class="cab-reabo-card-badge" id="cab-reabo-badge-VIP" style="display:none;">Formule actuelle</div>
+              <div class="cab-reabo-card-check" id="cab-reabo-check-VIP"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="cab-reabo-card-name">VIP</div>
+              <div class="cab-reabo-card-price" id="cab-reabo-price-VIP">—</div>
+              <div class="cab-reabo-card-quota" id="cab-reabo-quota-VIP">—</div>
+            </div>
+            <div class="cab-reabo-card cbc-card cbc-card--vvip" data-formule="VVIP" onclick="cabSelectReaboFormule('VVIP')">
+              <div class="cab-reabo-card-badge" id="cab-reabo-badge-VVIP" style="display:none;">Formule actuelle</div>
+              <div class="cab-reabo-card-check" id="cab-reabo-check-VVIP"><i class="fa-solid fa-circle-check"></i></div>
+              <div class="cab-reabo-card-name">VVIP</div>
+              <div class="cab-reabo-card-price" id="cab-reabo-price-VVIP">—</div>
+              <div class="cab-reabo-card-quota" id="cab-reabo-quota-VVIP">—</div>
+            </div>
+          </div>
+
+          <div class="cab-reabo-summary" id="cab-reabo-summary" style="display:none;">
+            <div class="cab-reabo-summary-row"><span>Formule choisie</span><strong id="cab-reabo-sum-formule">—</strong></div>
+            <div class="cab-reabo-summary-row"><span>Prix à payer</span><strong id="cab-reabo-sum-prix">—</strong></div>
+            <div class="cab-reabo-summary-row"><span>Solde actuel</span><strong id="cab-reabo-sum-solde">—</strong></div>
+            <div class="cab-reabo-summary-warning" id="cab-reabo-sum-warning" style="display:none;">
+              <i class="fa-solid fa-triangle-exclamation"></i> <span id="cab-reabo-sum-warning-text"></span>
+            </div>
+            <button type="button" class="cab-btn-primary" id="cab-reabo-confirm-btn" onclick="confirmCabReabonnement()">
+              <i class="fa-solid fa-credit-card"></i> Confirmer et payer avec mon solde
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications (son) -->
+      <p class="cab-settings-eyebrow">Préférences</p>
+      <div class="cab-form-block">
+        <div class="cab-notif-row">
+          <span class="cab-settings-row-ic cab-settings-row-ic--green cab-settings-row-ic--lg"><i class="fa-solid fa-bell"></i></span>
+          <div class="cab-notif-row-text">
+            <div class="cab-notif-row-status" id="cab-notif-sound-status">Activées</div>
+          </div>
+          <button type="button" class="cab-notif-toggle" id="cab-notif-sound-toggle"
+                  onclick="toggleCabNotifSound()" role="switch" aria-checked="true"
+                  title="Activer / mettre en silencieux">
+            <span class="cab-notif-toggle-knob"></span>
+          </button>
+        </div>
+        <button type="button" class="cab-sound-head" id="cab-sound-btn" onclick="toggleCabSoundPicker('commande')">
+          <span class="cab-notif-row-title" style="margin-bottom:0;"><i class="fa-solid fa-music"></i> Son — Nouvelle commande</span>
+          <span class="cab-sound-head-r">
+            <span class="cab-sound-current" id="cab-sound-current">—</span>
+            <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-sound-icon"></i>
+          </span>
+        </button>
+        <div class="cab-sound-picker" id="cab-sound-picker" style="display:none;"></div>
+
+        <!-- Son distinct pour les réclamations (voir CabSound.notify('reclamation'),
+             js/cabine.js) — même mécanisme d'aperçu/sélection que ci-dessus,
+             stocké séparément (kbine_cab_notif_sound_preset_recla). -->
+        <button type="button" class="cab-sound-head" id="cab-sound-btn-recla" onclick="toggleCabSoundPicker('reclamation')" style="margin-top:10px;">
+          <span class="cab-notif-row-title" style="margin-bottom:0;"><i class="fa-solid fa-triangle-exclamation"></i> Son — Nouvelle réclamation</span>
+          <span class="cab-sound-head-r">
+            <span class="cab-sound-current" id="cab-sound-current-recla">—</span>
+            <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-sound-icon-recla"></i>
+          </span>
+        </button>
+        <div class="cab-sound-picker" id="cab-sound-picker-recla" style="display:none;"></div>
+      </div>
+
+      <!-- Codes USSD (accordéon unique, un réseau par ligne) -->
+      <div class="cab-form-block" style="padding:0;overflow:hidden;">
+        <button type="button" class="cab-pinfo-head" id="cab-ussd-btn" onclick="toggleUssdSection()">
+          <span class="cab-pinfo-head-label"><i class="fa-solid fa-hashtag"></i> Codes USSD</span>
+          <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-ussd-icon"></i>
+        </button>
+        <div id="cab-ussd-body" style="display:none;padding:14px;">
+          <div class="cab-devices-hint">Activez ou désactivez la composition automatique du code USSD par réseau (transfert direct et forfaits).</div>
+          <div class="cab-net-list cab-net-list--rows">
+            <div class="cab-net-line cab-net-line--orange" onclick="toggleUssdNetwork('orange', document.getElementById('ussd-toggle-orange'))" role="button" tabindex="0" aria-label="Activer/désactiver le code USSD Orange">
+              <span class="cab-net-ico-badge"><i class="fa-solid fa-hashtag cab-net-ico"></i></span>
+              <span class="cab-net-name">ORANGE · #161</span>
+              <button class="cab-toggle active" id="ussd-toggle-orange" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            </div>
+            <div class="cab-net-line cab-net-line--mtn" onclick="toggleUssdNetwork('mtn', document.getElementById('ussd-toggle-mtn'))" role="button" tabindex="0" aria-label="Activer/désactiver le code USSD MTN">
+              <span class="cab-net-ico-badge"><i class="fa-solid fa-hashtag cab-net-ico"></i></span>
+              <span class="cab-net-name">MTN · Marchand</span>
+              <button class="cab-toggle active" id="ussd-toggle-mtn" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            </div>
+            <div class="cab-net-line cab-net-line--moov" onclick="toggleUssdNetwork('moov', document.getElementById('ussd-toggle-moov'))" role="button" tabindex="0" aria-label="Activer/désactiver le code USSD Moov">
+              <span class="cab-net-ico-badge"><i class="fa-solid fa-hashtag cab-net-ico"></i></span>
+              <span class="cab-net-name">MOOV · Marchand</span>
+              <button class="cab-toggle active" id="ussd-toggle-moov" tabindex="-1" aria-hidden="true"><span class="cab-toggle-knob"></span></button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Connexion par empreinte digitale (masqué si aucun capteur) -->
+      <div class="cab-form-block" id="cab-biometric-block" style="display:none;">
+        <div class="cab-notif-row">
+          <span class="cab-settings-row-ic cab-settings-row-ic--green cab-settings-row-ic--lg"><i class="fa-solid fa-fingerprint"></i></span>
+          <div class="cab-notif-row-text">
+            <div class="cab-notif-row-title" style="margin-bottom:2px;">Connexion par empreinte digitale</div>
+            <div class="cab-notif-row-status" id="cab-biometric-status">Désactivée</div>
+          </div>
+          <button type="button" class="cab-notif-toggle" id="cab-biometric-toggle"
+                  onclick="toggleCabBiometric()" role="switch" aria-checked="false"
+                  title="Activer / désactiver la connexion par empreinte">
+            <span class="cab-notif-toggle-knob"></span>
+          </button>
+        </div>
+        <div class="cab-devices-hint" id="cab-biometric-not-enrolled-hint" style="display:none;">Configurez une empreinte dans les réglages de votre téléphone pour activer cette option.</div>
+      </div>
+
+      <!-- Mes appareils connectés (accordéon) -->
+      <div class="cab-form-block" style="padding:0;overflow:hidden;">
+        <button type="button" class="cab-pinfo-head" id="cab-devices-btn" onclick="toggleCabDevicesSection()">
+          <span class="cab-pinfo-head-label"><i class="fa-solid fa-mobile-screen-button"></i> Mes appareils connectés</span>
+          <i class="fa-solid fa-chevron-down ph5-why-icon" id="cab-devices-icon"></i>
+        </button>
+        <div id="cab-devices-body" style="display:none;padding:14px;">
+          <div class="cab-devices-hint">Maximum 2 appareils simultanés. La connexion d'un 3ᵉ appareil déconnecte automatiquement le plus ancien.</div>
+          <div id="cab-devices-list"></div>
+        </div>
+      </div>
+
+      <!-- Déconnexion -->
+      <button type="button" class="cab-logout-row" onclick="openLogoutChoice()">
+        <span class="cab-logout-row-ic"><i class="fa-solid fa-right-from-bracket"></i></span>
+        <span class="cab-logout-row-txt">
+          <span class="cab-logout-row-lbl">Déconnexion</span>
+          <span class="cab-logout-row-sub">Se déconnecter de cet appareil</span>
+        </span>
+        <span class="cab-logout-row-chev"><i class="fa-solid fa-chevron-right"></i></span>
+      </button>
+    </div>
+
+  </div><!-- /cab-content -->
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav class="cab-bottom-nav" id="cab-bnav">
+    <button class="cab-bnav-tab active" id="tab-home" onclick="showCabSection('home')">
+      <span class="cab-bnav-ico"><i class="fa-solid fa-house"></i></span>
+      <span class="cab-bnav-lbl">Accueil</span>
+    </button>
+    <button class="cab-bnav-tab" id="tab-commissions" onclick="showCabSection('commissions'); loadCommissions();">
+      <span class="cab-bnav-ico cab-bnav-ico--indigo"><i class="fa-solid fa-clock-rotate-left"></i></span>
+      <span class="cab-bnav-lbl">Historique</span>
+    </button>
+    <button class="cab-bnav-tab cab-bnav-tab--wa" onclick="openCabWhatsappPicker()" title="Assistant WhatsApp KBINE PLUS">
+      <span class="cab-bnav-ico"><i class="fa-brands fa-whatsapp"></i></span>
+      <span class="cab-bnav-lbl">WhatsApp</span>
+    </button>
+    <button class="cab-bnav-tab" id="tab-recla" onclick="showCabSection('reclamations'); loadCabReclamations();">
+      <span class="cab-bnav-ico cab-bnav-ico--teal">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span class="cab-bnav-badge" id="recla-badge" style="display:none">0</span>
+      </span>
+      <span class="cab-bnav-lbl">Réclamations</span>
+    </button>
+    <button class="cab-bnav-tab" id="tab-profile" onclick="showCabSection('profile'); loadProfile();">
+      <span class="cab-bnav-ico cab-bnav-ico--violet"><i class="fa-solid fa-user"></i></span>
+      <span class="cab-bnav-lbl">Profil</span>
+    </button>
+  </nav>
+
+</div><!-- /cab-app -->
+
+<!-- ══ MODAL RENVOI DE COMMANDE (motif obligatoire) ══ -->
+<div class="modal-overlay" id="modal-cab-refuse">
+  <div class="modal" style="max-width:340px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-circle-xmark" style="color:#EF4444"></i> Renvoyer la commande</span>
+      <button class="modal-close" onclick="closeCabRefuseModal()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body cqk-reason-body">
+      <div class="cqk-reason-icon"><i class="fa-solid fa-paper-plane"></i></div>
+      <p class="cqk-reason-caption">Cette commande sera réattribuée à une autre cabine connectée, ou remise en attente côté administration si aucune n'est disponible.</p>
+      <form id="cab-refuse-form" onsubmit="confirmCabRefuse(event)">
+        <!-- Select réel conservé, masqué : source de vérité inchangée
+             pour onCabRefuseReasonChange()/confirmCabRefuse(). -->
+        <select class="form-control" id="cab-refuse-motif" onchange="onCabRefuseReasonChange()" style="display:none">
+          <option value="" disabled selected>Sélectionner un motif</option>
+          <option value="numero_invalide">Numéro invalide</option>
+          <option value="solde_invalide">Solde invalide</option>
+          <option value="probleme_reseau">Problème de réseau</option>
+          <option value="autre">Autre</option>
+        </select>
+        <div class="cqk-reason-list" id="cab-refuse-motif-list">
+          <div class="cqk-reason-row" data-value="numero_invalide" onclick="_cabPickReason('cab-refuse-motif','cab-refuse-motif-list',this.dataset.value)"><span class="cqk-reason-radio"></span><span>Numéro invalide</span></div>
+          <div class="cqk-reason-row" data-value="solde_invalide" onclick="_cabPickReason('cab-refuse-motif','cab-refuse-motif-list',this.dataset.value)"><span class="cqk-reason-radio"></span><span>Solde invalide</span></div>
+          <div class="cqk-reason-row" data-value="probleme_reseau" onclick="_cabPickReason('cab-refuse-motif','cab-refuse-motif-list',this.dataset.value)"><span class="cqk-reason-radio"></span><span>Problème de réseau</span></div>
+          <div class="cqk-reason-row" data-value="autre" onclick="_cabPickReason('cab-refuse-motif','cab-refuse-motif-list',this.dataset.value)"><span class="cqk-reason-radio"></span><span>Autre</span></div>
+        </div>
+        <div class="form-group" id="cab-refuse-other-wrap" style="display:none">
+          <label class="form-label">Précisez le motif</label>
+          <textarea class="form-control" id="cab-refuse-other" rows="2" placeholder="Expliquez la raison du renvoi…"></textarea>
+        </div>
+        <button type="submit" class="cqk-reason-btn">
+          <i class="fa-solid fa-paper-plane"></i> Confirmer le renvoi
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL MISE EN PAUSE ══ -->
+<div class="modal-overlay" id="modal-cab-pause">
+  <div class="modal cpz-modal" style="max-width:340px;">
+    <div class="cpz-head">
+      <div class="cpz-head-ico"><i class="fa-solid fa-pause"></i></div>
+      <div class="cpz-head-text">
+        <div class="cpz-title">Mettre en pause</div>
+        <div class="cpz-sub">Aucune nouvelle commande tant que non repris</div>
+      </div>
+      <button class="cpz-close" onclick="closeCabPauseModal()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="cpz-body">
+      <form id="cab-pause-form" onsubmit="handleCabPauseSubmit(event)">
+        <!-- Select réel conservé, masqué : source de vérité inchangée
+             pour onCabPauseReasonChange()/handleCabPauseSubmit()/
+             _saveCabPauseDraft() et la reprise d'état au rechargement. -->
+        <select class="form-control" id="cqk-reason-select" onchange="onCabPauseReasonChange()" style="display:none">
+          <option value="" disabled selected>Sélectionner un motif</option>
+          <option value="Pause déjeuner">Pause déjeuner</option>
+          <option value="Repos">Repos</option>
+          <option value="Problème de connexion">Problème de connexion</option>
+          <option value="Téléphone déchargé">Téléphone déchargé</option>
+          <option value="Autre">Autre</option>
+        </select>
+        <div class="cqk-reason-list" id="cqk-reason-list">
+          <div class="cqk-reason-row" data-value="Pause déjeuner" onclick="_cabPickReason('cqk-reason-select','cqk-reason-list',this.dataset.value)"><i class="fa-solid fa-mug-saucer"></i><span>Pause déjeuner</span></div>
+          <div class="cqk-reason-row" data-value="Repos" onclick="_cabPickReason('cqk-reason-select','cqk-reason-list',this.dataset.value)"><i class="fa-solid fa-bed"></i><span>Repos</span></div>
+          <div class="cqk-reason-row" data-value="Problème de connexion" onclick="_cabPickReason('cqk-reason-select','cqk-reason-list',this.dataset.value)"><i class="fa-solid fa-wifi"></i><span>Connexion</span></div>
+          <div class="cqk-reason-row" data-value="Téléphone déchargé" onclick="_cabPickReason('cqk-reason-select','cqk-reason-list',this.dataset.value)"><i class="fa-solid fa-battery-quarter"></i><span>Téléphone</span></div>
+          <div class="cqk-reason-row cqk-reason-row--wide" data-value="Autre" onclick="_cabPickReason('cqk-reason-select','cqk-reason-list',this.dataset.value)"><i class="fa-solid fa-ellipsis"></i><span>Autre motif</span></div>
+        </div>
+        <div class="form-group" id="cqk-reason-other-wrap" style="display:none">
+          <textarea class="form-control cpz-textarea" id="cqk-reason-other" rows="2" placeholder="Expliquez la raison de la pause…" oninput="_saveCabPauseDraft()"></textarea>
+        </div>
+        <button type="submit" class="cpz-submit-btn">
+          <i class="fa-solid fa-pause"></i> Confirmer la pause
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL RECHARGE UV — modèle "assistant pas-à-pas", même langage
+     visuel que les modales de service du client (svc-modal/svc-net-btn/
+     svc-stepper), au lieu d'un formulaire unique ══ -->
+<div class="modal-overlay" id="modal-cab-uv">
+  <div class="modal svc-modal" style="max-width:380px;">
+
+    <div class="svc-modal-header">
+      <div class="svc-modal-title" style="color:#FF9A3C;">
+        <i class="fa-solid fa-bolt-lightning" style="color:#FF9A3C;"></i> Recharge UV
+      </div>
+      <button class="svc-modal-close" onclick="closeModal('modal-cab-uv')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="svc-modal-body">
+      <div class="svc-frais-badge"><i class="fa-solid fa-info-circle"></i> Frais de service : 200 FCFA</div>
+
+      <!-- Deux sections : passer une commande, ou gérer ses propres
+           réclamations sur des commandes déjà passées (voir cabUvSwitchTab,
+           js/cabine.js). -->
+      <div class="cof-tabs" style="margin-bottom:14px;">
+        <button class="cof-ctab active" id="cab-uv-tabbtn-commande" onclick="cabUvSwitchTab('commande')">
+          <i class="fa-solid fa-paper-plane"></i> Je passe une commande
+        </button>
+        <button class="cof-ctab" id="cab-uv-tabbtn-reclamation" onclick="cabUvSwitchTab('reclamation')">
+          <i class="fa-solid fa-triangle-exclamation"></i> Réclamation
+        </button>
+      </div>
+
+      <div id="cab-uv-tab-commande">
+
+        <div class="svc-stepper" id="cab-uv-stepper">
+          <div class="svc-stepper-dot current" id="cab-uv-dot-1">1</div>
+          <div class="svc-stepper-line" id="cab-uv-line-1"></div>
+          <div class="svc-stepper-dot" id="cab-uv-dot-2">2</div>
+          <div class="svc-stepper-line" id="cab-uv-line-2"></div>
+          <div class="svc-stepper-dot" id="cab-uv-dot-3">3</div>
+          <div class="svc-stepper-line" id="cab-uv-line-3"></div>
+          <div class="svc-stepper-dot" id="cab-uv-dot-4">4</div>
+        </div>
+
+        <form id="cab-uv-form">
+          <!-- Étape 1 : Réseau -->
+          <div id="cab-uv-step-1">
+            <div class="svc-step-head">
+              <div class="svc-step-head-ico"><i class="fa-solid fa-tower-broadcast"></i></div>
+              <div class="svc-step-head-title">Réseau à recharger</div>
+            </div>
+            <div class="svc-net-row">
+              <div class="svc-net-btn" id="cab-uv-net-Orange" style="--net-clr:#FF6200" onclick="cabUvSelectNetwork('Orange',this)">
+                <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+                <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span style=font-size:1.3rem>🟠</span>'">
+                <span>Orange</span>
+              </div>
+              <div class="svc-net-btn" id="cab-uv-net-Moov" style="--net-clr:#0066CC" onclick="cabUvSelectNetwork('Moov',this)">
+                <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+                <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span style=font-size:1.3rem>🔵</span>'">
+                <span>Moov</span>
+              </div>
+              <div class="svc-net-btn" id="cab-uv-net-MTN" style="--net-clr:#FFCC00" onclick="cabUvSelectNetwork('MTN',this)">
+                <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+                <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span style=font-size:1.3rem>🟡</span>'">
+                <span>MTN</span>
+              </div>
+            </div>
+            <button type="button" class="svc-continue-btn" onclick="cabUvGoStep2()">Continuer <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+
+          <!-- Étape 2 : Numéro + Montant -->
+          <div id="cab-uv-step-2" style="display:none;">
+            <button type="button" class="svc-back-btn" onclick="cabUvGoBackToStep1()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+            <div class="svc-step-head">
+              <div class="svc-step-head-ico"><i class="fa-solid fa-mobile-screen"></i></div>
+              <div class="svc-step-head-title">Numéro à recharger</div>
+            </div>
+            <div class="svc-field">
+              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+                <i class="fa-solid fa-phone" style="color:rgba(255,255,255,.4);font-size:.8rem;"></i>
+                <input type="tel" id="cab-uv-number" class="svc-input" placeholder="ex: 0700000000" maxlength="14"
+                  oninput="formatPhoneInput(this)" required
+                  style="border:none;background:transparent;padding:11px 0;flex:1;">
+              </div>
+            </div>
+            <div class="svc-field">
+              <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant UV (FCFA)</label>
+              <div class="amount-presets">
+                <button type="button" class="preset-btn" onclick="document.getElementById('cab-uv-amount').value=10000">10 000</button>
+                <button type="button" class="preset-btn" onclick="document.getElementById('cab-uv-amount').value=15000">15 000</button>
+                <button type="button" class="preset-btn" onclick="document.getElementById('cab-uv-amount').value=20000">20 000</button>
+                <button type="button" class="preset-btn" onclick="document.getElementById('cab-uv-amount').value=30000">30 000</button>
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+                <i class="fa-solid fa-coins" style="color:rgba(255,255,255,.4);font-size:.8rem;"></i>
+                <input type="number" id="cab-uv-amount" class="svc-input" placeholder="Min. 10 000 FCFA" min="10000" required
+                  style="border:none;background:transparent;padding:11px 0;flex:1;">
+                <span style="color:rgba(255,255,255,.4);font-size:.75rem;font-weight:700;">FCFA</span>
+              </div>
+            </div>
+            <button type="button" class="svc-continue-btn" onclick="cabUvShowRecap()">Continuer <i class="fa-solid fa-arrow-right"></i></button>
+          </div>
+        </form>
+
+        <!-- Récapitulatif affiché AVANT tout débit (réseau/numéro/montant/
+             frais/total/solde restant) — voir cabUvShowRecap/cabUvConfirmPayment,
+             js/cabine.js. -->
+        <div id="cab-uv-panel-recap" style="display:none;">
+          <button type="button" class="svc-back-btn" onclick="cabUvBackToForm()"><i class="fa-solid fa-arrow-left"></i> Modifier</button>
+          <div id="cab-uv-recap-rows"></div>
+          <button type="button" class="svc-continue-btn" onclick="cabUvConfirmPayment()">
+            <i class="fa-solid fa-circle-check"></i> Confirmer le paiement
+          </button>
+        </div>
+
+        <!-- Confirmation — la commande n'est plus terminée instantanément
+             (voir DB.business.cabineSelfRecharge) : assignée à une autre
+             cabine si une est disponible, sinon en attente. Minuteur de 5
+             minutes + bouton Réclamation repris du suivi de commande client
+             (otk-countdown-wrap/otk-recla-btn, voir client.html) — voir
+             renderCabUvConfirmStatus/startCabUvPoll, js/cabine.js. -->
+        <div id="cab-uv-step-confirm" style="display:none;">
+          <div class="svc-confirm-ico"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="svc-confirm-title">Recharge UV envoyée</div>
+          <div class="svc-confirm-sub" id="cab-uv-confirm-status"></div>
+          <div id="cab-uv-confirm-recap"></div>
+
+          <div class="otk-countdown-wrap" id="cab-uv-countdown-wrap">
+            <i class="fa-solid fa-hourglass-half"></i>
+            <span>Réclamation possible dans <strong id="cab-uv-countdown-num">5:00</strong></span>
+          </div>
+          <button class="otk-recla-btn" id="cab-uv-recla-btn" style="display:none;" onclick="cabUvOpenSelfReclaFromConfirm()">
+            <i class="fa-solid fa-triangle-exclamation"></i> Faire une réclamation
+          </button>
+
+          <button class="svc-back-btn" onclick="stopCabUvPoll(); closeModal('modal-cab-uv')">Fermer</button>
+        </div>
+      </div>
+
+      <!-- Onglet Réclamation : dépôt sur une commande déjà passée +
+           historique de ses propres réclamations (voir §6 du plan,
+           loadCabUvReclaTab/js/cabine.js). -->
+      <div id="cab-uv-tab-reclamation" style="display:none;">
+        <div class="cof-tabs" style="margin-bottom:14px;">
+          <button class="cof-ctab active" id="cab-uv-recla-tabbtn-nouvelle" onclick="cabUvSwitchReclaSubTab('nouvelle')">Nouvelle</button>
+          <button class="cof-ctab" id="cab-uv-recla-tabbtn-historique" onclick="cabUvSwitchReclaSubTab('historique')">Historique</button>
+        </div>
+
+        <div id="cab-uv-recla-subtab-nouvelle">
+          <div id="cab-uv-recla-new-list" class="recla-list"></div>
+          <div id="cab-uv-recla-motif-picker" style="display:none;">
+            <div class="form-label">Motif de la réclamation</div>
+            <button class="rh-reason-btn" onclick="cabUvSubmitRecla('non_recue')"><i class="fa-solid fa-circle-exclamation"></i> Je n'ai pas reçu ma commande</button>
+            <button class="rh-reason-btn" onclick="cabUvSubmitRecla('non_conforme')"><i class="fa-solid fa-triangle-exclamation"></i> J'ai reçu, mais pas ce que j'ai demandé</button>
+            <button type="button" class="svc-back-btn" onclick="cabUvCancelReclaPick()">Retour</button>
+          </div>
+        </div>
+
+        <div id="cab-uv-recla-subtab-historique" style="display:none;">
+          <div id="cab-uv-recla-history-list" class="recla-list"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL RECHARGE PORTEFEUILLE (conservé) ══ -->
+<div class="modal-overlay" id="modal-cab-recharge">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-plus-circle" style="color:var(--secondary)"></i> Recharger le portefeuille</span>
+      <button class="modal-close" onclick="closeModal('modal-cab-recharge')" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="cab-recharge-form" onsubmit="handleCabineRecharge(event)">
+        <div class="form-group">
+          <label class="form-label">Mode de paiement</label>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius);cursor:pointer;">
+              <input type="radio" name="cab-recharge-method" value="Orange Money" />
+              <span>🟠</span>
+              <div><div style="font-weight:600;font-size:.88rem;">Orange Money</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius);cursor:pointer;">
+              <input type="radio" name="cab-recharge-method" value="MTN MoMo" />
+              <span>🟡</span>
+              <div><div style="font-weight:600;font-size:.88rem;">MTN Mobile Money</div></div>
+            </label>
+            <label style="display:flex;align-items:center;gap:12px;padding:12px;border:1.5px solid var(--gray-200);border-radius:var(--radius);cursor:pointer;">
+              <input type="radio" name="cab-recharge-method" value="Moov Money" />
+              <span>🔵</span>
+              <div><div style="font-weight:600;font-size:.88rem;">Moov Money</div></div>
+            </label>
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Montant (FCFA)</label>
+          <div class="amount-presets">
+            <button type="button" class="preset-btn" onclick="document.getElementById('cab-recharge-amount').value=10000">10 000</button>
+            <button type="button" class="preset-btn" onclick="document.getElementById('cab-recharge-amount').value=25000">25 000</button>
+            <button type="button" class="preset-btn" onclick="document.getElementById('cab-recharge-amount').value=50000">50 000</button>
+            <button type="button" class="preset-btn" onclick="document.getElementById('cab-recharge-amount').value=100000">100 000</button>
+          </div>
+          <div class="input-group">
+            <i class="fa-solid fa-coins input-icon"></i>
+            <input type="number" class="form-control" id="cab-recharge-amount" placeholder="Min. 1 000 FCFA" min="1000" required />
+            <span class="input-suffix">FCFA</span>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-secondary btn-full btn-lg">
+          <i class="fa-solid fa-check-circle"></i> Confirmer la recharge
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Logout Choice Modal ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-logout-choice">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-right-from-bracket" style="color:var(--primary)"></i> Déconnexion</span>
+      <button class="modal-close" onclick="closeModal('modal-logout-choice')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <button type="button" class="lo-opt green" onclick="logoutSwitchAccount()">
+        <span class="lo-ic"><i class="fa-solid fa-right-left"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Autre compte partenaire</span>
+          <span class="lo-sub">Se connecter à une autre cabine</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+      <button type="button" class="lo-opt orange" id="logout-return-client-btn" style="display:none;" onclick="logoutReturnToClient()">
+        <span class="lo-ic"><i class="fa-solid fa-house"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Mon espace client</span>
+          <span class="lo-sub">Retourner à votre compte client</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL : COULEUR DE LA CARTE SOLDE ══════════════════════
+     Couleur personnalisée de .cbc-card, indépendante du palier
+     d'abonnement — voir openCabCardColorPicker()/setCabCardColor()
+     dans js/cabine.js. -->
+<div class="modal-overlay" id="modal-cab-card-color">
+  <div class="modal" style="max-width:360px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-palette" style="color:var(--primary)"></i> Couleur de la carte</span>
+      <button class="modal-close" onclick="closeModal('modal-cab-card-color')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p class="cab-color-sub">Choisissez la couleur de votre tableau de solde — indépendante de votre palier d'abonnement.</p>
+
+      <!-- Aperçu en direct : vraie mini-carte (réutilise .cbc-card / les
+           variables --cbc-* déjà en place), mise à jour à chaque tap sur
+           une pastille ci-dessous, sans fermer la fenêtre. -->
+      <div class="cab-color-preview cbc-card" id="cab-color-preview">
+        <div class="cbc-glow cbc-glow--1"></div>
+        <div class="cbc-glow cbc-glow--2"></div>
+        <div class="cbc-kicker-row" style="position:relative;z-index:1;">
+          <div class="cbc-kicker-dot"></div>
+          <span class="cbc-kicker-text">KBINE PLUS</span>
+        </div>
+        <div class="cbc-name" id="cab-color-preview-name" style="font-size:1rem;margin:8px 0;">—</div>
+        <div style="position:relative;z-index:1;">
+          <div class="cbc-amount-lbl"><i class="fa-regular fa-clock"></i> Solde en attente</div>
+          <div class="cbc-amount-val" id="cab-color-preview-val" style="font-size:1.2rem;">—</div>
+        </div>
+      </div>
+
+      <div class="cab-color-strip" id="cab-color-strip"></div>
+      <div class="cab-color-strip-lbls" id="cab-color-strip-lbls"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL : DÉTAIL D'UNE COMMANDE ══════════════════════════ -->
+<!-- ══ MODAL SÉLECTION ASSISTANT WHATSAPP ══ -->
+<div class="modal-overlay" id="modal-cab-wa-picker">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-brands fa-whatsapp" style="color:#25D366"></i> Contacter l'assistance</span>
+      <button class="modal-close" onclick="closeModal('modal-cab-wa-picker')" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:8px 0 12px;">
+      <p style="font-size:.78rem;color:var(--gray-500);margin:0 18px 10px;">Choisissez l'assistant WhatsApp à contacter.</p>
+      <div class="cwa-list" id="cab-wa-picker-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-cab-order-detail">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="ordet-head-ico"><i class="fa-solid fa-receipt"></i></span>
+      <span class="ordet-head-text">
+        <span class="modal-title">Détail de la commande</span>
+        <div class="ordet-head-sub" id="cdet-head-sub">—</div>
+      </span>
+      <button class="modal-close" onclick="closeCabOrderDetailModal()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="cdet-body"></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/biometric.js?v=1"></script>
+<script src="js/cabine.js?v=5"></script>
+</body>
+</html>

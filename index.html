@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- L'espace client est désormais la page d'accueil du site : toute
+       arrivée sur index.html (accès direct, déconnexion, session expirée
+       via Auth.require) redirige immédiatement vers l'espace client. -->
+  <script>window.location.replace('client.html');</script>
+  <title>KBINE PLUS | Connexion</title>
+  <link rel=”icon” href=”data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='50' fill='%23FF6200'/><text x='50' y='68' text-anchor='middle' font-family='Arial Black,sans-serif' font-weight='900' font-size='52' fill='white'>K+</text></svg>”>
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <style>
+    .floating-shapes { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
+    .shape {
+      position: absolute; border-radius: 50%;
+      background: rgba(255,255,255,.06);
+      animation: floatAnim linear infinite;
+    }
+    @keyframes floatAnim {
+      0%   { transform: translateY(100vh) scale(0); opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { transform: translateY(-20vh) scale(1); opacity: 0; }
+    }
+    .ci-flag {
+      position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+      display: flex; gap: 0; border-radius: 4px; overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,.3); opacity: .8;
+    }
+    .ci-flag span { width: 24px; height: 14px; }
+    .flag-o { background: #FF6200; }
+    .flag-w { background: #FFFFFF; }
+    .flag-g { background: #009A44; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .idx-phone-wrap {
+      display: flex; align-items: center; gap: 0;
+      border: 1.5px solid var(--gray-200); border-radius: var(--radius);
+      background: var(--white); overflow: hidden;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    .idx-phone-wrap:focus-within {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(255,98,0,.13);
+    }
+    .idx-flag-pfx {
+      padding: 0 12px; font-size: .82rem; font-weight: 700;
+      color: var(--gray-700); white-space: nowrap;
+      background: var(--gray-50); border-right: 1.5px solid var(--gray-200);
+      display: flex; align-items: center; gap: 6px; height: 44px;
+    }
+    .idx-pfx-sep { display: none; }
+    .idx-phone-input {
+      flex: 1; border: none; outline: none; padding: 10px 14px;
+      font-size: .95rem; font-family: inherit;
+      background: transparent; color: var(--gray-800);
+    }
+    .pin-row {
+      display: flex; gap: 14px; justify-content: center; margin-top: 8px;
+    }
+    .pin-box::-ms-reveal, .pin-box::-ms-clear { display: none !important; }
+  </style>
+</head>
+<body>
+  <div id="toast-container"></div>
+
+  <div class="auth-page">
+    <div class="floating-shapes">
+      <div class="shape" style="width:80px;height:80px;left:10%;animation-duration:18s;animation-delay:0s;"></div>
+      <div class="shape" style="width:120px;height:120px;left:30%;animation-duration:22s;animation-delay:3s;"></div>
+      <div class="shape" style="width:60px;height:60px;left:60%;animation-duration:15s;animation-delay:6s;"></div>
+      <div class="shape" style="width:100px;height:100px;left:80%;animation-duration:20s;animation-delay:1s;"></div>
+      <div class="shape" style="width:50px;height:50px;left:45%;animation-duration:16s;animation-delay:8s;"></div>
+    </div>
+
+    <div class="auth-card">
+      <!-- Logo -->
+      <div class="auth-logo">
+        <img src="img/logo.png" alt="KBINE PLUS" class="auth-logo-img">
+        <div class="auth-logo-sub">Transfert d'unités téléphoniques · Côte d'Ivoire</div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="auth-tabs">
+        <div class="auth-tab active" onclick="switchTab('login')">Connexion</div>
+        <div class="auth-tab" onclick="switchTab('register')">Inscription</div>
+      </div>
+
+      <!-- Login Form -->
+      <div id="tab-login" class="tab-content active">
+        <form id="login-form" onsubmit="handleLogin(event)" autocomplete="off">
+          <div class="form-group">
+            <label class="form-label">Numéro de téléphone</label>
+            <div class="idx-phone-wrap">
+              <span class="idx-flag-pfx">🇨🇮 <strong>+225</strong></span>
+              <span class="idx-pfx-sep"></span>
+              <input type="tel" class="idx-phone-input" id="login-id"
+                placeholder="XX XX XX XX XX" maxlength="14"
+                inputmode="numeric" oninput="idxFmtPhone(this)" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Code secret (4 chiffres)</label>
+            <div class="pin-row" id="idx-pin-login">
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full btn-lg" style="margin-top:6px;">
+            <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+          </button>
+          <div id="login-error" class="form-error" style="text-align:center;margin-top:10px;font-size:.85rem;"></div>
+        </form>
+      </div>
+
+      <!-- Register Form -->
+      <div id="tab-register" class="tab-content">
+        <form id="register-form" onsubmit="handleRegister(event)" autocomplete="off">
+          <div class="grid-2" style="gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Prénom</label>
+              <input type="text" class="form-control" id="reg-prenom" placeholder="Jean" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nom</label>
+              <input type="text" class="form-control" id="reg-nom" placeholder="Kouassi" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Numéro de téléphone</label>
+            <div class="idx-phone-wrap">
+              <span class="idx-flag-pfx">🇨🇮 <strong>+225</strong></span>
+              <span class="idx-pfx-sep"></span>
+              <input type="tel" class="idx-phone-input" id="reg-tel"
+                placeholder="XX XX XX XX XX" maxlength="14"
+                inputmode="numeric" oninput="idxFmtPhone(this)" required />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Code secret (4 chiffres)</label>
+            <div class="pin-row" id="idx-pin-reg">
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Confirmer le code</label>
+            <div class="pin-row" id="idx-pin-reg-confirm">
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-secondary btn-full btn-lg" style="margin-top:4px;">
+            <i class="fa-solid fa-user-plus"></i> Créer mon compte
+          </button>
+          <div id="register-error" class="form-error" style="text-align:center;margin-top:10px;font-size:.85rem;"></div>
+        </form>
+      </div>
+
+      <!-- Demo Quick Access -->
+      <div class="demo-access">
+        <div class="demo-title">── Accès démo rapide ──</div>
+        <div class="demo-btns">
+          <button class="demo-btn" onclick="demoLogin('client')">
+            <i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i>
+            Client
+          </button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- CI Flag decoration -->
+    <div class="ci-flag">
+      <span class="flag-o"></span>
+      <span class="flag-w"></span>
+      <span class="flag-g"></span>
+    </div>
+  </div>
+
+  <!-- Forgot Password Modal -->
+  <div class="modal-overlay" id="modal-forgot">
+    <div class="modal" style="max-width:400px;">
+      <div class="modal-header">
+        <span class="modal-title"><i class="fa-solid fa-key" style="color:var(--primary)"></i> Récupérer mon mot de passe</span>
+        <button class="modal-close" onclick="closeModal('modal-forgot')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom:16px;font-size:.88rem;">Saisissez votre email ou téléphone, nous vous enverrons les instructions.</p>
+        <div class="form-group">
+          <label class="form-label">Email ou téléphone</label>
+          <div class="input-group">
+            <i class="fa-solid fa-envelope input-icon"></i>
+            <input type="text" class="form-control" id="forgot-id" placeholder="votre@email.ci" />
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('modal-forgot')">Annuler</button>
+        <button class="btn btn-primary" onclick="handleForgot()"><i class="fa-solid fa-paper-plane"></i> Envoyer</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/db.js?v=2"></script>
+  <script src="js/auth.js?v=2"></script>
+  <script>
+    DB.init();
+    Theme.init();
+
+    /* ── Fonctions PIN (partagées) ──────────────────────────── */
+    function idxFmtPhone(inp) {
+      const d = inp.value.replace(/\D/g, '').slice(0, 10);
+      inp.value = d.replace(/(\d{2})(?=\d)/g, '$1 ');
+    }
+
+    function idxGetPin(rowId) {
+      return [...document.querySelectorAll('#' + rowId + ' .pin-box')].map(b => b.value).join('');
+    }
+
+    function idxClearPin(rowId) {
+      document.querySelectorAll('#' + rowId + ' .pin-box').forEach(b => {
+        b.value = ''; b.classList.remove('pin-filled');
+      });
+    }
+
+    function idxInitPinRow(rowId) {
+      const boxes = [...document.querySelectorAll('#' + rowId + ' .pin-box')];
+      boxes.forEach((box, idx) => {
+        box.addEventListener('input', () => {
+          const v = box.value.replace(/\D/g, '');
+          box.value = v ? v[v.length - 1] : '';
+          box.classList.toggle('pin-filled', !!box.value);
+          if (box.value && idx < boxes.length - 1) boxes[idx + 1].focus();
+        });
+        box.addEventListener('keydown', e => {
+          if (e.key === 'Backspace' && !box.value && idx > 0) { boxes[idx - 1].focus(); boxes[idx - 1].value = ''; boxes[idx - 1].classList.remove('pin-filled'); }
+          if (e.key === 'ArrowLeft' && idx > 0) boxes[idx - 1].focus();
+          if (e.key === 'ArrowRight' && idx < boxes.length - 1) boxes[idx + 1].focus();
+        });
+        box.addEventListener('paste', e => {
+          e.preventDefault();
+          const d = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 4);
+          d.split('').forEach((ch, i) => { if (boxes[i]) { boxes[i].value = ch; boxes[i].classList.add('pin-filled'); } });
+          if (boxes[d.length - 1]) boxes[d.length - 1].focus();
+        });
+      });
+    }
+
+    /* ── Tab switch ──────────────────────────────────────────── */
+    function switchTab(tab) {
+      document.querySelectorAll('.auth-tab').forEach((t, i) => t.classList.toggle('active', ['login','register'][i] === tab));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+      document.getElementById('tab-' + tab).classList.add('active');
+    }
+
+    /* ── Connexion ──────────────────────────────────────────── */
+    function handleLogin(e) {
+      e.preventDefault();
+      const tel = document.getElementById('login-id').value.replace(/\s/g, '');
+      const pin = idxGetPin('idx-pin-login');
+      const err = document.getElementById('login-error');
+      if (!/^[0-9]{10}$/.test(tel)) { err.textContent = 'Numéro invalide — 10 chiffres requis.'; return; }
+      if (pin.length !== 4)          { err.textContent = 'Saisissez votre code à 4 chiffres.'; return; }
+      err.textContent = '';
+      const res = Auth.login(tel, pin);
+      if (res.ok) {
+        if (res.user.role !== 'client') {
+          Auth.logout();
+          sessionStorage.removeItem('cbp_session');
+          err.textContent = 'Cet espace est réservé aux clients. Utilisez l\'accès approprié.';
+          idxClearPin('idx-pin-login');
+          return;
+        }
+        Toast.success('Connexion réussie !');
+        setTimeout(() => { window.location.href = 'client.html'; }, 700);
+      } else {
+        err.textContent = res.error || 'Numéro ou code incorrect.';
+        idxClearPin('idx-pin-login');
+      }
+    }
+
+    /* ── Inscription ─────────────────────────────────────────── */
+    function handleRegister(e) {
+      e.preventDefault();
+      const prenom = document.getElementById('reg-prenom').value.trim();
+      const nom    = document.getElementById('reg-nom').value.trim();
+      const tel    = document.getElementById('reg-tel').value.replace(/\s/g, '');
+      const pin    = idxGetPin('idx-pin-reg');
+      const pinC   = idxGetPin('idx-pin-reg-confirm');
+      const errEl  = document.getElementById('register-error');
+
+      if (!/^[0-9]{10}$/.test(tel))   { errEl.textContent = 'Numéro invalide — 10 chiffres requis.'; return; }
+      if (pin.length !== 4)            { errEl.textContent = 'Choisissez un code à 4 chiffres.'; return; }
+      if (pin !== pinC)                { errEl.textContent = 'Les codes ne correspondent pas.'; idxClearPin('idx-pin-reg-confirm'); return; }
+      if (DB.users.byPhone(tel))       { errEl.textContent = 'Ce numéro est déjà enregistré.'; return; }
+      errEl.textContent = '';
+
+      DB.users.create({ prenom: prenom || tel, nom, telephone: tel, mot_de_passe: pin, role: 'client', solde: 0 });
+      Toast.success('Compte créé ! Vous pouvez vous connecter.');
+      switchTab('login');
+      document.getElementById('login-id').value = tel.replace(/(\d{2})(?=\d)/g, '$1 ');
+    }
+
+    /* ── Connexions démo ────────────────────────────────────── */
+    function demoLogin(role) {
+      const phones = { client: '0504112233', cabine: '0705123456', admin: '0101010101' };
+      const res = Auth.login(phones[role], '1234');
+      if (res.ok) {
+        Toast.success('Connexion démo réussie…');
+        setTimeout(() => { window.location.href = role + '.html'; }, 700);
+      } else {
+        Toast.error('Erreur démo — videz le localStorage et rechargez.');
+      }
+    }
+
+    function handleForgot() {
+      const id = document.getElementById('forgot-id').value.trim();
+      const u  = DB.users.byPhone(id.replace(/\s/g,'')) || DB.users.byEmail(id);
+      if (!u) { Toast.error('Compte introuvable.'); return; }
+      Toast.success('Instructions envoyées (simulation).');
+      closeModal('modal-forgot');
+    }
+
+    /* ── Init ────────────────────────────────────────────────── */
+    idxInitPinRow('idx-pin-login');
+    idxInitPinRow('idx-pin-reg');
+    idxInitPinRow('idx-pin-reg-confirm');
+  </script>
+</body>
+</html>
+
+
+
+

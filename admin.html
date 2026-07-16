@@ -1,0 +1,3215 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KBINE PLUS | Administration</title>
+  <link rel="icon" type="image/png" href="img/logo%20officiel.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+  <link rel="dns-prefetch" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" defer></script>
+  <style>
+    /* Piste "Ardoise" — sidebar bleu marine sur toute sa hauteur (logo,
+       profil, recherche, navigation, pied de page). L'onglet actif est
+       un bouton orange plein (le rail doré générique de
+       .nav-item.active::before est désactivé, redondant avec le
+       remplissage plein). */
+    .sidebar {
+      background: linear-gradient(180deg, #14295E 0%, #0A1730 100%);
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.25) transparent;
+      transition: width .25s ease, transform .3s ease;
+    }
+    /* Le curseur de défilement gris-bleu générique (::-webkit-scrollbar-thumb
+       global, css/style.css:95) tranchait sur le marine — plus fin,
+       translucide clair, accent orange au survol. */
+    .sidebar::-webkit-scrollbar { width: 5px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.22); border-radius: 99px; }
+    .sidebar::-webkit-scrollbar-thumb:hover { background: rgba(255,98,0,.6); }
+    .sidebar-logo { background: #0F2255; border-bottom-color: rgba(255,255,255,.12); }
+    .sidebar-logo-img { border-radius: 50%; border: 3px solid #fff; }
+    .sidebar-logo .logo-icon { background: rgba(255,98,0,.3); }
+    .sidebar-user { border-bottom-color: rgba(255,255,255,.1); }
+    .sidebar-user .user-avatar { background: #FF6200; color: #fff; }
+    .sidebar-user .user-name { color: #fff; }
+    .sidebar-user .user-role {
+      display: inline-block; margin-top: 2px;
+      color: #FFB380; background: rgba(255,98,0,.22);
+      padding: 1px 8px; border-radius: 99px;
+    }
+    .sidebar-nav { padding-top: 0; padding-bottom: 14px; }
+    .nav-section-label { color: rgba(255,255,255,.35); padding-top: 6px; }
+    .nav-item { color: rgba(255,255,255,.75); }
+    .nav-item:hover { background: rgba(255,255,255,.08); color: #fff; }
+    .nav-item.active {
+      background: #FF6200; color: #fff; font-weight: 600;
+      box-shadow: 0 4px 12px rgba(255,98,0,.35);
+    }
+    .nav-item.active::before { display: none; }
+    .nav-item i { color: rgba(255,255,255,.5); }
+    .nav-item.active i { color: #fff; }
+    /* Déconnexion : section à part, en orange, plutôt qu'un lien texte
+       discret qui se fondait dans le reste de la sidebar. */
+    .sidebar-footer { border-top-color: rgba(255,255,255,.12); padding: 14px; }
+    .btn-logout {
+      justify-content: center;
+      background: rgba(255,98,0,.14);
+      border: 1.5px solid rgba(255,98,0,.4);
+      color: #FF9A52;
+      font-weight: 600;
+      padding: 10px 14px;
+      border-radius: var(--radius);
+    }
+    .btn-logout:hover { background: #FF6200; border-color: #FF6200; color: #fff; }
+
+    /* Fermeture complète de la sidebar (voir maquette validée) —
+       déclenchée par toggleAdminSidebar() (js/admin.js) sur
+       .topbar-menu-btn, réutilisé pour le desktop en plus de son usage
+       mobile existant (le repli mobile en tiroir, lui, reste inchangé).
+       Largeur 0 plutôt qu'un rail d'icônes : la sidebar disparaît
+       entièrement, .main-content récupère toute la largeur via le
+       sélecteur de fratrie ci-dessous, sans JS supplémentaire. */
+    .topbar-menu-btn { display: flex; }
+    .sidebar.collapsed { width: 0; border: none; }
+    .sidebar.collapsed ~ .main-content { margin-left: 0; }
+
+    /* Barre de recherche de la sidebar : verre dépoli sur le marine
+       plutôt que le .form-control blanc générique. La sidebar est trop
+       étroite (260px) pour le centrage par padding symétrique essayé
+       plus tôt — le texte se retrouvait tronqué. Ici icône et texte
+       partagent une pilule commune, séparés par un vrai espacement,
+       texte aligné à gauche avec troncature propre ("…") s'il dépasse. */
+    .sidebar .search-box.input-group {
+      /* flex:0 0 auto ici : la règle globale .search-box{flex:1} est
+         pensée pour une barre de filtre horizontale (grandir en largeur) ;
+         dans la sidebar (colonne flex verticale), flex:1 la faisait
+         grandir en hauteur au lieu de largeur — d'où la forme ovale
+         géante au clic/à la saisie. */
+      display: flex; align-items: center;
+      flex: 0 0 auto; max-width: none;
+      background: rgba(255,255,255,.08);
+      border: 1.5px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      transition: background .2s, border-color .2s, box-shadow .2s;
+    }
+    .sidebar .search-box .input-icon {
+      position: static; transform: none;
+      margin-left: 14px; margin-right: 10px;
+      flex-shrink: 0;
+      color: rgba(255,255,255,.5);
+    }
+    .sidebar .search-box.input-group:focus-within {
+      background: rgba(255,255,255,.14);
+      border-color: rgba(255,98,0,.6);
+      box-shadow: 0 0 0 3px rgba(255,98,0,.18);
+    }
+    .sidebar .search-box .form-control {
+      background: transparent;
+      border: none;
+      color: #fff;
+      padding-left: 0; padding-right: 16px;
+      text-align: left;
+      flex: 1 1 auto; width: auto; min-width: 0;
+      text-overflow: ellipsis;
+    }
+    .sidebar .search-box .form-control::placeholder { color: rgba(255,255,255,.5); }
+    .sidebar .search-box .form-control:focus { box-shadow: none; }
+
+    /* Barre du haut : fond blanc plat remplacé par une teinte crème
+       assortie à la sidebar, boutons neutres passés d'un gris plat à
+       un ton chaud avec accent orange au survol (l'action "Créer un
+       compte", déjà en orange plein via style inline, garde sa priorité
+       visuelle sans y toucher — voir juste en dessous pour son ombre). */
+    .topbar {
+      background: linear-gradient(135deg, #14295E 0%, #0A1730 100%);
+      border-bottom-color: rgba(255,255,255,.1);
+    }
+    .topbar-title { color: #fff; }
+    .topbar-btn { background: rgba(255,255,255,.1); color: rgba(255,255,255,.7); }
+    .topbar-btn:hover { background: rgba(255,98,0,.22); color: #FF9A52; }
+    .topbar-menu-btn { color: rgba(255,255,255,.7); }
+    .topbar-menu-btn:hover { color: #FF9A52; }
+
+    /* Modales : liseré orange en haut (identité admin) + en-tête légèrement
+       teinté crème plutôt que blanc plat + bouton fermer assorti au reste
+       (même traitement que .topbar-btn). */
+    .modal {
+      border-top: 3px solid #FF6200;
+      scrollbar-width: thin; scrollbar-color: rgba(33,32,28,.18) transparent;
+    }
+    /* Curseur de défilement de la modale : fond clair ici (contrairement
+       à celui de la sidebar, en clair sur marine) — thumb chaud discret,
+       accent orange au survol, même logique que le reste. */
+    .modal::-webkit-scrollbar { width: 6px; }
+    .modal::-webkit-scrollbar-track { background: transparent; }
+    .modal::-webkit-scrollbar-thumb { background: rgba(33,32,28,.18); border-radius: 99px; }
+    .modal::-webkit-scrollbar-thumb:hover { background: #FF6200; }
+    .modal-header { background: #FBF9F5; border-bottom-color: rgba(33,32,28,.08); }
+    .modal-close { background: #F1EDE4; color: #8A8272; }
+
+    /* Champs de formulaire : fond crème + bordure chaude au repos plutôt
+       que le blanc/gris froid générique, cohérent avec le reste de
+       l'identité admin. Blanc + anneau orange au focus (déjà le
+       comportement par défaut de .form-control:focus, juste le fond qui
+       change ici pour rester cohérent avec le crème environnant). */
+    .form-control {
+      background: #FBF9F5;
+      border-color: rgba(33,32,28,.14);
+    }
+    .form-control:focus { background: #fff; }
+    .form-control::placeholder { color: #A79E8C; }
+
+    /* En-tête de page (.page-header, utilisé identiquement en haut de
+       chaque onglet — breadcrumb + h2 + p) : passe d'un simple bloc de
+       texte nu à un bandeau encadré, teinté orange très légèrement, avec
+       un cercle décoratif en coin (même motif que celui déjà utilisé sur
+       les cartes de stats). Un seul changement ici s'applique à tous les
+       onglets, puisque la structure HTML est déjà partagée partout. */
+    .page-header {
+      background: linear-gradient(135deg, #14295E 0%, #0A1730 100%);
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 16px;
+      padding: 12px 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-header h2 { font-size: 1.15rem; margin-bottom: 2px; }
+    .page-header p { font-size: .8rem; }
+    .page-header::before {
+      content: '';
+      position: absolute; top: -46px; right: -46px;
+      width: 140px; height: 140px; border-radius: 50%;
+      background: rgba(255,98,0,.14);
+    }
+    .breadcrumb { color: rgba(255,255,255,.55); position: relative; }
+    .breadcrumb span { color: #FF9A52; font-weight: 700; }
+    .page-header h2 { color: #fff; position: relative; }
+    .page-header p { color: rgba(255,255,255,.65); position: relative; }
+
+    /* Cartes de stats (tableau de bord et autres vues qui réutilisent
+       .stats-grid/.stat-card) — piste "Bandeau supérieur" retenue parmi
+       les 4 maquettes proposées : plus d'icône, un bandeau de couleur en
+       haut de carte à la place. Taille strictement fixe (largeur déjà
+       uniforme via la grille en 1fr, hauteur figée ici) quel que soit le
+       contenu — ce qui dépasse est tronqué proprement (ellipsis) plutôt
+       que d'étirer la carte, pour que toutes les cartes soient identiques. */
+    .stats-grid { gap: 12px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .stat-card {
+      height: 82px;
+      padding: 12px 14px;
+      flex-direction: column; align-items: flex-start; justify-content: center;
+      border: 1px solid rgba(33,32,28,.08);
+      border-top: 3px solid var(--stat-c, #FF6200);
+      overflow: hidden;
+      transition: transform .2s ease, box-shadow .2s ease;
+      animation: dashCardIn .5s cubic-bezier(.2,.7,.3,1) both;
+    }
+    /* Entrée échelonnée des cartes au chargement du tableau de bord —
+       chaque carte démarre un peu après la précédente (nth-child), pour
+       un effet de vague plutôt qu'un bloc qui apparaît d'un coup. */
+    .stats-grid .stat-card:nth-child(1) { animation-delay: .03s; }
+    .stats-grid .stat-card:nth-child(2) { animation-delay: .08s; }
+    .stats-grid .stat-card:nth-child(3) { animation-delay: .13s; }
+    .stats-grid .stat-card:nth-child(4) { animation-delay: .18s; }
+    @keyframes dashCardIn {
+      from { opacity: 0; transform: translateY(10px) scale(.98); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .stat-card { animation: none; }
+    }
+    .stat-card::after { display: none; }
+    .stat-card.blue   { --stat-c: #3B82F6; }
+    .stat-card.green  { --stat-c: #009A44; }
+    .stat-card.orange { --stat-c: #FF6200; }
+    .stat-card.purple { --stat-c: #8B5CF6; }
+    .dash-section-title { color: var(--primary); }
+    .stat-info { width: 100%; min-width: 0; }
+    .stat-label { font-size: .62rem; margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-value { font-size: 1.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .stat-sub { font-size: .62rem; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    /* Tableaux — "Modèle A" (voir maquette validée), appliqué à tous les
+       tableaux admin puisque .table-wrapper/table/th/td sont des classes
+       partagées par tous les onglets : bordures bleu marine au lieu du
+       gris froid générique, en-tête plus posé, ligne actuelle survolée
+       en crème. Contenu de ligne (puces avatar, badges pleins, menu ⋯)
+       lui, ne peut être repris tel quel que là où il a été implémenté
+       (Transactions) — chaque tableau a ses propres colonnes. */
+    /* Pas d'overflow:hidden ici : .table-wrapper hérite déjà d'overflow-x:auto
+       (css/style.css) pour le défilement horizontal sur petit écran — le
+       réécrire casserait ce défilement. overflow-x:auto seul suffit déjà
+       à habiller les coins arrondis (l'axe Y, sans contenu qui déborde,
+       est automatiquement clippé par la spec CSS dès que l'un des deux
+       axes n'est pas "visible"). */
+    .table-wrapper { border: 1.5px solid #0F2255; border-radius: 0; }
+    table { border-collapse: separate; border-spacing: 0; }
+    thead { background: linear-gradient(135deg, #14295E 0%, #0A1730 100%); }
+    th { color: #fff; border-bottom: 2px solid #0F2255; letter-spacing: .06em; }
+    td { border-bottom: 1px solid rgba(15,34,85,.14); font-variant-numeric: tabular-nums; }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #FBF9F5; }
+
+    /* Fond du tableau "Retraits des cabines" (solde disponible par
+       cabine) — image fournie par l'utilisateur (img/image 2.jfif),
+       voile blanc translucide superposé pour que le texte des lignes
+       reste lisible par-dessus. Scopé à cette seule vue via
+       [data-view="retraits-admin"], pas aux autres tableaux. */
+    [data-view="retraits-admin"] .table-wrapper {
+      background-image: linear-gradient(rgba(255,255,255,.88), rgba(255,255,255,.88)), url('img/image 2.jfif');
+      background-size: cover;
+      background-position: center;
+    }
+
+    /* Tableau "Règles de commission" : réduit pour avoir un format
+       comparable à la carte "Taux actuel" juste à côté (grid-2) plutôt
+       qu'un tableau bien plus haut que son voisin plus compact. */
+    [data-view="commissions-admin"] th { padding: 9px 14px; font-size: .68rem; }
+    [data-view="commissions-admin"] td { padding: 10px 14px; font-size: .82rem; }
+
+    /* Listes "Services"/"Réseaux" (Maintenance) : modèle A retenu —
+       pastilles cliquables en grappe (largeur libre par libellé, retour
+       à la ligne automatique) plutôt qu'une grille à colonnes rigides
+       qui gaspillait l'espace à côté des libellés courts (MTN, Moov…).
+       Case à cocher réelle conservée (masquée visuellement) pour que
+       _saveMaintenanceDraft()/saveMaintenanceAdmin() continuent de lire
+       .maint-service-chk sans aucun changement. */
+    #maint-services-content {
+      padding: 14px 18px; display: flex; flex-wrap: wrap; gap: 8px;
+    }
+    .chip-toggle {
+      display: inline-flex; align-items: center; gap: 6px; padding: 7px 13px 7px 10px;
+      border-radius: 999px; border: 1.5px solid var(--gray-200); background: #fff;
+      font-size: .78rem; font-weight: 700; color: var(--gray-500); cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+    }
+    .chip-toggle input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .chip-toggle .chip-dot {
+      width: 15px; height: 15px; border-radius: 5px; border: 1.5px solid var(--gray-300);
+      flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      color: transparent; font-size: .55rem;
+    }
+    .chip-toggle:has(input:checked) { border-color: var(--primary); background: rgba(255,98,0,.07); color: var(--text); }
+    .chip-toggle:has(input:checked) .chip-dot { background: var(--primary); border-color: var(--primary); color: #fff; }
+
+    /* Classements — "Ventes des cabines par réseau" : 3 cartes séparées
+       (Orange+Moov côte à côte, MTN seule en dessous) regroupées en un
+       seul bloc à 3 colonnes alignées. */
+    .rank-network-group { display: grid; grid-template-columns: repeat(3, 1fr); }
+    .rank-network-col { border-right: 1px solid var(--gray-200); }
+    .rank-network-col:last-child { border-right: none; }
+    .rank-network-col-hd {
+      padding: 14px 16px; font-size: .82rem; font-weight: 800; color: var(--text);
+      border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; gap: 8px;
+    }
+    @media (max-width: 900px) {
+      .rank-network-group { grid-template-columns: 1fr; }
+      .rank-network-col { border-right: none; border-bottom: 1px solid var(--gray-200); }
+      .rank-network-col:last-child { border-bottom: none; }
+    }
+
+    /* Carte "Informations système" : lignes trop espacées, bloc
+       "Évolutions prévues" trop grand — réduits pour un format plus
+       dense, cohérent avec le reste des cartes compactes de l'admin. */
+    #sys-info-content .stat-mini { padding: 7px 0; }
+    #sys-info-content .stat-mini-label { font-size: .74rem; }
+    #sys-info-content .stat-mini-val { font-size: .78rem; }
+    #sys-info-content div[style*="rgba(255,98,0,.06)"] { margin-top: 10px !important; padding: 9px 12px !important; }
+    #sys-info-content div[style*="rgba(255,98,0,.06)"] > div { font-size: .72rem !important; margin-bottom: 5px !important; }
+    #sys-info-content div[style*="rgba(255,98,0,.06)"] ul { font-size: .68rem !important; line-height: 1.5 !important; padding-left: 14px !important; }
+
+    /* Code couleur des lignes/cartes de commande par statut : voir
+       Fmt.rowColors()/STATUS_COLORS (js/auth.js), appliqué en style
+       inline directement par chaque fonction de rendu (loadTransactions,
+       loadExchangeAdmin, renderCommandeRow, etc.) — plus de classes
+       .txn-row-* dédiées ici, une seule source de vérité pour toute
+       l'app (admin + client + cabine). */
+
+    /* Barre de filtre (recherche + Actualiser + Exporter CSV, etc.) —
+       piste "Intégrée dans l'en-tête" retenue parmi les 2 maquettes
+       proposées : plus de bandeau séparé entre l'en-tête et le tableau,
+       le filtre rejoint directement la rangée du titre, poussé à droite.
+       .card-header passe en flex-wrap pour repasser à la ligne sur petit
+       écran plutôt que de déborder. */
+    .card-header { flex-wrap: wrap; row-gap: 10px; }
+    .card-header .filter-bar { margin: 0 0 0 auto; }
+    .card-header .filter-bar .search-box { max-width: 220px; }
+    .search-box .form-control {
+      border-radius: 999px;
+      background: #fff;
+      border-color: rgba(33,32,28,.08);
+      box-shadow: 0 1px 2px rgba(33,32,28,.04);
+    }
+    .filter-select {
+      border-radius: 999px;
+      background: #fff;
+      border-color: rgba(33,32,28,.08);
+      box-shadow: 0 1px 2px rgba(33,32,28,.04);
+    }
+    .filter-bar .btn-ghost {
+      background: #fff;
+      border: 1px solid rgba(33,32,28,.08);
+      box-shadow: 0 1px 2px rgba(33,32,28,.04);
+    }
+    .filter-bar .btn-ghost:hover { background: #FFF6EE; border-color: rgba(15,34,85,.3); color: #FF6200; }
+
+    /* Carte (.card, en-tête + corps, sur tous les onglets) — piste
+       "Bordure gauche colorée" retenue parmi les 2 maquettes proposées :
+       l'orange redevient une touche discrète (liseré sur le côté gauche
+       de la carte) plutôt qu'un bandeau plein en haut. L'en-tête repasse
+       neutre (blanc, titre marine) ; l'icône du titre garde sa couleur
+       inline (color:var(--primary)) telle quelle, plus besoin de
+       !important puisqu'elle n'a plus à contraster avec un fond orange. */
+    .card { overflow: hidden; border-left: 4px solid #FF6200; }
+    .card-header { background: #fff; border-bottom: 1px solid rgba(33,32,28,.08); }
+    .card-header .card-title { color: #0F2255; }
+
+    /* Menu déroulant pour les actions de ligne (voir toggleTxnRowMenu(),
+       js/admin.js) — remplace des groupes de boutons icône colorés sans
+       texte par un seul bouton (icône "trois points" plutôt que le
+       caractère "⋯" brut) listant les actions en toutes lettres, avec
+       des symboles plus parlants pour chacune (fa-shuffle,
+       fa-hand-holding-dollar, fa-ban, fa-arrow-rotate-right — voir
+       toggleTxnRowMenu()). Coins bien arrondis partout, cohérent avec
+       le reste de l'identité admin. */
+    .menu-btn-row {
+      width: 32px; height: 32px; border-radius: 0; border: none;
+      background: #F1EDE4; color: #8A8272; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .9rem;
+    }
+    .menu-btn-row:hover { background: rgba(255,98,0,.14); color: #FF6200; }
+    /* Modèle B retenu : plus de pastille d'icône, liseré orange au survol
+       (même geste que le reste de l'admin), les actions "danger" portent
+       une teinte rouge en permanence (pas seulement au survol) — voir
+       openRowMenu() dans js/admin.js. */
+    .row-menu {
+      position: absolute; z-index: 3000;
+      background: #fff; border: 1px solid rgba(33,32,28,.1);
+      border-radius: 0; box-shadow: 0 10px 28px rgba(15,34,85,.18);
+      padding: 4px 0; min-width: 200px;
+      display: flex; flex-direction: column; gap: 0;
+      overflow: hidden;
+    }
+    .row-menu-item {
+      display: flex; align-items: center; gap: 11px; width: 100%;
+      background: none; border: none; border-left: 3px solid transparent; text-align: left; cursor: pointer;
+      padding: 10px 16px 10px 13px;
+      font-size: .8rem; font-weight: 600; color: #21201C;
+      letter-spacing: .01em;
+      transition: border-color .13s ease, background .13s ease;
+    }
+    .row-menu-item:hover { border-left-color: #FF6200; background: #FBF9F5; }
+    .row-menu-item i { width: 14px; text-align: center; flex-shrink: 0; color: #8A8272; font-size: .78rem; }
+    .row-menu-item.danger { background: rgba(220,38,38,.045); color: #DC2626; }
+    .row-menu-item.danger i { color: #DC2626; }
+    .row-menu-item.danger:hover { border-left-color: #DC2626; background: rgba(220,38,38,.1); }
+
+    /* ── Modal "Détails du compte" (admin) — carte sombre unifiée ─── */
+    .profile-dark-card {
+      margin: -22px -24px; padding: 26px 22px 22px; text-align: center;
+      background: linear-gradient(165deg, #14295E 0%, #0A1730 100%);
+    }
+    .profile-dark-avatar-wrap { position: relative; display: inline-block; }
+    .profile-dark-avatar {
+      width: 74px; height: 74px; border-radius: 50%; margin: 0 auto;
+      background: rgba(255,255,255,.06); border: 2px solid var(--primary);
+      display: flex; align-items: center; justify-content: center;
+      color: #FF9A52; font-weight: 800; font-size: 1.2rem; overflow: hidden;
+    }
+    .profile-dark-avatar img { width: 100%; height: 100%; object-fit: cover; }
+    .profile-photo-btn {
+      position: absolute; bottom: -2px; right: -2px; width: 26px; height: 26px; border-radius: 50%;
+      background: var(--primary); border: 2px solid #0A1730; color: #fff; font-size: .68rem;
+      display: flex; align-items: center; justify-content: center; cursor: pointer;
+    }
+    .profile-photo-btn:hover { background: var(--primary-dark); }
+    .profile-dark-name { font-size: 1rem; font-weight: 800; margin-top: 12px; color: #fff; }
+    .profile-dark-email { font-size: .76rem; color: rgba(255,255,255,.55); margin-top: 2px; }
+    .profile-dark-badge {
+      display: inline-flex; align-items: center; gap: 5px; margin-top: 10px; font-size: .66rem; font-weight: 800;
+      background: rgba(255,98,0,.18); color: #FF9A52; padding: 5px 12px; border-radius: 999px;
+      border: 1px solid rgba(255,154,82,.3);
+    }
+    .profile-dark-list { margin-top: 20px; text-align: left; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 22px; }
+    .profile-dark-row { display: flex; align-items: center; gap: 11px; padding: 10px 2px; border-bottom: 1px solid rgba(255,255,255,.09); }
+    .profile-dark-row:nth-last-child(-n+2) { border-bottom: none; }
+    .profile-dark-row .ico {
+      width: 26px; height: 26px; border-radius: 8px; background: rgba(255,255,255,.07);
+      display: flex; align-items: center; justify-content: center; color: #FF9A52; font-size: .78rem; flex-shrink: 0;
+    }
+    .profile-dark-row .k { font-size: .68rem; color: rgba(255,255,255,.5); }
+    .profile-dark-row .v { font-size: .8rem; font-weight: 700; color: #fff; margin-top: 1px; }
+    .profile-dark-row .v.dim { color: rgba(255,255,255,.32); font-weight: 600; }
+    .profile-dark-row .v.status-active { color: #4ADE80; }
+    .profile-dark-edit-btn {
+      display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+      margin-top: 20px; padding: 10px 14px; border-radius: 999px; cursor: pointer;
+      background: rgba(255,255,255,.08); border: 1px solid rgba(255,154,82,.3);
+      color: #FF9A52; font-size: .82rem; font-weight: 700;
+    }
+    .profile-dark-edit-btn:hover { background: rgba(255,255,255,.14); }
+
+    /* ── Tableau Clients — animations discrètes ────────────────────
+       Entrée en fondu/glissé très courte (même courbe que dashCardIn)
+       à chaque rendu du tbody (chargement, recherche, Actualiser) : le
+       délai n'est échelonné que sur les 10 premières lignes pour ne
+       jamais faire attendre la lecture des données sur une longue
+       liste — au-delà, les lignes apparaissent sans décalage. Le survol
+       utilise un liseré orange en box-shadow (inset), animable sans
+       provoquer de reflow, plutôt qu'une vraie bordure. */
+    #clients-tbody tr {
+      animation: clientRowIn .25s cubic-bezier(.2,.7,.3,1) both;
+      transition: background-color .15s ease, box-shadow .15s ease;
+      box-shadow: inset 3px 0 0 transparent;
+    }
+    #clients-tbody tr:hover {
+      background: var(--section-tint);
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+    #clients-tbody tr:nth-child(1)  { animation-delay: .00s; }
+    #clients-tbody tr:nth-child(2)  { animation-delay: .02s; }
+    #clients-tbody tr:nth-child(3)  { animation-delay: .04s; }
+    #clients-tbody tr:nth-child(4)  { animation-delay: .06s; }
+    #clients-tbody tr:nth-child(5)  { animation-delay: .08s; }
+    #clients-tbody tr:nth-child(6)  { animation-delay: .10s; }
+    #clients-tbody tr:nth-child(7)  { animation-delay: .12s; }
+    #clients-tbody tr:nth-child(8)  { animation-delay: .14s; }
+    #clients-tbody tr:nth-child(9)  { animation-delay: .16s; }
+    #clients-tbody tr:nth-child(10) { animation-delay: .18s; }
+    @keyframes clientRowIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #clients-tbody tr { animation: none; transition: none; }
+    }
+
+    /* ── Modal "Créer un nouveau compte" — cartes de type de compte ──
+       Remplace le menu déroulant "Type de compte" par 3 cartes cliquables
+       (le <select> réel reste présent mais masqué, pour ne rien changer
+       à la logique déjà en place dans toggleCreateUserFields()). */
+    .type-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .type-card {
+      border: 1.5px solid var(--gray-200); border-radius: 12px; padding: 12px 6px;
+      text-align: center; cursor: pointer; transition: border-color .15s ease, background .15s ease;
+    }
+    .type-card:hover { border-color: rgba(255,98,0,.4); }
+    .type-card.sel { border-color: var(--primary); background: rgba(255,98,0,.06); }
+    .type-card-ic {
+      width: 32px; height: 32px; border-radius: 9px; background: var(--gray-100); color: var(--gray-500);
+      display: flex; align-items: center; justify-content: center; margin: 0 auto 6px; font-size: .85rem;
+    }
+    .type-card.sel .type-card-ic { background: var(--primary); color: #fff; }
+    .type-card-lbl { font-size: .74rem; font-weight: 700; color: var(--text); }
+
+    /* ── Retour visuel des boutons "Actualiser" ─────────────────────
+       Voir le listener délégué sur .fa-rotate-right dans js/admin.js. */
+    @keyframes refreshSpin { to { transform: rotate(360deg); } }
+    .fa-rotate-right.spinning { display: inline-block; animation: refreshSpin .6s linear; }
+    @media (prefers-reduced-motion: reduce) {
+      .fa-rotate-right.spinning { animation: none; }
+    }
+
+    /* ── Tableau de bord — fond animé de bulles discrètes ───────────
+       Pur CSS (pas de librairie) : des cercles à contour vide dérivent
+       lentement vers le haut derrière le contenu, en boucle infinie tant
+       que l'onglet Tableau de bord reste actif. .db-bubbles est en
+       z-index inférieur et pointer-events:none — aucune bulle ne peut
+       passer devant le texte/tableau ni intercepter un clic ; .db-content
+       reste au z-index normal pour rester strictement au premier plan.
+       L'animation n'utilise QUE "transform" (jamais "top"/"bottom"), qui
+       ne déclenche ni mise en page ni repaint — seulement la composition
+       GPU — pour rester fluide en continu même avec 32 bulles animées à
+       la fois. La distance verticale parcourue (-3200px) est volontaire-
+       ment généreuse pour dépasser la hauteur réelle du dashboard (bien
+       plus haut que l'écran à cause des graphiques), afin que chaque
+       bulle traverse bien tout le contenu, de "Vue d'ensemble" en haut
+       jusqu'en bas, avant de reboucler. */
+    .view[data-view="dashboard"] { position: relative; overflow: hidden; }
+    .db-bubbles { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
+    .db-content { position: relative; z-index: 1; }
+    .db-bubble {
+      position: absolute; bottom: -120px; border-radius: 50%; background: transparent;
+      border: 2.5px solid transparent; opacity: .5;
+      animation: dbBubbleFloat linear infinite;
+      will-change: transform;
+    }
+    .db-bubble.orange { border-color: var(--primary); }
+    .db-bubble.green  { border-color: var(--secondary); }
+    .db-bubble.white  { border-color: #fff; box-shadow: 0 0 0 1px rgba(15,34,85,.16); }
+    /* --drift règle l'amplitude/le sens du zigzag horizontal de chaque
+       bulle (voir @keyframes) — des valeurs différentes par bulle donnent
+       l'impression qu'elles se croisent et se bousculent en montant,
+       plutôt que de monter chacune dans un couloir vertical fixe. */
+    .db-bubble.b1  { width: 20px; height: 20px; left: 2%;  animation-duration: 18s; animation-delay: -3s;  --drift: 1.4;  }
+    .db-bubble.b2  { width: 50px; height: 50px; left: 5%;  animation-duration: 32s; animation-delay: -17s; --drift: -.9;  }
+    .db-bubble.b3  { width: 32px; height: 32px; left: 8%;  animation-duration: 21s; animation-delay: -6s;  --drift: 1.1;  }
+    .db-bubble.b4  { width: 68px; height: 68px; left: 11%; animation-duration: 38s; animation-delay: -25s; --drift: -1.6; }
+    .db-bubble.b5  { width: 26px; height: 26px; left: 14%; animation-duration: 24s; animation-delay: -9s;  --drift: .8;   }
+    .db-bubble.b6  { width: 44px; height: 44px; left: 17%; animation-duration: 29s; animation-delay: -14s; --drift: -1.2; }
+    .db-bubble.b7  { width: 58px; height: 58px; left: 20%; animation-duration: 34s; animation-delay: -20s; --drift: 1.5;  }
+    .db-bubble.b8  { width: 18px; height: 18px; left: 23%; animation-duration: 17s; animation-delay: -4s;  --drift: -.7;  }
+    .db-bubble.b9  { width: 72px; height: 72px; left: 26%; animation-duration: 40s; animation-delay: -29s; --drift: 1.0;  }
+    .db-bubble.b10 { width: 36px; height: 36px; left: 29%; animation-duration: 26s; animation-delay: -11s; --drift: -1.3; }
+    .db-bubble.b11 { width: 24px; height: 24px; left: 32%; animation-duration: 20s; animation-delay: -7s;  --drift: .9;   }
+    .db-bubble.b12 { width: 60px; height: 60px; left: 35%; animation-duration: 36s; animation-delay: -22s; --drift: -1.1; }
+    .db-bubble.b13 { width: 42px; height: 42px; left: 38%; animation-duration: 28s; animation-delay: -13s; --drift: 1.6;  }
+    .db-bubble.b14 { width: 16px; height: 16px; left: 41%; animation-duration: 16s; animation-delay: -2s;  --drift: -.8;  }
+    .db-bubble.b15 { width: 66px; height: 66px; left: 44%; animation-duration: 37s; animation-delay: -27s; --drift: 1.2;  }
+    .db-bubble.b16 { width: 30px; height: 30px; left: 47%; animation-duration: 23s; animation-delay: -10s; --drift: -1.4; }
+    .db-bubble.b17 { width: 54px; height: 54px; left: 50%; animation-duration: 31s; animation-delay: -16s; --drift: .7;   }
+    .db-bubble.b18 { width: 22px; height: 22px; left: 53%; animation-duration: 19s; animation-delay: -5s;  --drift: -1.0; }
+    .db-bubble.b19 { width: 76px; height: 76px; left: 56%; animation-duration: 42s; animation-delay: -31s; --drift: 1.3;  }
+    .db-bubble.b20 { width: 38px; height: 38px; left: 59%; animation-duration: 27s; animation-delay: -12s; --drift: -.9;  }
+    .db-bubble.b21 { width: 28px; height: 28px; left: 62%; animation-duration: 22s; animation-delay: -8s;  --drift: 1.1;  }
+    .db-bubble.b22 { width: 62px; height: 62px; left: 65%; animation-duration: 35s; animation-delay: -23s; --drift: -1.5; }
+    .db-bubble.b23 { width: 46px; height: 46px; left: 68%; animation-duration: 29s; animation-delay: -15s; --drift: .8;   }
+    .db-bubble.b24 { width: 20px; height: 20px; left: 71%; animation-duration: 18s; animation-delay: -3s;  --drift: -1.2; }
+    .db-bubble.b25 { width: 80px; height: 80px; left: 74%; animation-duration: 41s; animation-delay: -28s; --drift: 1.4;  }
+    .db-bubble.b26 { width: 34px; height: 34px; left: 77%; animation-duration: 25s; animation-delay: -10s; --drift: -.7;  }
+    .db-bubble.b27 { width: 24px; height: 24px; left: 80%; animation-duration: 20s; animation-delay: -6s;  --drift: 1.0;  }
+    .db-bubble.b28 { width: 56px; height: 56px; left: 83%; animation-duration: 33s; animation-delay: -19s; --drift: -1.3; }
+    .db-bubble.b29 { width: 40px; height: 40px; left: 86%; animation-duration: 28s; animation-delay: -14s; --drift: .9;   }
+    .db-bubble.b30 { width: 18px; height: 18px; left: 89%; animation-duration: 17s; animation-delay: -4s;  --drift: -1.1; }
+    .db-bubble.b31 { width: 64px; height: 64px; left: 92%; animation-duration: 36s; animation-delay: -24s; --drift: 1.6;  }
+    .db-bubble.b32 { width: 30px; height: 30px; left: 95%; animation-duration: 24s; animation-delay: -9s;  --drift: -.8;  }
+    @keyframes dbBubbleFloat {
+      0%   { transform: translate(0, 0); }
+      20%  { transform: translate(calc(var(--drift, 1) * 16px), -680px); }
+      45%  { transform: translate(calc(var(--drift, 1) * -20px), -1550px); }
+      70%  { transform: translate(calc(var(--drift, 1) * 14px), -2350px); }
+      100% { transform: translate(calc(var(--drift, 1) * -10px), -3200px); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .db-bubble { animation: none; opacity: .3; }
+    }
+    /* ── Listes "Comptes sans commande" / "Client moins actif" /
+       "Cabines moins actifs" (Classements) — modèle A retenu (liseré de
+       statut + pastille compacte + note repliable). Classes génériques
+       (pas scopées à un seul #...-list) car réutilisées par les 3 listes. */
+    .ztA-row { position: relative; display: flex; gap: 12px; padding: 14px 18px 14px 24px; border-bottom: 1px solid var(--gray-200); }
+    .ztA-row:last-child { border-bottom: none; }
+    .ztA-row::before { content: ''; position: absolute; left: 10px; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; }
+    .ztA-row.wip::before  { background: #D97706; }
+    .ztA-row.done::before { background: #009A44; }
+    .ztA-row.none::before { background: #C9C2B4; }
+    .ztA-avatar {
+      width: 36px; height: 36px; border-radius: 10px; background: var(--section-tint);
+      display: flex; align-items: center; justify-content: center; color: var(--gray-500);
+      flex-shrink: 0; font-size: .8rem;
+    }
+    .ztA-body { flex: 1; min-width: 0; }
+    .ztA-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .ztA-phone { font-size: .86rem; font-weight: 800; color: #0F2255; display: flex; align-items: center; gap: 7px; }
+    .ztA-copy {
+      width: 20px; height: 20px; border-radius: 6px; background: var(--gray-100); border: none;
+      display: inline-flex; align-items: center; justify-content: center; color: var(--gray-500);
+      cursor: pointer; font-size: .6rem; flex-shrink: 0;
+    }
+    .ztA-copy:hover { background: var(--gray-200); }
+    .ztA-pill {
+      border: none; cursor: pointer; font-size: .66rem; font-weight: 800;
+      padding: 5px 8px; border-radius: 999px; flex-shrink: 0;
+    }
+    .ztA-pill.wip  { background: rgba(217,119,6,.14); color: #92400E; }
+    .ztA-pill.done { background: rgba(0,154,68,.14);  color: #065F46; }
+    .ztA-pill.none { background: var(--gray-100); color: var(--gray-500); }
+    .ztA-meta { font-size: .72rem; color: var(--gray-400); margin-top: 3px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+    .ztA-note-toggle { margin-top: 8px; font-size: .72rem; font-weight: 700; color: var(--primary); display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+    .ztA-note-preview { margin-top: 8px; font-size: .74rem; color: var(--gray-600); line-height: 1.5; cursor: pointer; font-style: italic; }
+    .ztA-note-preview:hover { color: var(--text); }
+    .ztA-note-edit {
+      display: none; width: 100%; margin-top: 8px; padding: 8px 10px;
+      border: 1px dashed rgba(255,98,0,.3); border-radius: 10px; background: var(--section-tint);
+      font-size: .74rem; font-family: inherit; color: var(--text); resize: vertical; min-height: 50px;
+    }
+
+    /* ── Modal "Déconnexion" — cartes d'options avec icône ──────────
+       Même modèle A que cabine.html (#modal-logout-choice) : icône en
+       pastille colorée + titre + sous-texte, au lieu de gros boutons pleins. */
+    .lo-opt {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 14px;
+      border: 1.5px solid var(--gray-200); border-radius: 14px; cursor: pointer; text-align: left;
+      background: #fff; font-family: inherit; transition: border-color .15s, background .15s;
+      margin-bottom: 10px;
+    }
+    .lo-opt:last-child { margin-bottom: 0; }
+    .lo-opt:hover { border-color: var(--c); background: var(--cbg); }
+    .lo-opt .lo-ic {
+      width: 38px; height: 38px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+      background: var(--cbg); color: var(--c); flex-shrink: 0; font-size: 1rem;
+    }
+    .lo-opt .lo-tx { flex: 1; min-width: 0; }
+    .lo-opt .lo-lbl { font-size: .84rem; font-weight: 800; color: var(--gray-800); }
+    .lo-opt .lo-sub { font-size: .72rem; color: var(--gray-500); margin-top: 2px; }
+    .lo-opt .lo-chev { color: var(--gray-300); flex-shrink: 0; }
+    .lo-opt.green  { --c: var(--secondary); --cbg: rgba(0,154,68,.1); }
+    .lo-opt.orange { --c: var(--primary);   --cbg: rgba(255,98,0,.1); }
+
+    /* ── Bilan (super admin) — cartes cliquables + détail par service ── */
+    .stat-card.clickable { cursor: pointer; }
+    .stat-card.clickable:hover { transform: translateY(-3px); box-shadow: 0 8px 20px rgba(15,23,42,.1); }
+    .bilan-services-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .bilan-service-card { background: #fff; border: 1px solid rgba(33,32,28,.08); border-left: 4px solid var(--primary); border-radius: var(--radius-lg); overflow: hidden; }
+    .bilan-service-hd { padding: 14px 16px; border-bottom: 1px solid var(--gray-200); display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .bilan-service-hd .name { font-size: .86rem; font-weight: 800; color: var(--text); }
+    .bilan-service-hd .total { font-size: .72rem; font-weight: 800; color: var(--primary); background: rgba(255,98,0,.1); padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+    .bilan-service-body { padding: 2px 16px; }
+    .stat-mini.clickable { cursor: pointer; transition: background .12s ease; margin: 0 -16px; padding: 7px 16px; }
+    .stat-mini.clickable:hover { background: var(--section-tint); }
+
+    /* Impression : masquer le chrome de l'app, ne garder que le contenu
+       du Bilan (voir bouton "Imprimer" -> window.print()). */
+    .bilan-print-only { display: none; }
+    @media print {
+      body:has(.view[data-view="bilan"].active) .sidebar,
+      body:has(.view[data-view="bilan"].active) .topbar,
+      body:has(.view[data-view="bilan"].active) .impersonation-banner { display: none !important; }
+      body:has(.view[data-view="bilan"].active) .main-content { margin-left: 0 !important; }
+      body:has(.view[data-view="bilan"].active) #bilan-period-mode,
+      body:has(.view[data-view="bilan"].active) #bilan-period-day,
+      body:has(.view[data-view="bilan"].active) #bilan-period-month,
+      body:has(.view[data-view="bilan"].active) #bilan-period-year,
+      body:has(.view[data-view="bilan"].active) .card-header button { display: none !important; }
+      .bilan-print-only { display: block !important; padding: 14px 18px; font-weight: 700; color: var(--primary); }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- ══ ÉCRAN DE CHARGEMENT ══ (même composant que client.html/cabine.html) -->
+<div id="page-loader">
+  <div class="pl-spinner-wrap">
+    <div class="pl-ring"></div>
+    <img src="img/logo.png" alt="KBINE PLUS" class="pl-logo-img">
+  </div>
+  <div class="pl-label">Chargement…</div>
+</div>
+
+<!-- Bandeau visible uniquement pendant une impersonation vers l'espace
+     d'un autre administrateur (voir Auth.startImpersonation() dans
+     js/auth.js) — hors .app-wrapper (flex ligne sidebar+contenu) pour
+     rester une bande pleine largeur, même patron que cabine.html. -->
+<div id="impersonation-banner" class="impersonation-banner" style="display:none;">
+  <i class="fa-solid fa-user-shield"></i>
+  <span>Connecté en tant qu'administrateur par <strong id="impersonation-admin-name">—</strong></span>
+  <button onclick="returnFromImpersonation()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Retour à mon espace</button>
+</div>
+
+<div class="app-wrapper">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <img src="img/logo.png" alt="KBINE PLUS" class="sidebar-logo-img">
+    </div>
+    <div class="sidebar-user" onclick="viewOwnAdminProfile()" style="cursor:pointer;" title="Consulter mon profil">
+      <div class="user-avatar">AD</div>
+      <div class="user-info">
+        <div class="user-name">Administrateur</div>
+        <div class="user-role">Accès total</div>
+      </div>
+    </div>
+    <div class="search-box input-group" style="margin:12px 14px 4px;">
+      <i class="fa-solid fa-search input-icon"></i>
+      <input type="text" class="form-control" id="admin-nav-search"
+        placeholder="Rechercher un onglet…" oninput="filterAdminNav(this.value)" />
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Vue générale</div>
+      <div class="nav-item active" data-view="dashboard">
+        <i class="fa-solid fa-gauge-high"></i>
+        <span class="nav-label">Tableau de bord</span>
+      </div>
+      <div class="nav-item" data-view="bilan" onclick="loadBilan()" style="display:none">
+        <i class="fa-solid fa-chart-pie"></i>
+        <span class="nav-label">Bilan</span>
+      </div>
+      <div class="nav-item" data-view="transactions" onclick="loadTransactions()">
+        <i class="fa-solid fa-arrow-right-arrow-left"></i>
+        <span class="nav-label">Transactions</span>
+        <span class="nav-badge" id="txn-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-section-label">Gestion</div>
+      <div class="nav-item" data-view="clients">
+        <i class="fa-solid fa-users"></i>
+        <span class="nav-label">Clients</span>
+      </div>
+      <div class="nav-item" data-view="cabines">
+        <i class="fa-solid fa-store"></i>
+        <span class="nav-label">Cabines</span>
+      </div>
+      <div class="nav-item" data-view="retraits-admin" onclick="loadRetraitsAdmin()">
+        <i class="fa-solid fa-money-bill-wave"></i>
+        <span class="nav-label">Retraits</span>
+      </div>
+      <div class="nav-item" data-view="retraits-historique" onclick="loadRetraitsHistorique()" style="display:none">
+        <i class="fa-solid fa-clock-rotate-left"></i>
+        <span class="nav-label">Historique retraits</span>
+      </div>
+      <div class="nav-section-label">Recharges &amp; commandes</div>
+      <div class="nav-item" data-view="recharge-cabiniste" onclick="loadRechargeCabiniste()">
+        <i class="fa-solid fa-wallet"></i>
+        <span class="nav-label">Recharge cabiniste</span>
+      </div>
+      <div class="nav-item" data-view="recharge-client" onclick="loadRechargeClient()">
+        <i class="fa-solid fa-sack-dollar"></i>
+        <span class="nav-label">Recharge client</span>
+      </div>
+      <div class="nav-item" data-view="recharge-uv-admin" onclick="loadRechargeUvAdmin()">
+        <i class="fa-solid fa-bolt-lightning"></i>
+        <span class="nav-label">Recharge UV</span>
+        <span class="nav-badge" id="recharge-uv-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="exchange-admin" onclick="loadExchangeAdmin()">
+        <i class="fa-solid fa-arrows-rotate"></i>
+        <span class="nav-label">Exchange</span>
+        <span class="nav-badge" id="exchange-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="retards-admin" onclick="loadRetardsAdmin()">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span class="nav-label">Commandes en retard</span>
+      </div>
+      <div class="nav-item" data-view="partner-requests" onclick="loadPartnerRequests()">
+        <i class="fa-solid fa-handshake"></i>
+        <span class="nav-label">Demandes de partenariat</span>
+        <span class="nav-badge" id="partner-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="rankings" onclick="loadRankings()">
+        <i class="fa-solid fa-trophy"></i>
+        <span class="nav-label">Classements</span>
+      </div>
+      <div class="nav-item" data-view="zero-transaction" onclick="loadZeroTransactionAdmin()">
+        <i class="fa-solid fa-ghost"></i>
+        <span class="nav-label">Zéro transaction</span>
+      </div>
+      <div class="nav-item" data-view="clients-inactifs" onclick="loadClientsInactifsAdmin()">
+        <i class="fa-solid fa-user-clock"></i>
+        <span class="nav-label">Client moins actif</span>
+      </div>
+      <div class="nav-item" data-view="cabines-inactives" onclick="loadCabinesInactivesAdmin()">
+        <i class="fa-solid fa-store-slash"></i>
+        <span class="nav-label">Cabines moins actifs</span>
+      </div>
+      <div class="nav-item" data-view="commissions-admin">
+        <i class="fa-solid fa-percent"></i>
+        <span class="nav-label">Commissions</span>
+      </div>
+      <div class="nav-item" data-view="reset-requests" onclick="loadResetRequests()">
+        <i class="fa-solid fa-key"></i>
+        <span class="nav-label">Réinitialisations</span>
+        <span class="nav-badge" id="reset-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="comptes-bloques" onclick="loadComptesBloquesAdmin()">
+        <i class="fa-solid fa-lock"></i>
+        <span class="nav-label">Comptes bloqués</span>
+      </div>
+      <div class="nav-item" data-view="cabines-suspendues" onclick="loadCabinesSuspenduesAdmin()">
+        <i class="fa-solid fa-ban"></i>
+        <span class="nav-label">Cabines suspendues</span>
+      </div>
+      <div class="nav-item" data-view="appareils-admin" onclick="loadAppareilsAdmin()" style="display:none">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span class="nav-label">Appareils connectés</span>
+      </div>
+      <div class="nav-item" data-view="refund-requests" onclick="loadRefundRequests()">
+        <i class="fa-solid fa-rotate-left"></i>
+        <span class="nav-label">Demandes de remboursement</span>
+        <span class="nav-badge" id="refund-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="discussions-admin" onclick="loadDiscussionsAdmin()">
+        <i class="fa-solid fa-comments"></i>
+        <span class="nav-label">Discussion client-cabine</span>
+      </div>
+      <div class="nav-item" data-view="access-logs" onclick="loadAccessLogs()">
+        <i class="fa-solid fa-user-shield"></i>
+        <span class="nav-label">Journal des accès</span>
+      </div>
+      <div class="nav-section-label">Outils</div>
+      <div class="nav-item" data-view="maintenance-admin" onclick="loadMaintenanceAdmin()">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span class="nav-label">Maintenance</span>
+      </div>
+      <div class="nav-item" data-view="uv-cabine-admin" onclick="loadUvCabineAdmin()" style="display:none">
+        <i class="fa-solid fa-bolt-lightning"></i>
+        <span class="nav-label">UV Cabine</span>
+      </div>
+      <div class="nav-item" data-view="dispo-services-admin" onclick="loadDispoServicesAdmin()" style="display:none">
+        <i class="fa-solid fa-signal"></i>
+        <span class="nav-label">Disponibilité services</span>
+      </div>
+      <div class="nav-item" data-view="reports">
+        <i class="fa-solid fa-file-chart-column"></i>
+        <span class="nav-label">Rapports</span>
+      </div>
+      <div class="nav-item" data-view="notifications-admin" onclick="loadAdminNotifications()">
+        <i class="fa-solid fa-bell"></i>
+        <span class="nav-label">Notifications</span>
+        <span class="nav-badge" id="admin-notif-badge" style="display:none">0</span>
+      </div>
+      <div class="nav-item" data-view="settings" onclick="loadSettings();loadAssistanceAdmin();loadAdminNotifSoundSettings()">
+        <i class="fa-solid fa-gear"></i>
+        <span class="nav-label">Paramètres</span>
+      </div>
+      <div class="nav-item" data-view="administrateurs" onclick="loadAdminsList()" style="display:none">
+        <i class="fa-solid fa-user-shield"></i>
+        <span class="nav-label">Administrateurs</span>
+      </div>
+      <div class="nav-item" data-view="forfaits" onclick="loadForfaits()" style="display:none">
+        <i class="fa-solid fa-layer-group"></i>
+        <span class="nav-label">Forfaits</span>
+      </div>
+      <div class="nav-item" data-view="permission-cabine" onclick="loadPermissionCabine()" style="display:none">
+        <i class="fa-solid fa-sliders"></i>
+        <span class="nav-label">Permission Cabine</span>
+      </div>
+      <div class="nav-item" data-view="gestion-admins" onclick="loadGestionAdminsAdmin()" style="display:none">
+        <i class="fa-solid fa-calendar-check"></i>
+        <span class="nav-label">Gestion des Administrateurs</span>
+      </div>
+      <div class="nav-item" data-view="reabonnement-cabine" onclick="loadReabonnementCabine()" style="display:none">
+        <i class="fa-solid fa-rotate"></i>
+        <span class="nav-label">Réabonnement cabine</span>
+      </div>
+      <div class="nav-item" data-view="assistant-cabine" onclick="loadAssistantCabineAdmin()" style="display:none">
+        <i class="fa-brands fa-whatsapp"></i>
+        <span class="nav-label">Assistant clientèle cabine</span>
+      </div>
+      <div class="nav-item" data-view="assistant-client" onclick="loadAssistantClientAdmin()" style="display:none">
+        <i class="fa-brands fa-whatsapp"></i>
+        <span class="nav-label">Assistant clientèle client</span>
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="openLogoutChoice()">
+        <i class="fa-solid fa-right-from-bracket"></i> <span class="nav-label">Déconnexion</span>
+      </button>
+    </div>
+  </aside>
+  <div class="sidebar-overlay"></div>
+
+  <!-- ── Main ────────────────────────────────────────────────── -->
+  <div class="main-content">
+    <header class="topbar">
+      <button class="topbar-menu-btn" onclick="toggleAdminSidebar()" title="Réduire/déplier le menu"><i class="fa-solid fa-bars"></i></button>
+      <span class="topbar-title">Tableau de bord Admin</span>
+      <div class="topbar-actions">
+        <button class="topbar-btn" onclick="refreshCurrentAdminView()" title="Actualiser">
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+        <button class="topbar-btn" onclick="Theme.toggle()" title="Thème">
+          <i class="fa-solid fa-moon theme-icon"></i>
+        </button>
+        <button class="topbar-btn" onclick="openModal('modal-create-user');toggleCreateUserFields()" title="Créer un compte" style="background:var(--primary);color:#fff;box-shadow:0 4px 12px rgba(255,98,0,.35)">
+          <i class="fa-solid fa-user-plus"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="page-content">
+
+      <!-- ── DASHBOARD ──────────────────────────────────────── -->
+      <div class="view active" data-view="dashboard">
+        <div class="db-bubbles" aria-hidden="true">
+          <span class="db-bubble orange b1"></span>
+          <span class="db-bubble white  b2"></span>
+          <span class="db-bubble green  b3"></span>
+          <span class="db-bubble orange b4"></span>
+          <span class="db-bubble white  b5"></span>
+          <span class="db-bubble green  b6"></span>
+          <span class="db-bubble orange b7"></span>
+          <span class="db-bubble white  b8"></span>
+          <span class="db-bubble green  b9"></span>
+          <span class="db-bubble orange b10"></span>
+          <span class="db-bubble white  b11"></span>
+          <span class="db-bubble green  b12"></span>
+          <span class="db-bubble orange b13"></span>
+          <span class="db-bubble white  b14"></span>
+          <span class="db-bubble green  b15"></span>
+          <span class="db-bubble orange b16"></span>
+          <span class="db-bubble white  b17"></span>
+          <span class="db-bubble green  b18"></span>
+          <span class="db-bubble orange b19"></span>
+          <span class="db-bubble white  b20"></span>
+          <span class="db-bubble green  b21"></span>
+          <span class="db-bubble orange b22"></span>
+          <span class="db-bubble white  b23"></span>
+          <span class="db-bubble green  b24"></span>
+          <span class="db-bubble orange b25"></span>
+          <span class="db-bubble white  b26"></span>
+          <span class="db-bubble green  b27"></span>
+          <span class="db-bubble orange b28"></span>
+          <span class="db-bubble white  b29"></span>
+          <span class="db-bubble green  b30"></span>
+          <span class="db-bubble orange b31"></span>
+          <span class="db-bubble white  b32"></span>
+        </div>
+        <div class="db-content">
+        <!-- Main stats -->
+        <div class="dash-section-title">Vue d'ensemble</div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+          <div class="stat-card blue">
+            <div class="stat-info">
+              <div class="stat-label">Total clients</div>
+              <div class="stat-value" id="admin-clients">—</div>
+            </div>
+          </div>
+          <div class="stat-card green">
+            <div class="stat-info">
+              <div class="stat-label">Cabines actives</div>
+              <div class="stat-value" id="admin-cabines">—</div>
+            </div>
+          </div>
+          <div class="stat-card orange">
+            <div class="stat-info">
+              <div class="stat-label">Volume total</div>
+              <div class="stat-value" id="admin-volume">—</div>
+            </div>
+          </div>
+          <div class="stat-card purple">
+            <div class="stat-info">
+              <div class="stat-label">Revenus (commissions)</div>
+              <div class="stat-value" id="admin-revenue">—</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="dash-section-title">Transactions</div>
+        <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
+          <div class="stat-card" style="border-top:3px solid var(--primary)">
+            <div class="stat-info">
+              <div class="stat-label">Transactions totales</div>
+              <div class="stat-value" id="admin-txns">—</div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid var(--secondary)">
+            <div class="stat-info">
+              <div class="stat-label">Terminées</div>
+              <div class="stat-value" id="admin-done" style="color:var(--secondary)">—</div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid #F59E0B">
+            <div class="stat-info">
+              <div class="stat-label">En attente</div>
+              <div class="stat-value" id="admin-pending" style="color:#CA8A04">—</div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid #EF4444">
+            <div class="stat-info">
+              <div class="stat-label">Refusées</div>
+              <div class="stat-value" id="admin-refused" style="color:#EF4444">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Statistiques additionnelles -->
+        <div class="dash-section-title">Activité du jour</div>
+        <div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+          <div class="stat-card" style="border-top:3px solid #3B82F6;cursor:pointer;" onclick="openTodaySignups()">
+            <div class="stat-info">
+              <div class="stat-label">Inscriptions du jour</div>
+              <div class="stat-value" id="admin-signups-today">—</div>
+              <div class="stat-sub"><i class="fa-solid fa-arrow-up-right-from-square"></i> Voir les coordonnées</div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid #22C55E;">
+            <div class="stat-info">
+              <div class="stat-label">Visiteurs en temps réel</div>
+              <div class="stat-value" id="admin-online-count" style="color:#16A34A;">—</div>
+              <div class="stat-sub">Comptes connectés (tous rôles)</div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid #8B5CF6;">
+            <div class="stat-info">
+              <div class="stat-label">Réseaux activés par les cabines</div>
+              <div style="display:flex;gap:14px;margin-top:4px;">
+                <div><span style="font-weight:800;color:#FF6200;" id="admin-net-orange">—</span> <span style="font-size:.68rem;color:var(--gray-500)">Orange</span></div>
+                <div><span style="font-weight:800;color:#0066CC;" id="admin-net-moov">—</span> <span style="font-size:.68rem;color:var(--gray-500)">Moov</span></div>
+                <div><span style="font-weight:800;color:#CA8A04;" id="admin-net-mtn">—</span> <span style="font-size:.68rem;color:var(--gray-500)">MTN</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="stat-card" style="border-top:3px solid #059669;grid-column:1 / -1;align-items:center;text-align:center;">
+            <div class="stat-info">
+              <div class="stat-label">Ventes par réseau</div>
+              <div style="display:flex;gap:24px;margin-top:4px;overflow:hidden;justify-content:center;">
+                <div style="white-space:nowrap;"><span style="font-weight:800;color:#FF6200;" id="admin-sales-orange">—</span> <span style="font-size:.62rem;color:var(--gray-500)">Orange</span></div>
+                <div style="white-space:nowrap;"><span style="font-weight:800;color:#0066CC;" id="admin-sales-moov">—</span> <span style="font-size:.62rem;color:var(--gray-500)">Moov</span></div>
+                <div style="white-space:nowrap;"><span style="font-weight:800;color:#CA8A04;" id="admin-sales-mtn">—</span> <span style="font-size:.62rem;color:var(--gray-500)">MTN</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row 1 -->
+        <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-bar" style="color:var(--primary)"></i> Volume 7 derniers jours</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container"><canvas id="chart-volume"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-line" style="color:var(--secondary)"></i> Transactions journalières</span>
+            </div>
+            <div class="card-body">
+              <div class="chart-container"><canvas id="chart-txns"></canvas></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts row 2 -->
+        <div class="grid-2" style="gap:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-column" style="color:#8B5CF6"></i> Évolution mensuelle</span>
+            </div>
+            <div class="card-body">
+              <div style="height:220px;"><canvas id="chart-monthly"></canvas></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-chart-pie" style="color:var(--primary)"></i> Répartition par opérateur</span>
+            </div>
+            <div class="card-body">
+              <div style="height:220px;"><canvas id="chart-operators"></canvas></div>
+            </div>
+          </div>
+        </div>
+        </div>
+      </div>
+
+      <!-- ── BILAN (super admin uniquement) ────────────────────── -->
+      <div class="view" data-view="bilan">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Bilan</span></div>
+          <h2>Bilan global</h2>
+          <p>Statistiques de la plateforme sur la période sélectionnée — réservé au super administrateur.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-calendar-days" style="color:var(--primary)"></i> Période</span>
+            <div class="filter-bar">
+              <select class="filter-select" id="bilan-period-mode" onchange="bilanChangePeriodMode()">
+                <option value="day">Jour</option>
+                <option value="month" selected>Mois</option>
+                <option value="year">Année</option>
+                <option value="all">Toute la période</option>
+              </select>
+              <input type="date" class="form-control" id="bilan-period-day" style="max-width:150px;display:none;" onchange="loadBilan()">
+              <input type="month" class="form-control" id="bilan-period-month" style="max-width:150px;" onchange="loadBilan()">
+              <select class="form-control" id="bilan-period-year" style="max-width:110px;display:none;" onchange="loadBilan()"></select>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost btn-sm" onclick="window.print()"><i class="fa-solid fa-print"></i> Imprimer</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV('bilan')"><i class="fa-solid fa-file-csv"></i> Exporter CSV</button>
+            </div>
+          </div>
+          <div class="card-body" id="bilan-period-summary" style="font-size:.8rem;color:var(--text-muted);"></div>
+          <div id="bilan-print-period-label" class="bilan-print-only"></div>
+        </div>
+
+        <div class="dash-section-title" style="margin-top:20px;">Vue d'ensemble</div>
+        <div class="stats-grid" id="bilan-overview-grid" style="grid-template-columns:repeat(4,1fr);"></div>
+
+        <div class="dash-section-title" style="margin-top:24px;">Détail par service</div>
+        <div id="bilan-services-grid" class="bilan-services-grid"></div>
+      </div>
+
+      <!-- ── CLIENTS ─────────────────────────────────────────── -->
+      <div class="view" data-view="clients">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Clients</span></div>
+          <h2>Gestion des clients</h2>
+          <p>Consultez, modifiez et gérez tous les comptes clients.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-users" style="color:var(--primary)"></i> Tous les clients</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="client-search"
+                  placeholder="Rechercher (nom, téléphone, email…)"
+                  oninput="loadClients(this.value)" />
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadClients()">
+                <i class="fa-solid fa-rotate-right"></i> Actualiser
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV('clients')">
+                <i class="fa-solid fa-file-csv"></i> Exporter CSV
+              </button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-create-user');document.getElementById('new-role').value='client';toggleCreateUserFields()">
+              <i class="fa-solid fa-plus"></i> Nouveau client
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Client</th><th>Téléphone</th><th>Solde</th><th>Transactions</th><th>Statut</th><th>Inscription</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="clients-tbody">
+                <tr><td colspan="7" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CABINES ─────────────────────────────────────────── -->
+      <div class="view" data-view="cabines">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Cabines</span></div>
+          <h2>Gestion des cabines</h2>
+          <p>Activez, désactivez et gérez les cabines partenaires.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-store" style="color:var(--secondary)"></i> Toutes les cabines</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="cabine-search"
+                  placeholder="Rechercher (nom, zone, téléphone…)"
+                  oninput="loadCabines(this.value)" />
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadCabines()">
+                <i class="fa-solid fa-rotate-right"></i> Actualiser
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV('cabines')">
+                <i class="fa-solid fa-file-csv"></i> Exporter CSV
+              </button>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="openModal('modal-create-user');document.getElementById('new-role').value='cabine';toggleCreateUserFields()">
+              <i class="fa-solid fa-plus"></i> Nouvelle cabine
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Cabine</th><th>Téléphone</th><th>Solde</th><th>Commissions</th><th>Transferts</th><th>Disponibles</th><th>Retards</th><th>Statut</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="cabines-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RETRAITS ─────────────────────────────────────────────── -->
+      <div class="view" data-view="retraits-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Retraits</span></div>
+          <h2>Retraits des cabines</h2>
+          <p>Consultez le solde disponible et les coordonnées de paiement de chaque cabine, traitez leurs retraits.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-money-bill-wave" style="color:var(--secondary)"></i> Cabines</span>
+            <button class="btn btn-ghost btn-sm" onclick="loadRetraitsAdmin()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Cabine</th><th>Montant disponible</th><th>Moyen de paiement</th><th>Numéro de paiement</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="retraits-admin-tbody">
+                <tr><td colspan="5" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RECHARGE CABINISTE ─────────────────────────────────────── -->
+      <div class="view" data-view="recharge-cabiniste">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Recharge cabiniste</span></div>
+          <h2>Recharge cabiniste</h2>
+          <p>Créditez directement le solde du portefeuille d'un cabiniste.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-wallet" style="color:var(--secondary)"></i> Cabinistes</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="recharge-cabiniste-search"
+                  placeholder="Rechercher (nom, cabine, téléphone…)"
+                  oninput="loadRechargeCabiniste(this.value)" />
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadRechargeCabiniste()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Cabine</th><th>Téléphone</th><th>Solde actuel</th><th>Statut</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="recharge-cabiniste-tbody">
+                <tr><td colspan="5" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RECHARGE CLIENT ────────────────────────────────────────── -->
+      <div class="view" data-view="recharge-client">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Recharge client</span></div>
+          <h2>Recharge client</h2>
+          <p>Créditez directement le solde du portefeuille d'un client.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-sack-dollar" style="color:var(--primary)"></i> Clients</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="recharge-client-search"
+                  placeholder="Rechercher (nom, téléphone, email…)"
+                  oninput="loadRechargeClient(this.value)" />
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadRechargeClient()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Client</th><th>Téléphone</th><th>Solde actuel</th><th>Statut</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="recharge-client-tbody">
+                <tr><td colspan="5" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RECHARGE UV (commandes clients) ───────────────────────── -->
+      <div class="view" data-view="recharge-uv-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Recharge UV</span></div>
+          <h2>Commandes de recharge UV</h2>
+          <p>Consultez et traitez les demandes de recharge d'unités virtuelles passées par les clients.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bolt-lightning" style="color:#06b6d4"></i> Commandes</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="recharge-uv-search"
+                  placeholder="ID, numéro, réseau, client…"
+                  oninput="searchRechargeUvAdmin()" />
+              </div>
+              <select class="filter-select" id="recharge-uv-status" onchange="searchRechargeUvAdmin()">
+                <option value="all">Tous les statuts</option>
+                <option value="terminé">Terminés</option>
+                <option value="en_attente">En attente</option>
+                <option value="refusé">Refusés</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadRechargeUvAdmin()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Client</th><th>Cabine</th><th>Réseau</th><th>Numéro</th><th>Montant</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="recharge-uv-admin-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── EXCHANGE (commandes clients) ───────────────────────────── -->
+      <div class="view" data-view="exchange-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Exchange</span></div>
+          <h2>Commandes d'exchange</h2>
+          <p>Consultez et traitez les demandes d'échange entre réseaux passées par les clients.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-arrows-rotate" style="color:#8b5cf6"></i> Commandes</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="exchange-admin-search"
+                  placeholder="ID, numéro, réseau, client…"
+                  oninput="searchExchangeAdmin()" />
+              </div>
+              <select class="filter-select" id="exchange-admin-status" onchange="searchExchangeAdmin()">
+                <option value="all">Tous les statuts</option>
+                <option value="terminé">Terminés</option>
+                <option value="en_attente">En attente</option>
+                <option value="refusé">Refusés</option>
+              </select>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadExchangeAdmin()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>ID</th><th>Client</th><th>Cabine</th><th>Débit</th><th>Réception</th><th>Montant</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="exchange-admin-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMMANDES EN RETARD ──────────────────────────────────── -->
+      <div class="view" data-view="retards-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Commandes en retard</span></div>
+          <h2>Commandes en retard</h2>
+          <p>Historique des commandes restées plus de 3 minutes en attente, et de la cabine responsable de chaque retard.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-triangle-exclamation" style="color:#EF4444"></i> Historique des retards</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="retards-admin-search"
+                  placeholder="ID commande, cabine…"
+                  oninput="searchRetardsAdmin()" />
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadRetardsAdmin()">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Détecté à</th><th>Cabine responsable</th><th>Commande</th><th>Montant</th><th>Opérateur</th><th>Issue</th></tr>
+              </thead>
+              <tbody id="retards-admin-tbody">
+                <tr><td colspan="6" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── HISTORIQUE DES RETRAITS (super admin uniquement) ───── -->
+      <div class="view" data-view="retraits-historique">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Historique retraits</span></div>
+          <h2>Historique des retraits</h2>
+          <p>Retraits effectués par l'ensemble des cabines de la plateforme.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-clock-rotate-left" style="color:var(--secondary)"></i> Journal des retraits</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="rhist-search"
+                  placeholder="Rechercher une cabine…"
+                  oninput="loadRetraitsHistorique(1)" />
+              </div>
+              <input type="date" class="form-control" id="rhist-date-debut" title="Date de début"
+                style="max-width:150px;" onchange="loadRetraitsHistorique(1)" />
+              <input type="date" class="form-control" id="rhist-date-fin" title="Date de fin"
+                style="max-width:150px;" onchange="loadRetraitsHistorique(1)" />
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="loadRetraitsHistorique(1)">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Cabine</th><th>Montant</th><th>Moyen de retrait</th><th>Statut</th><th>Date</th></tr>
+              </thead>
+              <tbody id="rhist-tbody">
+                <tr><td colspan="5" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="rhist-pagination" style="padding:16px 0;"></div>
+        </div>
+      </div>
+
+      <!-- ── TRANSACTIONS ────────────────────────────────────── -->
+      <div class="view" data-view="transactions">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Transactions</span></div>
+          <h2>Toutes les transactions</h2>
+          <p>Recherchez et consultez l'intégralité des opérations.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-table-list" style="color:var(--primary)"></i> Journal des transactions</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="admin-txn-search"
+                  placeholder="ID, numéro, opérateur, client…"
+                  oninput="searchTransactions()" />
+              </div>
+              <select class="filter-select" id="admin-txn-status" onchange="searchTransactions()">
+                <option value="all">Tous les statuts</option>
+                <option value="terminé">Terminés</option>
+                <option value="en_attente">En attente</option>
+                <option value="refusé">Refusés</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="loadTransactions()">
+                <i class="fa-solid fa-rotate-right"></i> Actualiser
+              </button>
+              <span id="bulk-reassign-bar" style="display:none;align-items:center;gap:10px;">
+                <span style="font-size:.78rem;font-weight:700;color:var(--primary);" id="bulk-reassign-count">0 sélectionnée(s)</span>
+                <button class="btn btn-primary btn-sm" onclick="openBulkReassignModal()">
+                  <i class="fa-solid fa-right-left"></i> Réassigner la sélection
+                </button>
+              </span>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="exportCSV('transactions')">
+              <i class="fa-solid fa-file-csv"></i> Exporter CSV
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th><input type="checkbox" id="admin-txn-check-all" onchange="toggleAllTxnChecks(this.checked)"></th><th>ID</th><th>Client / Cabine</th><th>Réseau</th><th>N° Bénéficiaire</th><th>Montant</th><th>Statut</th><th>Date</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="admin-txn-tbody">
+                <tr><td colspan="9" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMMISSIONS ─────────────────────────────────────── -->
+      <div class="view" data-view="commissions-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Commissions</span></div>
+          <h2>Gestion des commissions</h2>
+          <p>Définissez les taux de commission appliqués aux transferts.</p>
+        </div>
+        <div class="grid-2" style="gap:20px;align-items:start;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-percent" style="color:var(--primary)"></i> Taux actuel</span>
+            </div>
+            <div class="card-body">
+              <form onsubmit="saveCommissionRate(event)">
+                <div class="form-group">
+                  <label class="form-label">Taux de commission (%)</label>
+                  <div class="input-group">
+                    <i class="fa-solid fa-percent input-icon"></i>
+                    <input type="number" class="form-control" id="comm-rate-input" step="0.5" min="0" max="50" required />
+                    <span class="input-suffix">%</span>
+                  </div>
+                  <div class="form-hint">Appliqué à tous les transferts (cabines rémunérées sur ce taux)</div>
+                </div>
+                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-save"></i> Enregistrer le taux</button>
+              </form>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-table" style="color:var(--secondary)"></i> Règles de commission</span>
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead><tr><th>Règle</th><th>Taux</th><th>Statut</th><th>Date</th></tr></thead>
+                <tbody id="admin-comm-tbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── REPORTS ─────────────────────────────────────────── -->
+      <div class="view" data-view="reports">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Rapports</span></div>
+          <h2>Rapports et exports</h2>
+          <p>Générez et téléchargez des rapports d'activité.</p>
+        </div>
+        <div class="grid-3" style="gap:20px;align-items:start;">
+          <div class="card">
+            <div class="card-body" style="text-align:center;padding:32px 24px;">
+              <div style="font-size:2.5rem;margin-bottom:14px;">📋</div>
+              <h3 style="margin-bottom:8px;">Transactions</h3>
+              <p style="margin-bottom:20px;font-size:.85rem;">Toutes les transactions de la plateforme au format CSV.</p>
+              <button class="btn btn-primary btn-full" onclick="exportCSV('transactions')">
+                <i class="fa-solid fa-download"></i> Télécharger CSV
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body" style="text-align:center;padding:32px 24px;">
+              <div style="font-size:2.5rem;margin-bottom:14px;">👥</div>
+              <h3 style="margin-bottom:8px;">Clients</h3>
+              <p style="margin-bottom:20px;font-size:.85rem;">Liste complète des clients inscrits avec leurs données.</p>
+              <button class="btn btn-secondary btn-full" onclick="exportCSV('clients')">
+                <i class="fa-solid fa-download"></i> Télécharger CSV
+              </button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-body" style="text-align:center;padding:32px 24px;">
+              <div style="font-size:2.5rem;margin-bottom:14px;">🏪</div>
+              <h3 style="margin-bottom:8px;">Cabines</h3>
+              <p style="margin-bottom:20px;font-size:.85rem;">Données des cabines partenaires et leurs commissions.</p>
+              <button class="btn btn-ghost btn-full" onclick="exportCSV('cabines')">
+                <i class="fa-solid fa-download"></i> Télécharger CSV
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Print Report -->
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-print" style="color:var(--primary)"></i> Rapport récapitulatif</span>
+            <button class="btn btn-primary btn-sm" onclick="printReport()"><i class="fa-solid fa-print"></i> Imprimer</button>
+          </div>
+          <div class="card-body" id="report-preview">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+              <div style="padding:16px;border:1px solid var(--gray-200);border-radius:var(--radius);text-align:center;">
+                <div style="font-size:1.8rem;font-weight:800;color:var(--primary)" id="rpt-volume">—</div>
+                <div style="font-size:.78rem;color:var(--gray-500);margin-top:4px;">Volume total</div>
+              </div>
+              <div style="padding:16px;border:1px solid var(--gray-200);border-radius:var(--radius);text-align:center;">
+                <div style="font-size:1.8rem;font-weight:800;color:var(--secondary)" id="rpt-revenue">—</div>
+                <div style="font-size:.78rem;color:var(--gray-500);margin-top:4px;">Revenus (commissions)</div>
+              </div>
+              <div style="padding:16px;border:1px solid var(--gray-200);border-radius:var(--radius);text-align:center;">
+                <div style="font-size:1.8rem;font-weight:800;color:#8B5CF6" id="rpt-txns">—</div>
+                <div style="font-size:.78rem;color:var(--gray-500);margin-top:4px;">Transactions terminées</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RÉINITIALISATIONS MOT DE PASSE ────────────────────── -->
+      <!-- ── DEMANDES DE PARTENARIAT ──────────────────────────────── -->
+      <div class="view" data-view="partner-requests">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Demandes de partenariat</span></div>
+          <h2>Demandes de partenariat</h2>
+          <p>Examinez et traitez les candidatures pour devenir cabine partenaire.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-handshake" style="color:var(--primary)"></i> Candidatures</span>
+            <button class="btn btn-sm" onclick="loadPartnerRequests()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="partner-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CLASSEMENTS ───────────────────────────────────────────── -->
+      <div class="view" data-view="rankings">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Classements</span></div>
+          <h2>Classements</h2>
+          <p>Cabinistes et clients les plus actifs.</p>
+        </div>
+        <div class="grid-2" style="gap:20px;margin-bottom:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-bolt" style="color:#F59E0B"></i> Cabinistes du jour</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="rank-today-list"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-trophy" style="color:var(--secondary)"></i> Meilleurs cabinistes</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="rank-cabines-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-star" style="color:var(--primary)"></i> Meilleurs clients</span>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="rank-clients-list"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-ranking-star" style="color:#059669"></i> Classement des cabines</span>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>Cabine</th>
+                  <th class="rank-sortable" onclick="sortCabineRanking('commandes')" style="cursor:pointer;">Commandes validées <i class="fa-solid fa-sort" id="rank-sort-ico-commandes"></i></th>
+                  <th class="rank-sortable" onclick="sortCabineRanking('remboursements')" style="cursor:pointer;">Remboursements <i class="fa-solid fa-sort" id="rank-sort-ico-remboursements"></i></th>
+                  <th class="rank-sortable" onclick="sortCabineRanking('ventes')" style="cursor:pointer;">Ventes <i class="fa-solid fa-sort" id="rank-sort-ico-ventes"></i></th>
+                </tr>
+              </thead>
+              <tbody id="rank-cabine-table-tbody">
+                <tr><td colspan="4" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="grid-2" style="gap:20px;margin-top:20px;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-rotate-left" style="color:#EF4444"></i> Commandes renvoyées</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="rank-renvoyees-list"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-money-bill-transfer" style="color:#8B5CF6"></i> Remboursements reçus</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+              <div id="rank-remboursements-list"></div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-crown" style="color:#F59E0B"></i> Cabines par palier d'abonnement</span>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="rank-abonnement-list"></div>
+          </div>
+        </div>
+        <div class="page-header" style="margin-top:24px;">
+          <h2 style="font-size:1rem;">Ventes des cabines par réseau</h2>
+        </div>
+        <div class="card">
+          <div class="rank-network-group">
+            <div class="rank-network-col">
+              <div class="rank-network-col-hd"><i class="fa-solid fa-signal" style="color:#FF6200"></i> Orange</div>
+              <div id="rank-network-orange-list"></div>
+            </div>
+            <div class="rank-network-col">
+              <div class="rank-network-col-hd"><i class="fa-solid fa-signal" style="color:#FFCC00"></i> MTN</div>
+              <div id="rank-network-mtn-list"></div>
+            </div>
+            <div class="rank-network-col">
+              <div class="rank-network-col-hd"><i class="fa-solid fa-signal" style="color:#0066CC"></i> Moov</div>
+              <div id="rank-network-moov-list"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ZÉRO TRANSACTION ─────────────────────────────────── -->
+      <div class="view" data-view="zero-transaction">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Zéro transaction</span></div>
+          <h2>Zéro transaction</h2>
+          <p>Comptes clients créés sans aucune commande passée.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-ghost" style="color:var(--primary)"></i> Comptes sans commande</span>
+            <div class="filter-bar">
+              <select class="filter-select" id="zt-appel-filter" onchange="loadZeroTransactionAdmin(this.value)">
+                <option value="all">Tous les statuts</option>
+                <option value="">Non classé</option>
+                <option value="en_cours">En cours d'appel</option>
+                <option value="termine">Appel terminé</option>
+              </select>
+            </div>
+            <button class="btn btn-sm" onclick="loadZeroTransactionAdmin(document.getElementById('zt-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="zero-transaction-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CLIENT MOINS ACTIF ───────────────────────────────── -->
+      <div class="view" data-view="clients-inactifs">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Client moins actif</span></div>
+          <h2>Client moins actif</h2>
+          <p>Clients dont la dernière commande remonte à 7 jours ou plus.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-user-clock" style="color:var(--primary)"></i> Clients peu actifs</span>
+            <div class="filter-bar">
+              <select class="filter-select" id="ci-appel-filter" onchange="loadClientsInactifsAdmin(this.value)">
+                <option value="all">Tous les statuts</option>
+                <option value="">Non classé</option>
+                <option value="en_cours">En cours d'appel</option>
+                <option value="termine">Appel terminé</option>
+              </select>
+            </div>
+            <button class="btn btn-sm" onclick="loadClientsInactifsAdmin(document.getElementById('ci-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="clients-inactifs-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CABINES MOINS ACTIVES ────────────────────────────── -->
+      <div class="view" data-view="cabines-inactives">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Cabines moins actifs</span></div>
+          <h2>Cabines moins actifs</h2>
+          <p>Cabines dont le dernier service traité remonte à 7 jours ou plus.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-store-slash" style="color:var(--primary)"></i> Cabines peu actifs</span>
+            <div class="filter-bar">
+              <select class="filter-select" id="cai-appel-filter" onchange="loadCabinesInactivesAdmin(this.value)">
+                <option value="all">Tous les statuts</option>
+                <option value="">Non classé</option>
+                <option value="en_cours">En cours d'appel</option>
+                <option value="termine">Appel terminé</option>
+              </select>
+            </div>
+            <button class="btn btn-sm" onclick="loadCabinesInactivesAdmin(document.getElementById('cai-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="cabines-inactives-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" data-view="reset-requests">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Réinitialisations</span></div>
+          <h2>Demandes de réinitialisation</h2>
+          <p>Examinez et traitez les demandes de réinitialisation de mot de passe.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-key" style="color:var(--primary)"></i> Demandes en attente</span>
+            <button class="btn btn-sm" onclick="loadResetRequests()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="rst-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMPTES BLOQUÉS ──────────────────────────────────── -->
+      <div class="view" data-view="comptes-bloques">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Comptes bloqués</span></div>
+          <h2>Comptes bloqués</h2>
+          <p>Comptes bloqués automatiquement après 3 mots de passe incorrects consécutifs.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-lock" style="color:var(--primary)"></i> Comptes bloqués</span>
+            <button class="btn btn-sm" onclick="loadComptesBloquesAdmin()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="comptes-bloques-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CABINES SUSPENDUES ──────────────────────────────────── -->
+      <div class="view" data-view="cabines-suspendues">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Cabines suspendues</span></div>
+          <h2>Cabines suspendues</h2>
+          <p>Suspendues automatiquement (retards, renvois ou remboursements répétés) ou manuellement par un administrateur.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-ban" style="color:var(--primary)"></i> Cabines suspendues</span>
+            <button class="btn btn-sm" onclick="loadCabinesSuspenduesAdmin()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="cabines-suspendues-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── APPAREILS CONNECTÉS (super administrateur) ──────── -->
+      <div class="view" data-view="appareils-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Appareils connectés</span></div>
+          <h2>Appareils connectés</h2>
+          <p>Appareils connectés pour les comptes Client et Administrateur simple (limite de 2 par compte).</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i> Appareils</span>
+            <button class="btn btn-sm" onclick="loadAppareilsAdmin()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="appareils-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" data-view="refund-requests">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Remboursements</span></div>
+          <h2>Demandes de remboursement</h2>
+          <p>Réclamations pour lesquelles une cabine a demandé un remboursement — validez pour rembourser le client et clore la demande.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-rotate-left" style="color:var(--primary)"></i> Demandes de remboursement</span>
+            <button class="btn btn-sm" onclick="loadRefundRequests()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="refund-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── DISCUSSION CLIENT-CABINE ─────────────────────────── -->
+      <div class="view" data-view="discussions-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Discussion client-cabine</span></div>
+          <h2>Discussion client-cabine</h2>
+          <p>Supervision des échanges de réclamation entre clients et partenaires (messages, captures d'écran, statut).</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-comments" style="color:var(--primary)"></i> Discussions</span>
+            <button class="btn btn-sm" onclick="loadDiscussionsAdmin()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="discussions-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" data-view="access-logs">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Journal des accès</span></div>
+          <h2>Journal des accès</h2>
+          <p>Traçabilité des connexions directes de l'administration à l'espace partenaire ou client, sans mot de passe.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-user-shield" style="color:var(--primary)"></i> Accès journalisés</span>
+            <button class="btn btn-sm" onclick="loadAccessLogs()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="access-logs-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RÉABONNEMENT CABINE (super administrateur) ──────── -->
+      <div class="view" data-view="reabonnement-cabine">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Réabonnement cabine</span></div>
+          <h2>Réabonnement cabine</h2>
+          <p>Historique des réabonnements payés par les partenaires via leur solde.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-rotate" style="color:var(--primary)"></i> Réabonnements</span>
+            <button class="btn btn-sm" onclick="loadReabonnementCabine()" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="reabonnement-cabine-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ASSISTANT CLIENTÈLE CABINE (super administrateur) ── -->
+      <div class="view" data-view="assistant-cabine">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Assistant clientèle cabine</span></div>
+          <h2>Assistant clientèle cabine</h2>
+          <p>Numéros WhatsApp proposés aux partenaires lorsqu'ils cliquent sur le bouton WhatsApp de leur espace.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-brands fa-whatsapp" style="color:var(--primary)"></i> Numéros WhatsApp</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Numéros WhatsApp (cabine)</label>
+              <div id="assistant-cabine-list"></div>
+              <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="addAssistantCabineField()">
+                <i class="fa-solid fa-plus"></i> Ajouter un numéro
+              </button>
+            </div>
+            <button class="btn btn-primary" onclick="saveAssistantCabineAdmin()"><i class="fa-solid fa-save"></i> Enregistrer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ASSISTANT CLIENTÈLE CLIENT (super administrateur) ── -->
+      <div class="view" data-view="assistant-client">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Assistant clientèle client</span></div>
+          <h2>Assistant clientèle client</h2>
+          <p>Numéros WhatsApp proposés aux clients, avec programmation horaire optionnelle.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-brands fa-whatsapp" style="color:var(--primary)"></i> Numéros WhatsApp</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Numéros WhatsApp (client)</label>
+              <div id="assistant-client-list"></div>
+              <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="addAssistantClientField()">
+                <i class="fa-solid fa-plus"></i> Ajouter un numéro
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-regular fa-clock" style="color:var(--primary)"></i> Programmation automatique</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:.8rem;color:var(--gray-500);margin-bottom:12px;">Pendant un créneau programmé, le client est redirigé directement vers l'assistant assigné, sans liste de choix.</p>
+            <div id="assistant-client-schedule-list"></div>
+            <button type="button" class="btn btn-ghost btn-sm" style="margin-top:6px;" onclick="addAssistantClientScheduleRow()">
+              <i class="fa-solid fa-plus"></i> Ajouter un créneau
+            </button>
+            <div style="margin-top:16px;">
+              <button class="btn btn-primary" onclick="saveAssistantClientAdmin()"><i class="fa-solid fa-save"></i> Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── NOTIFICATIONS ───────────────────────────────────── -->
+      <div class="view" data-view="notifications-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Notifications</span></div>
+          <h2>Notifications système</h2>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bell" style="color:var(--primary)"></i> Toutes les notifications</span>
+          </div>
+          <div class="card-body" style="padding:0 4px;">
+            <div id="admin-notif-list" class="notif-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── MAINTENANCE ─────────────────────────────────────── -->
+      <div class="view" data-view="maintenance-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Maintenance</span></div>
+          <h2>Maintenance</h2>
+          <p>Désactivez temporairement un message global ou un service précis — le client en est averti s'il tente de l'utiliser. Recharge UV et les réseaux se gèrent depuis l'onglet "UV Cabine".</p>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bullhorn" style="color:var(--primary)"></i> Message de maintenance globale</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group" style="display:flex;align-items:center;gap:10px;">
+              <input type="checkbox" id="maint-global-enabled" style="width:16px;height:16px;">
+              <label class="form-label" style="margin:0;" for="maint-global-enabled">Afficher un bandeau de maintenance dans l'espace client</label>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Message affiché au client</label>
+              <textarea class="form-control" id="maint-global-message" rows="2" placeholder="Ex : Maintenance prévue de 22h à 23h, certains services peuvent être ralentis."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-sliders" style="color:var(--secondary)"></i> Services</span>
+          </div>
+          <div class="card-body" id="maint-services-content"></div>
+        </div>
+        <button class="btn btn-primary" style="margin-top:20px;" onclick="saveMaintenanceAdmin()">
+          <i class="fa-solid fa-save"></i> Enregistrer
+        </button>
+      </div>
+
+      <!-- ── UV CABINE (super admin uniquement) ────────────────── -->
+      <div class="view" data-view="uv-cabine-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>UV Cabine</span></div>
+          <h2>UV Cabine</h2>
+          <p>Réservé au super administrateur. Bloque/débloque la Recharge UV et les réseaux dans l'espace cabine — ces réglages réutilisent les mêmes indicateurs que l'onglet "Maintenance" pour le service Recharge UV, un blocage ici affecte donc aussi la Recharge UV côté client.</p>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bolt-lightning" style="color:var(--secondary)"></i> Recharge UV</span>
+          </div>
+          <div class="card-body" style="padding:14px 18px;">
+            <label class="chip-toggle">
+              <input type="checkbox" id="uvcab-recharge-uv-chk" onchange="toggleUvCabineService(this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer la Recharge UV
+            </label>
+          </div>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-signal" style="color:#8B5CF6"></i> Réseaux</span>
+          </div>
+          <div class="card-body" style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px;">
+            <label class="chip-toggle">
+              <input type="checkbox" id="uvcab-net-Orange" onchange="toggleUvCabineNetwork('Orange', this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Orange
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="uvcab-net-MTN" onchange="toggleUvCabineNetwork('MTN', this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>MTN
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="uvcab-net-Moov" onchange="toggleUvCabineNetwork('Moov', this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Moov
+            </label>
+          </div>
+          <div style="padding:0 18px 14px;font-size:.72rem;color:var(--text-muted);">Un réseau bloqué apparaît "Indisponible" dans l'espace cabine (et n'est plus proposé côté client).</div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Journal</span>
+          </div>
+          <div class="card-body" id="uvcab-logs-list" style="padding:0;">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- ── DISPONIBILITÉ DES SERVICES (super admin uniquement) ── -->
+      <div class="view" data-view="dispo-services-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Disponibilité services</span></div>
+          <h2>Disponibilité des services</h2>
+          <p>Réservé au super administrateur. Réseaux indépendants pour Exchange et Recharge (portefeuille), et messages d'indisponibilité personnalisés pour chacun des services du bouton Facture — sans lien avec l'onglet "Maintenance" générique ni "UV Cabine".</p>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-arrows-rotate" style="color:#8b5cf6"></i> Réseaux — Exchange</span>
+          </div>
+          <div class="card-body" style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px;">
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-exchange-Orange" onchange="toggleServiceNetwork('exchange','Orange',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Orange
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-exchange-MTN" onchange="toggleServiceNetwork('exchange','MTN',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>MTN
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-exchange-Moov" onchange="toggleServiceNetwork('exchange','Moov',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Moov
+            </label>
+          </div>
+          <div style="padding:0 18px 14px;font-size:.72rem;color:var(--text-muted);">Un réseau bloqué ici n'affecte QUE l'Exchange — indépendant de Transfert direct/Facture/Recharge UV et de la Recharge portefeuille ci-dessous.</div>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-wallet" style="color:#22C55E"></i> Réseaux — Recharge (portefeuille)</span>
+          </div>
+          <div class="card-body" style="padding:14px 18px;display:flex;flex-wrap:wrap;gap:8px;">
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-recharge-Orange" onchange="toggleServiceNetwork('recharge','Orange',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Orange
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-recharge-MTN" onchange="toggleServiceNetwork('recharge','MTN',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>MTN
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-recharge-Moov" onchange="toggleServiceNetwork('recharge','Moov',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Moov
+            </label>
+            <label class="chip-toggle">
+              <input type="checkbox" id="dispo-recharge-Wave" onchange="toggleServiceNetwork('recharge','Wave',this)">
+              <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Wave
+            </label>
+          </div>
+          <div style="padding:0 18px 14px;font-size:.72rem;color:var(--text-muted);">Un réseau bloqué ici n'affecte QUE la recharge du portefeuille (bouton "Recharger").</div>
+        </div>
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-file-invoice-dollar" style="color:#F59E0B"></i> Messages — Services Facture</span>
+          </div>
+          <div class="card-body" style="padding:14px 18px;display:flex;flex-direction:column;gap:14px;">
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-cie_prepaye">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "Prépayé CIE"
+              </label>
+              <textarea id="dispo-fact-msg-cie_prepaye" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-cie_facture">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "Facture CIE"
+              </label>
+              <textarea id="dispo-fact-msg-cie_facture" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-sodeci">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "SODECI"
+              </label>
+              <textarea id="dispo-fact-msg-sodeci" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-canal_plus">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "CANAL+"
+              </label>
+              <textarea id="dispo-fact-msg-canal_plus" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-canalbox">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "CANALBOX"
+              </label>
+              <textarea id="dispo-fact-msg-canalbox" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <div>
+              <label class="chip-toggle" style="margin-bottom:6px;">
+                <input type="checkbox" id="dispo-fact-blocked-sotra">
+                <span class="chip-dot"><i class="fa-solid fa-check"></i></span>Bloquer "SOTRA"
+              </label>
+              <textarea id="dispo-fact-msg-sotra" class="form-control" rows="2" placeholder="Message affiché au client si bloqué (par défaut : « Service momentanément indisponible. »)"></textarea>
+            </div>
+            <button class="btn btn-primary" style="align-self:flex-start;" onclick="saveDispoFactureMessages()"><i class="fa-solid fa-floppy-disk"></i> Enregistrer les messages</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Journal</span>
+          </div>
+          <div class="card-body" id="dispo-logs-list" style="padding:0;">Chargement…</div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ────────────────────────────────────────── -->
+      <div class="view" data-view="settings">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Paramètres</span></div>
+          <h2>Paramètres de la plateforme</h2>
+          <p>Configurez les paramètres généraux de KBINE PLUS.</p>
+        </div>
+        <div class="grid-2" style="gap:20px;align-items:start;">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-gear" style="color:var(--primary)"></i> Configuration générale</span>
+            </div>
+            <div class="card-body" id="settings-content">
+              Chargement…
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title"><i class="fa-solid fa-circle-info" style="color:var(--secondary)"></i> Informations système</span>
+            </div>
+            <div class="card-body" id="sys-info-content">
+              <div class="stat-mini"><span class="stat-mini-label">Version</span><span class="stat-mini-val">KBINE PLUS v1.0</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Environnement</span><span class="stat-mini-val">Production</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Base de données</span><span class="stat-mini-val">LocalStorage</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Monnaie</span><span class="stat-mini-val">FCFA</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Taux commission</span><span class="stat-mini-val">5%</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Pays</span><span class="stat-mini-val">🇨🇮 Côte d'Ivoire</span></div>
+              <div style="margin-top:16px;padding:12px;background:rgba(255,98,0,.06);border-radius:var(--radius);border:1px solid rgba(255,98,0,.2);">
+                <div style="font-size:.82rem;font-weight:600;color:var(--primary);margin-bottom:8px;"><i class="fa-solid fa-rocket"></i> Évolutions prévues</div>
+                <ul style="font-size:.78rem;color:var(--gray-500);padding-left:16px;line-height:1.8;">
+                  <li>API Orange Money officielle</li>
+                  <li>API MTN Mobile Money</li>
+                  <li>API Moov Money</li>
+                  <li>Programme de fidélité</li>
+                  <li>QR Code paiements</li>
+                  <li>API publique partenaires</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-headset" style="color:var(--primary)"></i> Assistance &amp; réseaux sociaux</span>
+          </div>
+          <div class="card-body" id="assistance-content">
+            Chargement…
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bell" style="color:var(--primary)"></i> Notifications sonores</span>
+          </div>
+          <div class="card-body" id="admin-notif-sound-content">
+            Chargement…
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ADMINISTRATEURS (super admin uniquement) ──────────────── -->
+      <div class="view" data-view="administrateurs">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Administrateurs</span></div>
+          <h2>Comptes administrateurs</h2>
+          <p>Droits exclusifs du super administrateur : création de comptes, gestion des permissions, suspension, consultation des profils.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-user-shield" style="color:var(--primary)"></i> Administrateurs</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="admins-search"
+                  placeholder="Rechercher (nom, téléphone…)"
+                  oninput="searchAdminsList()" />
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadAdminsList()">
+                <i class="fa-solid fa-rotate-right"></i> Actualiser
+              </button>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openModal('modal-create-user');document.getElementById('new-role').value='admin';toggleCreateUserFields()">
+              <i class="fa-solid fa-plus"></i> Ajouter un administrateur
+            </button>
+          </div>
+          <div class="card-body" style="padding-bottom:0;">
+            <div id="admins-online-summary" style="font-size:.8rem;color:var(--gray-500);margin-bottom:10px;"></div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Administrateur</th><th>Niveau</th><th>Permissions</th><th>Statut</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="admins-tbody">
+                <tr><td colspan="5" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── FORFAITS (super admin uniquement) ──────────────────────── -->
+      <div class="view" data-view="forfaits">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Forfaits</span></div>
+          <h2>Catalogue des forfaits</h2>
+          <p>Ajoutez ou supprimez les forfaits proposés aux clients (Orange, MTN, Moov) — les changements sont immédiatement visibles côté Client, sans mise à jour du code.</p>
+        </div>
+
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title" id="frf-form-title"><i class="fa-solid fa-plus" style="color:var(--primary)"></i> Ajouter un forfait</span>
+          </div>
+          <div class="card-body">
+            <form onsubmit="addForfait(event)">
+              <div class="form-group">
+                <label class="form-label">Réseau</label>
+                <select class="form-control" id="frf-add-op" onchange="populateForfaitCatSelect(this.value);updateForfaitUssdPlaceholders(this.value)">
+                  <option value="Orange">Orange</option>
+                  <option value="MTN">MTN</option>
+                  <option value="Moov">Moov</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Catégorie</label>
+                <select class="form-control" id="frf-add-cat" onchange="toggleForfaitNewCatField(this.value)"></select>
+                <input type="text" class="form-control" id="frf-add-cat-new" placeholder="Nom de la nouvelle catégorie" style="display:none;margin-top:8px;">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Nom du forfait</label>
+                <input type="text" class="form-control" id="frf-add-nom" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Détail de l'offre</label>
+                <input type="text" class="form-control" id="frf-add-detail" placeholder="Ex : 1 Go + 60 min" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Durée</label>
+                <input type="text" class="form-control" id="frf-add-duree" placeholder="Ex : 7 jours" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Prix (FCFA)</label>
+                <input type="number" class="form-control" id="frf-add-prix" min="1" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Modèle USSD (optionnel)</label>
+                <input type="text" class="form-control" id="frf-add-ussd" placeholder="#161*{numero_destinataire}*...#">
+                <div style="font-size:.68rem;color:var(--gray-500);margin-top:4px;">Laisser vide si ce forfait n'a pas de code USSD. Le texte "{numero_destinataire}" est remplacé automatiquement par le numéro du destinataire à la commande.</div>
+              </div>
+              <div style="display:flex;gap:10px;">
+                <button type="submit" class="btn btn-primary" id="frf-submit-btn"><i class="fa-solid fa-plus"></i> Ajouter le forfait</button>
+                <button type="button" class="btn btn-ghost" id="frf-cancel-edit-btn" onclick="cancelEditForfait()" style="display:none;">Annuler</button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-list"></i> Catalogue actuel</span>
+            <div class="filter-bar">
+              <button type="button" class="btn btn-ghost btn-sm frf-op-btn active" data-op="Orange" onclick="selectForfaitReseau('Orange',this)">Orange</button>
+              <button type="button" class="btn btn-ghost btn-sm frf-op-btn" data-op="MTN" onclick="selectForfaitReseau('MTN',this)">MTN</button>
+              <button type="button" class="btn btn-ghost btn-sm frf-op-btn" data-op="Moov" onclick="selectForfaitReseau('Moov',this)">Moov</button>
+            </div>
+          </div>
+          <div class="card-body" id="forfaits-list-body">Chargement…</div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-hashtag" style="color:var(--primary)"></i> Modèles USSD — transfert direct MTN/Moov</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:.75rem;color:var(--gray-500);margin-bottom:16px;">S'appliquent aux recharges "Transfert direct" (crédit simple, hors forfaits) MTN et Moov. Le texte "{numero_destinataire}" est remplacé automatiquement par le numéro du destinataire à la commande. Les forfaits Orange ont leur propre modèle USSD, géré dans le catalogue ci-dessus.</p>
+            <form onsubmit="saveUssdTemplates(event)">
+              <div class="form-group">
+                <label class="form-label">MTN</label>
+                <input type="text" class="form-control" id="ussdtpl-mtn" placeholder="*133*6*2*{numero_destinataire}#">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Moov</label>
+                <input type="text" class="form-control" id="ussdtpl-moov-marchand" placeholder="*155*6*2*{numero_destinataire}#">
+              </div>
+              <button type="submit" class="btn btn-primary"><i class="fa-solid fa-check"></i> Enregistrer les modèles</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── PERMISSION CABINE (super admin uniquement) ─────────────── -->
+      <div class="view" data-view="permission-cabine">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Permission Cabine</span></div>
+          <h2>Permission Cabine</h2>
+          <p>Choisissez, pour chaque cabine, les types de commande qu'elle a le droit de recevoir. Une cabine doit garder au moins un service actif.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-sliders" style="color:var(--primary)"></i> Cabines</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="permcab-search"
+                  placeholder="Rechercher (nom, zone, téléphone…)"
+                  oninput="loadPermissionCabine(this.value)" />
+              </div>
+              <button class="btn btn-ghost btn-sm" onclick="loadPermissionCabine()">
+                <i class="fa-solid fa-rotate-right"></i> Actualiser
+              </button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Cabine</th><th>Factures</th><th>Exchange</th><th>Recharge UV</th></tr>
+              </thead>
+              <tbody id="permcab-tbody">
+                <tr><td colspan="4" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── GESTION DES ADMINISTRATEURS (super admin uniquement) ──── -->
+      <div class="view" data-view="gestion-admins">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Gestion des Administrateurs</span></div>
+          <h2>Gestion des Administrateurs</h2>
+          <p>Un administrateur simple ne peut se connecter qu'après avoir été programmé au moins une fois, automatiquement ou manuellement.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-bolt" style="color:var(--primary)"></i> Programmation automatique</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Administrateur simple</label>
+              <select class="form-control" id="ga-auto-admin"></select>
+            </div>
+            <button class="btn btn-primary" onclick="genererProgrammationAuto()">
+              <i class="fa-solid fa-wand-magic-sparkles"></i> Générer automatiquement
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-regular fa-calendar" style="color:var(--primary)"></i> Programmation manuelle</span>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Administrateur simple</label>
+              <select class="form-control" id="ga-manuel-admin"></select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Jours</label>
+              <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="1"> Lun</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="2"> Mar</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="3"> Mer</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="4"> Jeu</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="5"> Ven</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="6"> Sam</label>
+                <label style="display:flex;align-items:center;gap:5px;font-size:.78rem;"><input type="checkbox" class="ga-manuel-jour" value="0"> Dim</label>
+              </div>
+            </div>
+            <div class="grid-2" style="gap:12px;">
+              <div class="form-group">
+                <label class="form-label">Heure début</label>
+                <input type="time" class="form-control" id="ga-manuel-debut" value="08:00">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Heure fin</label>
+                <input type="time" class="form-control" id="ga-manuel-fin" value="18:00">
+              </div>
+            </div>
+            <button class="btn btn-primary" onclick="enregistrerProgrammationManuelle()">
+              <i class="fa-solid fa-save"></i> Enregistrer
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:16px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-list" style="color:var(--primary)"></i> Programmations enregistrées</span>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div id="gestion-admins-list"></div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- ── Create User Modal ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-create-user">
+  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user-plus" style="color:var(--primary)"></i> Créer un nouveau compte</span>
+      <button class="modal-close" onclick="closeModal('modal-create-user')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="create-user-form" onsubmit="handleCreateUser(event)">
+
+        <div class="form-group">
+          <label class="form-label">Type de compte *</label>
+          <div class="type-cards">
+            <div class="type-card" data-role="client" onclick="selectAccountType('client')">
+              <div class="type-card-ic"><i class="fa-solid fa-user"></i></div>
+              <div class="type-card-lbl">Client</div>
+            </div>
+            <div class="type-card" data-role="cabine" onclick="selectAccountType('cabine')">
+              <div class="type-card-ic"><i class="fa-solid fa-store"></i></div>
+              <div class="type-card-lbl">Cabine</div>
+            </div>
+            <div class="type-card" data-role="admin" onclick="selectAccountType('admin')">
+              <div class="type-card-ic"><i class="fa-solid fa-shield-halved"></i></div>
+              <div class="type-card-lbl">Admin</div>
+            </div>
+          </div>
+          <select class="form-control" id="new-role" style="display:none" onchange="toggleCreateUserFields()">
+            <option value="client">Client</option>
+            <option value="cabine">Cabine (partenaire)</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Téléphone *</label>
+          <input type="tel" class="form-control" id="new-tel" placeholder="XX XX XX XX XX"
+            maxlength="14" inputmode="numeric"
+            oninput="formatPhoneInput(this)" />
+        </div>
+
+        <!-- ── Administrateur : identité complète + pièces + poste + permissions ── -->
+        <div id="create-admin-fields">
+          <div class="grid-2" style="gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Nom *</label>
+              <input type="text" class="form-control" id="new-admin-nom" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Prénom *</label>
+              <input type="text" class="form-control" id="new-admin-prenom" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Adresse Gmail *</label>
+              <input type="email" class="form-control" id="new-admin-email" placeholder="exemple@gmail.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date de naissance *</label>
+              <input type="date" class="form-control" id="new-admin-dob" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pièce d'identité — Recto *</label>
+              <input type="file" class="form-control" id="new-admin-cni-recto" accept="image/*,.pdf" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pièce d'identité — Verso *</label>
+              <input type="file" class="form-control" id="new-admin-cni-verso" accept="image/*,.pdf" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Photo d'identité (portrait) *</label>
+              <input type="file" class="form-control" id="new-admin-photo" accept="image/*" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Poste *</label>
+              <select class="form-control" id="new-admin-poste">
+                <option value="Assistant clientèle">Assistant clientèle</option>
+                <option value="Administrateur plein">Administrateur plein</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pays *</label>
+              <input type="text" class="form-control" id="new-admin-pays" value="Côte d'Ivoire" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ville *</label>
+              <input type="text" class="form-control" id="new-admin-ville" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Quartier *</label>
+              <input type="text" class="form-control" id="new-admin-quartier" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Numéro WhatsApp *</label>
+              <input type="tel" class="form-control" id="new-admin-whatsapp" maxlength="14" inputmode="numeric" placeholder="XX XX XX XX XX"
+                oninput="formatPhoneInput(this)" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Code PIN (4 chiffres) *</label>
+              <input type="password" class="form-control" id="new-pin-admin" maxlength="4" inputmode="numeric" placeholder="••••" />
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Permissions (sections accessibles)</label>
+              <div id="new-admin-perms" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.78rem;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Client : uniquement téléphone + code à 4 chiffres ── -->
+        <div id="create-client-fields" style="display:none">
+          <div class="form-group">
+            <label class="form-label">Code PIN (4 chiffres) *</label>
+            <input type="password" class="form-control" id="new-pin-client" maxlength="4" inputmode="numeric" placeholder="••••" />
+          </div>
+        </div>
+
+        <!-- ── Cabine : mêmes informations que la candidature partenaire classique (client.html) ── -->
+        <div id="create-cabine-fields" style="display:none">
+          <div class="grid-2" style="gap:12px;">
+            <div class="form-group">
+              <label class="form-label">Prénom *</label>
+              <input type="text" class="form-control" id="new-prenom" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Nom *</label>
+              <input type="text" class="form-control" id="new-nom" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Email (Gmail) *</label>
+              <input type="email" class="form-control" id="new-email-cabine" placeholder="exemple@gmail.com" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Numéro WhatsApp *</label>
+              <input type="tel" class="form-control" id="new-whatsapp" maxlength="14" inputmode="numeric" placeholder="XX XX XX XX XX"
+                oninput="formatPhoneInput(this)" />
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Nom de la cabine *</label>
+              <input type="text" class="form-control" id="new-cabine-nom" placeholder="Ex : Cabine Plus Yopougon Centre" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pièce d'identité — Recto *</label>
+              <input type="file" class="form-control" id="new-cni-recto" accept="image/*,.pdf" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Pièce d'identité — Verso *</label>
+              <input type="file" class="form-control" id="new-cni-verso" accept="image/*,.pdf" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Photo d'identité récente *</label>
+              <input type="file" class="form-control" id="new-photo" accept="image/*" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Type d'abonnement *</label>
+              <select class="form-control" id="new-abonnement">
+                <option value="Premium">Premium — 10 000 FCFA</option>
+                <option value="VIP">VIP — 20 000 FCFA</option>
+                <option value="VVIP">VVIP — 50 000 FCFA</option>
+              </select>
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Pourquoi devenir partenaire ? *</label>
+              <textarea class="form-control" id="new-motivation" rows="3" placeholder="Expliquez les motivations, le projet, les objectifs…"></textarea>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Années d'expérience en gestion de cabine *</label>
+              <select class="form-control" id="new-experience">
+                <option value="">— Sélectionnez —</option>
+                <option value="Moins d'1 an">Moins d'1 an</option>
+                <option value="1 à 3 ans">1 à 3 ans</option>
+                <option value="3 à 5 ans">3 à 5 ans</option>
+                <option value="Plus de 5 ans">Plus de 5 ans</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Paiement de l'abonnement *</label>
+              <select class="form-control" id="new-paiement-abo">
+                <option value="Orange Money">Orange Money</option>
+                <option value="MTN MoMo">MTN MoMo</option>
+                <option value="Moov Money">Moov Money</option>
+                <option value="Wave">Wave</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Réception des versements *</label>
+              <select class="form-control" id="new-paiement-vers" onchange="toggleAdminQrField()">
+                <option value="Orange Money">Orange Money</option>
+                <option value="MTN MoMo">MTN MoMo</option>
+                <option value="Moov Money">Moov Money</option>
+                <option value="Djamo">Djamo</option>
+                <option value="Wave Business">Wave Business</option>
+                <option value="Wave Normal">Wave Normal</option>
+                <option value="Compte bancaire">Compte bancaire</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Numéro de compte *</label>
+              <input type="text" class="form-control" id="new-numero-compte" placeholder="Numéro mobile money ou compte bancaire" />
+            </div>
+            <!-- Wave Business / Wave Normal : preuve du code QR de réception -->
+            <div class="form-group" id="new-qr-field" style="display:none">
+              <label class="form-label">Code QR de réception (Wave) *</label>
+              <input type="file" class="form-control" id="new-qr" accept="image/*" />
+            </div>
+            <div class="form-group" style="grid-column:1/-1;">
+              <label class="form-label">Puces téléphoniques détenues *</label>
+              <div class="grid-2" style="gap:8px;grid-template-columns:1fr 1fr 1fr;">
+                <div>
+                  <label class="form-label" style="font-size:.65rem;">Orange</label>
+                  <input type="number" min="0" max="20" class="form-control" id="new-puce-orange" value="0" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:.65rem;">MTN</label>
+                  <input type="number" min="0" max="20" class="form-control" id="new-puce-mtn" value="0" />
+                </div>
+                <div>
+                  <label class="form-label" style="font-size:.65rem;">Moov</label>
+                  <input type="number" min="0" max="20" class="form-control" id="new-puce-moov" value="0" />
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Zone / Quartier</label>
+              <input type="text" class="form-control" id="new-zone" placeholder="ex: Yopougon Selmer" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Code PIN (4 chiffres) *</label>
+              <input type="password" class="form-control" id="new-pin-cabine" maxlength="4" inputmode="numeric" placeholder="••••" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Confirmer le PIN *</label>
+              <input type="password" class="form-control" id="new-pin-cabine-confirm" maxlength="4" inputmode="numeric" placeholder="••••" />
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-full">
+          <i class="fa-solid fa-user-plus"></i> Créer le compte
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ── Reassign Transaction Modal ─────────────────────────── -->
+<div class="modal-overlay" id="modal-reassign-txn">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-right-left" style="color:var(--primary)"></i> Réassigner la commande</span>
+      <button class="modal-close" onclick="closeModal('modal-reassign-txn')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nouvelle cabine</label>
+        <select class="form-control" id="reassign-cabine-select"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-reassign-txn')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmReassign()"><i class="fa-solid fa-check"></i> Réassigner</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bulk Reassign Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="modal-bulk-reassign">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-right-left" style="color:var(--primary)"></i> Réassigner la sélection</span>
+      <button class="modal-close" onclick="closeModal('modal-bulk-reassign')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:12px;" id="bulk-reassign-summary"></p>
+      <div class="form-group">
+        <label class="form-label">Nouvelle cabine</label>
+        <select class="form-control" id="bulk-reassign-cabine-select"></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bulk-reassign')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmBulkReassign()"><i class="fa-solid fa-check"></i> Réassigner</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Suspend Transaction Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="modal-suspend-txn">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-circle-pause" style="color:#EF4444"></i> Suspendre la commande</span>
+      <button class="modal-close" onclick="closeModal('modal-suspend-txn')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Motif de suspension <span style="color:#EF4444">*</span></label>
+        <textarea class="form-control" id="suspend-motif" rows="4" placeholder="Expliquez la raison de la suspension…" required></textarea>
+        <div id="suspend-motif-error" style="color:#EF4444;font-size:.72rem;margin-top:4px;display:none;">Le motif est obligatoire.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-suspend-txn')">Annuler</button>
+      <button class="btn btn-danger" onclick="confirmSuspend()"><i class="fa-solid fa-circle-pause"></i> Suspendre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Suspend Cabine Modal (manuelle, indéfinie) ────────────────── -->
+<div class="modal-overlay" id="modal-suspend-cabine">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-ban" style="color:#EF4444"></i> Suspendre cette cabine</span>
+      <button class="modal-close" onclick="closeModal('modal-suspend-cabine')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--gray-500);margin-bottom:12px;">
+        Suspension indéfinie — seul vous ou le super administrateur pourrez la lever.
+        La cabine reste connectée et voit le motif sur son tableau de bord, mais ne
+        recevra plus aucune nouvelle commande.
+      </p>
+      <div class="form-group">
+        <label class="form-label">Motif de suspension <span style="color:#EF4444">*</span></label>
+        <textarea class="form-control" id="suspend-cabine-motif" rows="4" placeholder="Expliquez la raison de la suspension…" required></textarea>
+        <div id="suspend-cabine-motif-error" style="color:#EF4444;font-size:.72rem;margin-top:4px;display:none;">Le motif est obligatoire.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-suspend-cabine')">Annuler</button>
+      <button class="btn btn-danger" onclick="confirmSuspendCabine()"><i class="fa-solid fa-ban"></i> Suspendre</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Discussion client-cabine (lecture seule) ─────────────────── -->
+<div class="modal-overlay" id="modal-admin-recla-thread">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-comments" style="color:var(--primary)"></i> Discussion</span>
+      <button class="modal-close" onclick="closeModal('modal-admin-recla-thread')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px;">
+      <div id="admin-recla-thread-meta" style="margin-bottom:10px;"></div>
+      <div id="admin-recla-thread-body" class="rh-body" style="padding:0;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Payment Method Modal ────────────────────────────────── -->
+<div class="modal-overlay" id="modal-edit-payment">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-credit-card" style="color:var(--primary)"></i> Moyen de paiement</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-payment')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Moyen de paiement *</label>
+        <select class="form-control" id="edit-payment-methode">
+          <option value="Orange Money">Orange Money</option>
+          <option value="MTN MoMo">MTN MoMo</option>
+          <option value="Moov Money">Moov Money</option>
+          <option value="Djamo">Djamo</option>
+          <option value="Wave Business">Wave Business</option>
+          <option value="Wave Normal">Wave Normal</option>
+          <option value="Compte bancaire">Compte bancaire</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Numéro de paiement *</label>
+        <input type="text" class="form-control" id="edit-payment-numero" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-payment')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmEditPayment()"><i class="fa-solid fa-check"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Admin Permissions Modal ─────────────────────────────── -->
+<div class="modal-overlay" id="modal-edit-admin-perms">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user-shield" style="color:var(--primary)"></i> Permissions de l'administrateur</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-admin-perms')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:12px;">
+        Compte : <strong id="edit-admin-perms-label" style="color:var(--text);"></strong>
+      </p>
+      <div id="edit-admin-perms-box" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:.78rem;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-admin-perms')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveAdminPerms()"><i class="fa-solid fa-check"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Edit Admin Profile Modal (coordonnées + mot de passe) ────── -->
+<div class="modal-overlay" id="modal-edit-admin-profile">
+  <div class="modal" style="max-width:520px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-id-card" style="color:var(--primary)"></i> Modifier les coordonnées</span>
+      <button class="modal-close" onclick="closeModal('modal-edit-admin-profile')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:16px;">
+        Compte : <strong id="edit-admin-profile-label" style="color:var(--text);"></strong>
+      </p>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Nom *</label>
+          <input type="text" class="form-control" id="edit-admin-nom" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Prénom *</label>
+          <input type="text" class="form-control" id="edit-admin-prenom" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Adresse Gmail *</label>
+        <input type="email" class="form-control" id="edit-admin-email" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date de naissance *</label>
+        <input type="date" class="form-control" id="edit-admin-dob" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pièce d'identité — Recto</label>
+        <input type="file" class="form-control" id="edit-admin-cni-recto" accept="image/*,.pdf" />
+        <div style="font-size:.68rem;color:var(--gray-500);margin-top:4px;">Laisser vide pour conserver le fichier actuel.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Pièce d'identité — Verso</label>
+        <input type="file" class="form-control" id="edit-admin-cni-verso" accept="image/*,.pdf" />
+        <div style="font-size:.68rem;color:var(--gray-500);margin-top:4px;">Laisser vide pour conserver le fichier actuel.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Photo d'identité (portrait)</label>
+        <input type="file" class="form-control" id="edit-admin-photo" accept="image/*" />
+        <div style="font-size:.68rem;color:var(--gray-500);margin-top:4px;">Laisser vide pour conserver la photo actuelle.</div>
+      </div>
+      <div class="grid-2" style="gap:12px;grid-template-columns:1fr 1fr 1fr;">
+        <div class="form-group">
+          <label class="form-label">Pays *</label>
+          <input type="text" class="form-control" id="edit-admin-pays" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Ville *</label>
+          <input type="text" class="form-control" id="edit-admin-ville" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Quartier *</label>
+          <input type="text" class="form-control" id="edit-admin-quartier" />
+        </div>
+      </div>
+      <div class="form-group" id="edit-admin-poste-group">
+        <label class="form-label">Poste *</label>
+        <select class="form-control" id="edit-admin-poste">
+          <option value="Assistant clientèle">Assistant clientèle</option>
+          <option value="Administrateur plein">Administrateur plein</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Numéro WhatsApp *</label>
+        <input type="tel" class="form-control" id="edit-admin-whatsapp" maxlength="14" inputmode="numeric" placeholder="XX XX XX XX XX"
+          oninput="formatPhoneInput(this)" />
+      </div>
+      <div class="grid-2" style="gap:12px;">
+        <div class="form-group">
+          <label class="form-label">Nouveau mot de passe (4 chiffres)</label>
+          <input type="password" class="form-control" id="edit-admin-new-pin" maxlength="4" inputmode="numeric" placeholder="Laisser vide pour ne pas changer" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Confirmer</label>
+          <input type="password" class="form-control" id="edit-admin-new-pin-confirm" maxlength="4" inputmode="numeric" placeholder="••••" />
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-admin-profile')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveAdminProfile()"><i class="fa-solid fa-check"></i> Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Process Withdrawal Modal ─────────────────────────────────── -->
+<div class="modal-overlay" id="modal-process-retrait">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-money-bill-wave" style="color:var(--secondary)"></i> Traiter un retrait</span>
+      <button class="modal-close" onclick="closeModal('modal-process-retrait')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="stat-mini"><span class="stat-mini-label">Montant disponible</span><span class="stat-mini-val" id="process-retrait-dispo">—</span></div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Montant à verser (FCFA) *</label>
+        <input type="number" min="1" class="form-control" id="process-retrait-montant" placeholder="0" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau solde disponible</label>
+        <div class="stat-mini"><span class="stat-mini-label">Après retrait</span><span class="stat-mini-val" id="process-retrait-restant" style="color:var(--secondary)">—</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-process-retrait')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmProcessRetrait()"><i class="fa-solid fa-check"></i> Valider le retrait</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recharge Cabiniste Modal ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-recharge-cabiniste">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-wallet" style="color:var(--secondary)"></i> Recharger le cabiniste</span>
+      <button class="modal-close" onclick="closeModal('modal-recharge-cabiniste')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:12px;">
+        Compte : <strong id="recharge-cabiniste-label" style="color:var(--text);"></strong>
+      </p>
+      <div class="stat-mini"><span class="stat-mini-label">Solde actuel</span><span class="stat-mini-val" id="recharge-cabiniste-solde">—</span></div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Montant à créditer (FCFA) *</label>
+        <input type="number" min="1000" step="500" class="form-control" id="recharge-cabiniste-montant" placeholder="0"
+          oninput="updateRechargeCabinistePreview()" />
+        <div class="form-hint">Montant minimum : 1 000 FCFA.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau solde</label>
+        <div class="stat-mini"><span class="stat-mini-label">Après recharge</span><span class="stat-mini-val" id="recharge-cabiniste-apres" style="color:var(--secondary)">—</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-recharge-cabiniste')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmRechargeCabiniste()"><i class="fa-solid fa-check"></i> Créditer le compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recharge Client Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-recharge-client">
+  <div class="modal" style="max-width:400px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-sack-dollar" style="color:var(--primary)"></i> Recharger le client</span>
+      <button class="modal-close" onclick="closeModal('modal-recharge-client')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.75rem;color:var(--text-muted);margin-bottom:12px;">
+        Compte : <strong id="recharge-client-label" style="color:var(--text);"></strong>
+      </p>
+      <div class="stat-mini"><span class="stat-mini-label">Solde actuel</span><span class="stat-mini-val" id="recharge-client-solde">—</span></div>
+      <div class="form-group" style="margin-top:12px;">
+        <label class="form-label">Montant à créditer (FCFA) *</label>
+        <input type="number" min="1000" step="500" class="form-control" id="recharge-client-montant" placeholder="0"
+          oninput="updateRechargeClientPreview()" />
+        <div class="form-hint">Montant minimum : 1 000 FCFA.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nouveau solde</label>
+        <div class="stat-mini"><span class="stat-mini-label">Après recharge</span><span class="stat-mini-val" id="recharge-client-apres" style="color:var(--primary)">—</span></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-recharge-client')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmRechargeClient()"><i class="fa-solid fa-check"></i> Créditer le compte</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── View User Modal ────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-view-user">
+  <div class="modal" style="max-width:560px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user" style="color:var(--primary)"></i> Détails du compte</span>
+      <button class="modal-close" onclick="closeModal('modal-view-user')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="modal-user-content">Chargement…</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-view-user')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Bilan — Détail d'une statistique ────────────────────────── -->
+<div class="modal-overlay" id="modal-bilan-detail">
+  <div class="modal" style="max-width:760px;max-height:88vh;overflow-y:auto;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-list-ul" style="color:var(--primary)"></i> <span id="bilan-detail-title">Détail</span></span>
+      <button class="modal-close" onclick="closeModal('modal-bilan-detail')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="bilan-detail-body" style="padding:0;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-bilan-detail')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Today Signups Modal ─────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-today-signups">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-user-plus" style="color:#3B82F6"></i> Inscriptions du jour</span>
+      <button class="modal-close" onclick="closeModal('modal-today-signups')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" id="modal-today-signups-content">Chargement…</div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-today-signups')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Logout Choice Modal ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-logout-choice">
+  <div class="modal" style="max-width:380px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-right-from-bracket" style="color:var(--primary)"></i> Déconnexion</span>
+      <button class="modal-close" onclick="closeModal('modal-logout-choice')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <button type="button" class="lo-opt green" onclick="logoutSwitchAccount()">
+        <span class="lo-ic"><i class="fa-solid fa-right-left"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Autre compte administrateur</span>
+          <span class="lo-sub">Se connecter à un autre compte administrateur</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+      <button type="button" class="lo-opt orange" id="logout-return-client-btn" style="display:none;" onclick="logoutReturnToClient()">
+        <span class="lo-ic"><i class="fa-solid fa-house"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Mon espace client</span>
+          <span class="lo-sub">Retourner à votre compte client</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/biometric.js?v=1"></script>
+<script src="js/admin.js"></script>
+<script>
+  function printReport() {
+    const stats = DB.transactions.stats();
+    document.getElementById('rpt-volume').textContent  = Fmt.money(stats.volume);
+    document.getElementById('rpt-revenue').textContent = Fmt.money(stats.commissions);
+    document.getElementById('rpt-txns').textContent    = stats.done;
+    window.print();
+  }
+
+</script>
+</body>
+</html>
+
+
+
+
+

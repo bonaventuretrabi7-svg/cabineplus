@@ -1,0 +1,110 @@
+'use strict';
+// Harnais de test pour js/db.js — un IIFE global écrit pour le navigateur
+// (pas de module.exports). Plutôt que de le réécrire, on charge son code
+// source dans un contexte vm Node avec les globals minimaux dont il a
+// besoin (localStorage, Fmt, une horloge Date contrôlable, un navigator/
+// window simulés pour Net), et on récupère l'objet DB qui en résulte.
+// Aucune modification de js/db.js pour ça.
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const DB_JS_PATH = path.join(__dirname, '..', '..', 'js', 'db.js');
+
+/* localStorage — Map en mémoire, API minimale utilisée par js/db.js. */
+function makeLocalStorage() {
+  const store = new Map();
+  return {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => { store.set(k, String(v)); },
+    removeItem: (k) => { store.delete(k); },
+    clear: () => { store.clear(); },
+    get length() { return store.size; },
+  };
+}
+
+/* Horloge contrôlable : `new Date()` (sans argument) et `Date.now()`
+   utilisent la valeur courante de `clock.now` ; `new Date(x)` garde le
+   comportement natif (parsing de timestamp/chaîne ISO inchangé). Permet
+   de simuler le passage du temps (3 min, 8 min, minuit, 24h) sans vrai
+   setTimeout dans les tests. */
+function makeFakeDate(initialNow) {
+  const clock = { now: initialNow };
+  class FakeDate extends Date {
+    constructor(...args) {
+      if (args.length === 0) super(clock.now);
+      else super(...args);
+    }
+    static now() { return clock.now; }
+  }
+  return { FakeDate, clock };
+}
+
+/* navigator.onLine + window.addEventListener('online'/'offline') — assez
+   pour DB.Net (voir js/db.js). `net.setOnline(bool)` bascule l'état ET
+   déclenche les callbacks enregistrés via Net.onChange(), comme le ferait
+   un vrai changement de connectivité. */
+function makeNetStubs(initialOnline) {
+  const navigatorStub = { onLine: initialOnline };
+  const listeners = { online: [], offline: [] };
+  const windowStub = {
+    addEventListener(evt, cb) { if (listeners[evt]) listeners[evt].push(cb); },
+    removeEventListener(evt, cb) {
+      if (listeners[evt]) listeners[evt] = listeners[evt].filter(l => l !== cb);
+    },
+  };
+  const net = {
+    setOnline(value) {
+      navigatorStub.onLine = value;
+      const evt = value ? 'online' : 'offline';
+      listeners[evt].slice().forEach(cb => cb());
+    },
+  };
+  return { navigatorStub, windowStub, net };
+}
+
+/* Stub minimal de Fmt (js/db.js n'utilise que .ref()/.money() en interne —
+   voir le format réel dans js/client.js si un test a besoin de plus). */
+const FmtStub = {
+  ref: (id) => '#' + String(id).slice(-6),
+  money: (n) => String(n) + ' FCFA',
+  operator: (o) => o,
+  phone: (p) => p,
+  datetime: (d) => new Date(d).toISOString(),
+};
+
+/* Charge une instance fraîche de DB dans un contexte vm isolé.
+   `opts` : soit un nombre (initialNow, forme historique), soit un objet
+   { initialNow, online = true, supabaseClient = null }. */
+function loadDb(opts = {}) {
+  const options = typeof opts === 'number' ? { initialNow: opts } : opts;
+  const initialNow = options.initialNow ?? Date.now();
+  const online = options.online ?? true;
+
+  const src = fs.readFileSync(DB_JS_PATH, 'utf8');
+  const localStorage = makeLocalStorage();
+  const { FakeDate, clock } = makeFakeDate(initialNow);
+  const { navigatorStub, windowStub, net } = makeNetStubs(online);
+
+  const sandbox = {
+    localStorage,
+    console,
+    Date: FakeDate,
+    crypto,
+    atob, btoa,
+    Fmt: FmtStub,
+    navigator: navigatorStub,
+    window: windowStub,
+    // DB.settings pousse ses écritures vers SupabaseAPI.client quand une
+    // connexion est là (voir SYNC_HANDLERS.settings, js/db.js) — un test
+    // hors-ligne peut laisser `null` (jamais appelé, Net.isOnline() le
+    // court-circuite), un test de synchronisation fournit un mock.
+    SupabaseAPI: { client: options.supabaseClient || null },
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(src + '\nthis.__DB__ = DB;', sandbox, { filename: DB_JS_PATH });
+
+  return { DB: sandbox.__DB__, localStorage, clock, net };
+}
+
+module.exports = { loadDb };

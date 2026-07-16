@@ -1,0 +1,13 @@
+{
+  "appId": "ci.kbineplus.app",
+  "appName": "KBINE PLUS",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "buildOptions": {
+      "releaseType": "APK"
+    }
+  }
+}

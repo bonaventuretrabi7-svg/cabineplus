@@ -1,0 +1,3174 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KBINE PLUS | Espace Client</title>
+  <link rel="icon" type="image/png" href="img/logo%20officiel.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" />
+  <link rel="stylesheet" href="css/style.css?v=110" />
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
+  <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body class="on-home">
+<div id="toast-container"></div>
+
+<!-- -- ÉCRAN DE CHARGEMENT -------------------------------------- -->
+<div id="page-loader">
+  <div class="pl-spinner-wrap">
+    <div class="pl-ring"></div>
+    <img src="img/logo.png" alt="KBINE PLUS" class="pl-logo-img">
+  </div>
+  <div class="pl-label">Chargement…</div>
+</div>
+
+<!-- --------------------------------------------------------------
+     PAGE PRINCIPALE
+-------------------------------------------------------------- -->
+<div class="client-page">
+
+  <!-- Bandeau visible uniquement pendant une impersonation admin (voir
+       Auth.startImpersonation() dans js/auth.js) -->
+  <div id="impersonation-banner" class="impersonation-banner" style="display:none;">
+    <i class="fa-solid fa-user-shield"></i>
+    <span>Connecté en tant que client par <strong id="impersonation-admin-name">—</strong></span>
+    <button onclick="returnFromImpersonation()"><i class="fa-solid fa-arrow-right-from-bracket"></i> Retour à l'administration</button>
+  </div>
+
+  <!-- Widget flottant : minuteur de réclamation (5min) pour la dernière
+       commande dont le client a fermé le suivi — visible depuis n'importe
+       quelle section (voir showReclaFloatWidget dans js/client.js). -->
+  <div id="recla-float-widget" class="recla-float-widget" style="display:none;"></div>
+
+  <!-- -- SECTION : NOUVEAU TRANSFERT (défaut) ------------------ -->
+  <div class="cs-section active" id="cs-transfer">
+
+    <!-- Bandeau sticky solde + QR — enfant direct de la section, pour que
+         position:sticky dispose de toute la hauteur de l'onglet (y compris
+         Actualités etc. plus bas) et reste visible jusqu'en bas de page. -->
+
+    <!-- Connecté -->
+    <div id="hbc-user" class="pgc-sticky-wrap" style="display:none;">
+      <!-- En-tête bleu, coins bas arrondis, plein largeur. La carte QR
+           chevauche la frontière bleu/blanc grâce à une marge négative. -->
+      <div class="pgc-hero-card">
+        <div class="pgc-hero-amount-row">
+          <div class="pgc-hero-amount-wrap">
+            <span class="pgc-balance-real" id="hbc-amount">—</span>
+            <button class="pgc-eye-btn" onclick="toggleBalanceVisibility()" title="Afficher/masquer">
+              <i class="fa-solid fa-eye" id="pgc-eye-icon"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="pgc-qr-card">
+        <div class="pgc-qr-big-wrap">
+          <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
+            <img id="hbc-qr-img" alt="Mon code KBINE" class="pgc-qr-big-img">
+            <span class="pgc-qr-pulse-ring"></span>
+            <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Invité : reproduit exactement le même cadrage/couleur/rendu que
+         la vue connectée (bandeau bleu nuit + carte QR qui chevauche son
+         bord bas), seul le contenu change (solde masqué, pas de bascule
+         œil puisqu'il n'y a rien à révéler tant qu'on n'est pas connecté). -->
+    <div id="hbc-guest" class="pgc-sticky-wrap">
+      <div class="pgc-hero-card pgc-hero-card--static">
+        <div class="pgc-hero-amount-row">
+          <div class="pgc-hero-amount-wrap">
+            <span class="pgc-balance-real">•• •••</span>
+            <span class="pgc-eye-btn" style="cursor:default;"><i class="fa-solid fa-lock"></i></span>
+          </div>
+        </div>
+      </div>
+      <div class="pgc-qr-card">
+        <div class="pgc-qr-big-wrap">
+          <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
+            <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&ecc=H&data=KBINE-PLUS" alt="" class="pgc-qr-big-img">
+            <span class="pgc-qr-pulse-ring"></span>
+            <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- Panel unifié : toutes les actions (connecté) -- -->
+    <div id="hbc-user-panel" class="pgc-panel" style="display:none;">
+      <div class="pgc-action-list">
+        <button class="pgc-action-row" onclick="openRechargeModalGated()">
+          <div class="pgc-act-ico pgc-act-ico--green"><i class="fa-solid fa-circle-plus"></i></div>
+          <span class="pgc-act-lbl">Recharger</span>
+        </button>
+        <button class="pgc-action-row" onclick="showSection('depenses')">
+          <div class="pgc-act-ico pgc-act-ico--orange"><i class="fa-solid fa-arrow-trend-down"></i></div>
+          <span class="pgc-act-lbl">Dépenses</span>
+        </button>
+        <button class="pgc-action-row" onclick="openClientTransferModal()">
+          <div class="pgc-act-ico pgc-act-ico--brand"><i class="fa-solid fa-paper-plane"></i></div>
+          <span class="pgc-act-lbl">Transférer</span>
+        </button>
+        <button class="pgc-action-row" onclick="showSection('historique')">
+          <div class="pgc-act-ico pgc-act-ico--indigo"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <span class="pgc-act-lbl">Historique</span>
+        </button>
+      </div>
+      <div class="pgc-action-list">
+        <button class="pgc-action-row" onclick="openFactureModal()">
+          <div class="pgc-act-ico pgc-act-ico--amber"><i class="fa-solid fa-file-invoice"></i></div>
+          <span class="pgc-act-lbl">Facture</span>
+        </button>
+        <button class="pgc-action-row" onclick="openUVModal()">
+          <div class="pgc-act-ico pgc-act-ico--orange"><i class="fa-solid fa-bolt-lightning"></i></div>
+          <span class="pgc-act-lbl">Recharge UV</span>
+        </button>
+        <button class="pgc-action-row" onclick="openExchangeModal()">
+          <div class="pgc-act-ico pgc-act-ico--green"><i class="fa-solid fa-arrows-rotate"></i></div>
+          <span class="pgc-act-lbl">Exchange</span>
+        </button>
+        <button class="pgc-action-row" onclick="openCadeauModal()">
+          <div class="pgc-act-ico pgc-act-ico--pink"><i class="fa-solid fa-gift"></i></div>
+          <span class="pgc-act-lbl">Cadeau</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- -- Panel unifié : Actions + Services (invité) -- -->
+    <div id="hbc-guest-panel" class="pgc-panel">
+      <div class="pgc-action-list">
+        <button class="pgc-action-row" onclick="showSection('portefeuille')">
+          <div class="pgc-act-ico pgc-act-ico--green"><i class="fa-solid fa-circle-plus"></i></div>
+          <span class="pgc-act-lbl">Recharger</span>
+        </button>
+        <button class="pgc-action-row" onclick="showSection('historique')">
+          <div class="pgc-act-ico pgc-act-ico--indigo"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <span class="pgc-act-lbl">Historique</span>
+        </button>
+        <button class="pgc-action-row" onclick="showSection('depenses')">
+          <div class="pgc-act-ico pgc-act-ico--orange"><i class="fa-solid fa-arrow-trend-down"></i></div>
+          <span class="pgc-act-lbl">Dépenses</span>
+        </button>
+        <button class="pgc-action-row" onclick="openClientTransferModal()">
+          <div class="pgc-act-ico pgc-act-ico--brand"><i class="fa-solid fa-paper-plane"></i></div>
+          <span class="pgc-act-lbl">Transférer</span>
+        </button>
+      </div>
+      <div class="pgc-action-list">
+        <button class="pgc-action-row" onclick="openFactureModal()">
+          <div class="pgc-act-ico pgc-act-ico--amber"><i class="fa-solid fa-file-invoice"></i></div>
+          <span class="pgc-act-lbl">Facture</span>
+        </button>
+        <button class="pgc-action-row" onclick="openUVModal()">
+          <div class="pgc-act-ico pgc-act-ico--orange"><i class="fa-solid fa-bolt-lightning"></i></div>
+          <span class="pgc-act-lbl">Recharge UV</span>
+        </button>
+        <button class="pgc-action-row" onclick="openExchangeModal()">
+          <div class="pgc-act-ico pgc-act-ico--green"><i class="fa-solid fa-arrows-rotate"></i></div>
+          <span class="pgc-act-lbl">Exchange</span>
+        </button>
+        <button class="pgc-action-row" onclick="openCadeauModal()">
+          <div class="pgc-act-ico pgc-act-ico--pink"><i class="fa-solid fa-gift"></i></div>
+          <span class="pgc-act-lbl">Cadeau</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- IDs conservés pour la compatibilité JS (masqués) -->
+    <span id="fid-count"     style="display:none"></span>
+    <span id="fid-bar"       style="display:none"></span>
+    <span id="fid-hint"      style="display:none"></span>
+    <span id="fid-cake-icon" style="display:none"></span>
+    <span id="fid-ms-25"     style="display:none"></span>
+    <span id="fid-ms-50"     style="display:none"></span>
+    <span id="fid-ms-75"     style="display:none"></span>
+    <span id="fid-ms-100"    style="display:none"></span>
+
+    <!-- Labels JS requis (référencés par client.js) -->
+    <span id="prev-op-label"      style="display:none"></span>
+    <span id="prev-service-label" style="display:none"></span>
+    <span id="prev-dest-label"    style="display:none"></span>
+    <span id="prev-pay-label"     style="display:none"></span>
+
+    <!-- 3. Tunnel de commande -->
+    <div class="tf-layout">
+
+      <!-- ? Message d'instruction -->
+      <div class="tf-order-intro">
+        <div class="tf-oi-left">
+          <div class="tf-oi-title">Passez votre <span>commande</span></div>
+          <div class="tf-oi-sub">Sélectionnez votre <span>réseau</span>, le <span>type d'opération</span>, le <span>numéro du destinataire</span> et payez en 2 secondes.</div>
+        </div>
+        <div class="tf-oi-badge"><img src="img/logo.png" alt="KBINE PLUS" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+      </div>
+
+      <!-- ? Stepper : cercles avec check animé au trait -->
+      <div class="tf-stepper-card">
+        <div class="wzc-bar">
+
+          <div class="wzc-step wz-active" id="wz-ind-1" onclick="wzClickStep('step-op')">
+            <div class="wzc-bubble">
+              <span class="wzc-num">1</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Réseau</span>
+          </div>
+
+          <div class="wzc-line" id="wz-line-1"></div>
+
+          <div class="wzc-step" id="wz-ind-2" onclick="wzClickStep('step-service')">
+            <div class="wzc-bubble">
+              <span class="wzc-num">2</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Type d'opération</span>
+          </div>
+
+          <div class="wzc-line" id="wz-line-2"></div>
+
+          <div class="wzc-step" id="wz-ind-3" onclick="wzClickStep('step-dest')">
+            <div class="wzc-bubble">
+              <span class="wzc-num">3</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Numéro du destinataire</span>
+          </div>
+
+          <div class="wzc-line" id="wz-line-3"></div>
+
+          <div class="wzc-step" id="wz-ind-4" onclick="wzClickStep('step-pay')">
+            <div class="wzc-bubble">
+              <span class="wzc-num">4</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Paiement</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ? Slider horizontal des étapes -->
+      <div class="tf-slider-wrap">
+        <div class="tf-slider-track" id="tf-slider-track">
+
+          <!-- SLIDE 1 : Réseau -->
+          <div class="tf-slide tf-step active" id="step-op">
+            <div class="tf-slide-hd"><i class="fa-solid fa-tower-broadcast"></i> Choisissez votre réseau</div>
+            <div class="op-row">
+              <div class="op-card op-card--orange" data-op="Orange" onclick="tfSelectOp('Orange',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span class=op-emoji-fb>🟠</span>'">
+                </div>
+                <div class="op-name-pill">Orange</div>
+              </div>
+              <div class="op-card op-card--mtn" data-op="MTN" onclick="tfSelectOp('MTN',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span class=op-emoji-fb>🟡</span>'">
+                </div>
+                <div class="op-name-pill">MTN</div>
+              </div>
+              <div class="op-card op-card--moov" data-op="Moov" onclick="tfSelectOp('Moov',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span class=op-emoji-fb>🔵</span>'">
+                </div>
+                <div class="op-name-pill">Moov</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 2 : Service & Montant -->
+          <div class="tf-slide tf-step locked" id="step-service">
+            <div class="tf-slide-hd"><i class="fa-solid fa-layer-group"></i> Type d'opération</div>
+            <div class="tf-svc-row">
+              <button class="wz-back-btn" onclick="wzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+              <div class="service-toggle">
+                <button class="svc-tab active" id="svc-direct" onclick="tfSetService('direct')">
+                  <span class="svc-tab-title">Crédit</span>
+                  <span class="svc-tab-sub">Transfert direct</span>
+                </button>
+                <button class="svc-tab" id="svc-forfait" onclick="tfSetService('forfait')">
+                  <span class="svc-tab-title">Forfait</span>
+                  <span class="svc-tab-sub">Internet, appels, SMS</span>
+                </button>
+              </div>
+            </div>
+            <div id="panel-direct">
+              <div style="font-size:.6rem;font-weight:600;color:var(--gray-500);margin-bottom:5px;">Montants rapides</div>
+              <div class="amount-tiles">
+                <div class="amount-tile" onclick="tfSelectAmount(500,this)">
+                  <div class="tile-val">500</div>
+                </div>
+                <div class="amount-tile" onclick="tfSelectAmount(2000,this)">
+                  <div class="tile-val">2 000</div>
+                </div>
+                <div class="amount-tile" onclick="tfSelectAmount(10000,this)">
+                  <div class="tile-val">10 000</div>
+                </div>
+              </div>
+              <div style="font-size:.6rem;font-weight:600;color:var(--gray-500);margin-bottom:5px;">Autre montant</div>
+              <div class="amount-custom-wrap">
+                <span class="amount-custom-icon"><i class="fa-solid fa-coins"></i></span>
+                <input type="number" class="form-control" id="tf-amount-custom"
+                  placeholder="Ex : 3 500" min="500" max="100000"
+                  oninput="tfCustomAmount(this.value)" />
+                <span class="amount-custom-suffix">F</span>
+              </div>
+              <div class="form-hint">Min. 500 F · Max. 100 000 F</div>
+            </div>
+            <div id="panel-forfait" style="display:none;">
+              <div class="forfait-cats" id="forfait-cats-list"></div>
+              <div class="forfait-subcats" id="forfait-subcats-list" style="display:none;"></div>
+              <div class="forfait-grid" id="forfait-list">
+                <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gray-400);font-size:.85rem;">
+                  Sélectionnez d'abord un opérateur.
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- SLIDE 3 : Destinataire -->
+          <div class="tf-slide tf-step locked" id="step-dest">
+            <div class="tf-slide-hd"><i class="fa-solid fa-mobile-screen"></i> Numéro du destinataire</div>
+            <div class="tf-dest-row">
+              <button class="wz-back-btn" onclick="wzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+              <div class="recipient-wrap">
+                <span class="rcp-flag" id="rcp-flag">🇨🇮</span>
+                <input type="tel" class="form-control" id="tf-recipient"
+                  placeholder="XX XX XX XX XX" maxlength="14"
+                  inputmode="numeric" oninput="tfUpdateRecipient(this.value)" />
+                <button type="button" class="contacts-btn"
+                  onclick="openContactsPicker()" title="Répertoire récent">
+                  <i class="fa-solid fa-address-book"></i>
+                </button>
+              </div>
+              <button type="button" class="tf-paste-btn" onclick="tfPasteRecipient()" title="Coller depuis le presse-papiers">
+                <i class="fa-solid fa-paste"></i>
+              </button>
+            </div>
+            <div class="rcp-status" id="rcp-status"></div>
+            <div class="tf-recipient-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Vérifiez bien le numéro du destinataire avant de valider — en cas d'erreur de saisie, aucun remboursement ne sera possible.</span>
+            </div>
+          </div>
+
+          <!-- SLIDE 4 : Paiement -->
+          <div class="tf-slide tf-step locked" id="step-pay">
+            <div class="tf-slide-hd"><i class="fa-solid fa-credit-card"></i> Choisir le moyen de paiement</div>
+            <button class="wz-back-btn" onclick="wzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+
+              <!-- PANNEAU 1 : sélection + téléphone -->
+              <div class="tf-pay-panel" id="tf-panel-select">
+                <div class="payment-grid" id="payment-grid"><!-- Rendered by JS --></div>
+                <div class="tf-pay-num-wrap" id="tf-pay-num-wrap">
+                  <input type="tel" id="tf-pay-phone" maxlength="14"
+                    class="tf-pay-num-input" inputmode="numeric"
+                    placeholder="XX XX XX XX XX"
+                    oninput="tfOnPayPhone(this.value)" disabled />
+                  <div class="tf-pay-num-label" id="tf-pay-phone-method">Sélectionnez un moyen ci-dessus</div>
+                  <div class="tf-pay-num-bar"></div>
+                </div>
+                <div class="tf-pay-solde-wrap" id="tf-pay-solde-wrap" style="display:none;">
+                  <div class="tf-pay-solde-dest-marquee">
+                    <i class="fa-solid fa-mobile-screen"></i>
+                    <span id="tf-pay-solde-dest">—</span>
+                  </div>
+                </div>
+                <button class="tf-pay-next-btn" id="tf-pay-next-btn"
+                  onclick="tfShowRecap()" style="display:none">
+                  Confirmer <i class="fa-solid fa-arrow-right"></i>
+                </button>
+              </div>
+
+              <!-- PANNEAU 2 : récapitulatif -->
+              <div class="tf-pay-panel" id="tf-panel-recap" style="display:none">
+                <div class="tf-recap-rows" id="tf-recap-rows"></div>
+                <div class="tf-recap-timer">
+                  <i class="fa-solid fa-hourglass-half"></i>
+                  Temps restant pour valider : <strong id="tf-recap-countdown">0:30</strong>
+                </div>
+                <button class="tf-validate-btn" onclick="tfConfirmFromRecap()">
+                  <i class="fa-solid fa-circle-check"></i> Je valide
+                </button>
+              </div>
+
+          </div>
+
+        </div><!-- /.tf-slider-track -->
+      </div><!-- /.tf-slider-wrap -->
+
+
+      <!-- ? Bouton de validation (étape 4 seulement) -->
+      <div id="tf-validate-wrap" style="display:none;">
+        <div class="vcheck-list">
+          <div class="vcheck-row" id="vc-op"><i class="fa-regular fa-circle"></i> Opérateur choisi</div>
+          <div class="vcheck-row" id="vc-svc"><i class="fa-regular fa-circle"></i> Montant / forfait sélectionné</div>
+          <div class="vcheck-row" id="vc-dest"><i class="fa-regular fa-circle"></i> Numéro destinataire valide</div>
+          <div class="vcheck-row" id="vc-pay"><i class="fa-regular fa-circle"></i> Mode de paiement choisi</div>
+        </div>
+        <button class="btn-validate-main" id="btn-validate" disabled onclick="tfSubmit()">
+          <i class="fa-solid fa-lock" id="btn-lock-icon"></i>
+          <span>Valider la commande</span>
+        </button>
+      </div>
+
+      <!-- Sidebar cachée (conserve les IDs pour la logique JS existante) -->
+      <div class="tf-sidebar" style="display:none !important;">
+        <div style="display:none"></div>
+        <div style="background:rgba(0,154,68,.06);border:1.5px solid rgba(0,154,68,.2);border-radius:var(--radius-lg);padding:14px 16px;margin-top:14px;">
+          <div style="font-size:.78rem;font-weight:700;color:var(--secondary);margin-bottom:8px;">
+            <i class="fa-solid fa-circle-info"></i> Comment ça marche ?
+          </div>
+          <ol style="font-size:.75rem;color:var(--gray-500);padding-left:14px;line-height:1.9;">
+            <li>Choisissez l'opérateur et le service</li>
+            <li>Votre solde est débité instantanément</li>
+            <li>Une cabine reçoit et traite la demande</li>
+            <li>Le bénéficiaire reçoit ses unités</li>
+            <li>Vous recevez une confirmation</li>
+          </ol>
+        </div>
+      </div>
+
+    </div><!-- /.tf-layout -->
+
+    <!-- -- 3a. Réclamation & Service clients -------------------- -->
+    <div class="home-section home-only">
+      <div class="rcp-policy-box">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <div>
+          <div class="rcp-policy-title">Politique de réclamation</div>
+          <div class="rcp-policy-text">Votre satisfaction est notre priorité. En cas de souci avec votre commande, contactez-nous sous <span class="rcp-policy-badge">24h</span> en joignant vos justificatifs (capture d'écran, reçu) : notre équipe s'engage à traiter votre demande dans les meilleurs délais.</div>
+        </div>
+      </div>
+
+      <div class="rcp-svc-row">
+        <div class="rcp-svc-ico"><i class="fa-solid fa-headset"></i><span class="rcp-svc-dot"></span></div>
+        <div class="rcp-svc-info">
+          <div class="rcp-svc-title">Service clients</div>
+          <div class="rcp-svc-sub">Disponible 24h/24h et 7j/7j</div>
+        </div>
+        <div class="rcp-svc-status"><span class="rcp-svc-status-dot"></span> Actif</div>
+      </div>
+      <button class="rcp-svc-btn" onclick="handleClientWhatsappClick()">
+        <i class="fa-regular fa-comment-dots"></i> Contactez-nous <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+    <!-- -- 3b. Actualités ------------------------------------- -->
+    <div class="home-section actu-section">
+      <div class="home-section-head">
+        <span class="home-section-title"><i class="fa-solid fa-newspaper"></i> Actualités</span>
+        <div class="actu-tabs">
+          <button class="actu-tab active" onclick="switchActuTab(this,'foot')">⚽ Football</button>
+          <button class="actu-tab" onclick="switchActuTab(this,'pol')">🏛 Politique</button>
+        </div>
+      </div>
+
+      <!-- Football -->
+      <div class="actu-list" id="actu-foot">
+        <div class="actu-featured">
+          <div class="actu-featured-top">
+            <div class="actu-cat actu-cat--foot">Football</div>
+            <div class="actu-meta"><i class="fa-solid fa-clock"></i> Il y a 2h</div>
+          </div>
+          <div class="actu-featured-title">CAN 2025 : La Côte d'Ivoire qualifiée pour les quarts de finale</div>
+        </div>
+        <div class="actu-mini-list">
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--foot"></span>
+            <span class="actu-mini-title">Ligue 1 : L'ASEC Mimosas remporte le derby d'Abidjan</span>
+            <span class="actu-mini-time">Il y a 5h</span>
+          </div>
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--foot"></span>
+            <span class="actu-mini-title">Transfert : Sébastien Haller signe une prolongation de contrat</span>
+            <span class="actu-mini-time">Hier</span>
+          </div>
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--foot"></span>
+            <span class="actu-mini-title">Champions League : deux clubs africains en phase de groupes</span>
+            <span class="actu-mini-time">Hier</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Politique -->
+      <div class="actu-list" id="actu-pol" style="display:none;">
+        <div class="actu-featured">
+          <div class="actu-featured-top">
+            <div class="actu-cat actu-cat--pol">Politique</div>
+            <div class="actu-meta"><i class="fa-solid fa-clock"></i> Il y a 1h</div>
+          </div>
+          <div class="actu-featured-title">Conseil des ministres : adoption du budget 2025 en Côte d'Ivoire</div>
+        </div>
+        <div class="actu-mini-list">
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--pol"></span>
+            <span class="actu-mini-title">CEDEAO : sommet extraordinaire à Abidjan sur la stabilité régionale</span>
+            <span class="actu-mini-time">Il y a 3h</span>
+          </div>
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--pol"></span>
+            <span class="actu-mini-title">Élections locales : ouverture des listes de candidature pour 2025</span>
+            <span class="actu-mini-time">Hier</span>
+          </div>
+          <div class="actu-mini-item">
+            <span class="actu-mini-dot actu-mini-dot--pol"></span>
+            <span class="actu-mini-title">Diplomatie : le président reçoit l'ambassadeur de France à Abidjan</span>
+            <span class="actu-mini-time">Hier</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- -- 3c. Récapitulatif commandes --------------------------- -->
+    <div class="home-section" id="rcp-section" style="display:none;">
+      <div class="home-section-head">
+        <span class="home-section-title"><i class="fa-solid fa-clock-rotate-left"></i> Commandes récentes</span>
+        <button class="rcp-see-all" onclick="showSection('historique')">Tout voir <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+      <div id="rcp-list"></div>
+    </div>
+
+    <!-- -- 6.5 Vitrine app ------------------------------------- -->
+    <div class="asc-card home-only">
+      <div class="asc-top">
+        <div class="asc-icon"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
+        <div class="asc-info">
+          <div class="asc-title">KBINE PLUS</div>
+          <div class="asc-sub">PLATE FORME DE TRANSFERT EN LIGNE</div>
+          <div class="asc-rating">
+            <span class="asc-stars">★★★★★</span>
+            <span class="asc-dot">•</span>
+            <span>4,99</span>
+          </div>
+        </div>
+      </div>
+      <div class="asc-stats">
+        <div class="asc-stat">
+          <div class="asc-stat-val" id="asc-stat-clients">10 000+</div>
+          <div class="asc-stat-lbl">Clients nous font confiance</div>
+        </div>
+        <div class="asc-stat">
+          <div class="asc-stat-val">20+</div>
+          <div class="asc-stat-lbl">Cabines</div>
+        </div>
+        <div class="asc-stat">
+          <div class="asc-stat-val">99%</div>
+          <div class="asc-stat-lbl">Satisfaction</div>
+        </div>
+      </div>
+      <div class="asc-copyright">
+        <img src="img/logo.png" alt="KBINE PLUS" class="asc-copyright-logo">
+        <span>© 2026 KBINE PLUS. Tous droits réservés.</span>
+      </div>
+    </div>
+
+    <!-- -- 6. Réseaux Sociaux --------------------------------- -->
+    <div class="home-section home-section--bare home-only" style="padding:0;overflow:hidden;">
+
+      <!-- Icônes sociales -->
+      <div style="padding:2px 14px;">
+        <div class="social-circles-title">Rejoignez-nous dès maintenant</div>
+        <div class="social-circles">
+          <a class="social-circ social-circ--fb" href="https://facebook.com" target="_blank" rel="noopener">
+            <div class="social-circ-ico"><i class="fa-brands fa-facebook-f"></i></div>
+            <span class="social-circ-lbl">Facebook</span>
+          </a>
+          <a class="social-circ social-circ--tt" href="https://tiktok.com" target="_blank" rel="noopener">
+            <div class="social-circ-ico"><i class="fa-brands fa-tiktok"></i></div>
+            <span class="social-circ-lbl">TikTok</span>
+          </a>
+          <a class="social-circ social-circ--sc" href="https://snapchat.com" target="_blank" rel="noopener">
+            <div class="social-circ-ico"><i class="fa-brands fa-snapchat"></i></div>
+            <span class="social-circ-lbl">Snapchat</span>
+          </a>
+          <a class="social-circ social-circ--wa" href="https://wa.me/2250576230860" target="_blank" rel="noopener">
+            <div class="social-circ-ico"><i class="fa-brands fa-whatsapp"></i></div>
+            <span class="social-circ-lbl">WhatsApp</span>
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /#cs-transfer -->
+
+  <!-- -- SECTION : HISTORIQUE ---------------------------------- -->
+  <div class="cs-section" id="cs-historique">
+    <div class="cs-sec-bar">
+      <div class="cs-sec-bar-ico cs-sec-bar-ico--hist"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div class="cs-sec-bar-info">
+        <div class="cs-sec-bar-title">Historique</div>
+        <div class="cs-sec-bar-sub">Toutes vos transactions</div>
+      </div>
+    </div>
+    <div id="cs-historique-locked" class="elc-wall" style="display:none;">
+      <div class="elc-wall-glow"></div>
+      <div class="elc-wall-lock"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
+      <div class="elc-wall-title">Espace privé</div>
+      <div class="elc-wall-sub">Connectez-vous pour voir votre historique de transferts.</div>
+      <button class="elc-wall-btn" onclick="openPartnerAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+    </div>
+    <div id="cs-historique-content">
+
+      <!-- Recherche + réclamation -->
+      <div class="hxrc-section">
+        <div class="hxrc-search">
+          <span class="hxrc-search-ico"><i class="fa-solid fa-magnifying-glass"></i></span>
+          <input type="text" id="history-search" placeholder="Rechercher par téléphone ou ID de commande" oninput="searchHistory()" autocomplete="off">
+        </div>
+        <div class="hxrc-sep"></div>
+        <div class="hxrc-btn-wrap">
+          <span class="hxrc-badge" id="rclhub-badge" style="display:none;"></span>
+          <button class="hxrc-btn" onclick="openReclamationHub()">
+            <span class="hxrc-btn-ico"><i class="fa-solid fa-comment-dots"></i></span>
+            <span class="hxrc-btn-text">
+              <span class="hxrc-btn-lbl">Réclamation</span>
+              <span class="hxrc-btn-sub" id="rclhub-sub">Signaler un problème sur une commande</span>
+            </span>
+            <span class="hxrc-btn-chev"><i class="fa-solid fa-chevron-right"></i></span>
+          </button>
+        </div>
+
+        <!-- Visible uniquement si le client a au moins une commande de
+             service facture — voir updateReceiptButtonVisibility() dans
+             js/client.js. Ouvre la modale de suivi existante
+             (#modal-order-tracking) pour la commande facture concernée. -->
+        <div class="hxrc-btn-wrap" id="receipt-btn-wrap" style="display:none;">
+          <button class="hxrc-btn" onclick="openReceiptSection()">
+            <span class="hxrc-btn-ico"><i class="fa-solid fa-receipt"></i></span>
+            <span class="hxrc-btn-text">
+              <span class="hxrc-btn-lbl">Télécharger le reçu de ma facture</span>
+              <span class="hxrc-btn-sub" id="receipt-btn-sub">—</span>
+            </span>
+            <span class="hxrc-btn-chev"><i class="fa-solid fa-chevron-right"></i></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Liste des commandes -->
+      <div id="history-list" class="hx-list"></div>
+
+      <!-- Panneau détail -->
+      <div class="hx-detail-overlay" id="hx-detail-overlay" onclick="closeOrderDetail(event)">
+        <div class="hx-detail-panel" id="hx-detail-panel">
+          <div id="hx-detail-body"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- -- SECTION : DÉPENSES ----------------------------------- -->
+  <div class="cs-section" id="cs-depenses">
+    <div id="cs-depenses-locked" class="elc-wall" style="display:none;">
+      <div class="elc-wall-glow"></div>
+      <div class="elc-wall-lock"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
+      <div class="elc-wall-title">Espace privé</div>
+      <div class="elc-wall-sub">Connectez-vous pour consulter vos dépenses du mois.</div>
+      <button class="elc-wall-btn" onclick="openPartnerAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+    </div>
+    <div id="cs-depenses-content">
+      <!-- Récap total mois -->
+      <div class="dp-recap" id="dp-recap"></div>
+      <!-- Semaines -->
+      <div id="dp-weeks"></div>
+    </div>
+  </div>
+
+  <!-- -- SECTION : PORTEFEUILLE -------------------------------- -->
+  <div class="cs-section" id="cs-portefeuille">
+    <div id="cs-portefeuille-locked" class="elc-wall" style="display:none;">
+      <div class="elc-wall-glow"></div>
+      <div class="elc-wall-lock"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
+      <div class="elc-wall-title">Espace privé</div>
+      <div class="elc-wall-sub">Connectez-vous pour gérer votre solde et recharger votre compte.</div>
+      <button class="elc-wall-btn" onclick="openPartnerAuthModal()"><i class="fa-solid fa-right-to-bracket"></i> Se connecter</button>
+    </div>
+    <div id="cs-portefeuille-content"></div>
+  </div>
+
+  <!-- -- SECTION : PROFIL / COORDONNÉES ---------------------- -->
+  <div class="cs-section" id="cs-profit">
+    <div class="cs-sec-bar">
+      <div class="cs-sec-bar-ico cs-sec-bar-ico--prof"><i class="fa-solid fa-user"></i></div>
+      <div class="cs-sec-bar-info">
+        <div class="cs-sec-bar-title">Mon profil</div>
+        <div class="cs-sec-bar-sub">Compte &amp; paramètres</div>
+      </div>
+    </div>
+    <div id="cs-profit-locked" class="elc-wall" style="display:none;">
+      <div class="elc-wall-glow"></div>
+      <div class="elc-wall-lock">
+        <img src="img/logo officiel.png" alt="KBINE PLUS">
+      </div>
+      <div class="elc-wall-title">Espace privé</div>
+      <div class="elc-wall-sub">Connectez-vous pour accéder à votre profil et vos coordonnées.</div>
+      <button class="elc-wall-btn" onclick="openPartnerAuthModal()">
+        <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+      </button>
+    </div>
+    <div id="cs-profit-content">
+      <!-- Carte profil v3 -->
+      <div class="pc3-card">
+        <input type="file" id="pc-photo-input" accept="image/*" style="display:none" onchange="uploadProfilePhoto(this)" />
+
+        <!-- Bande solde (haut) -->
+        <div class="pc3-top">
+          <div class="pc3-top-label">Solde disponible</div>
+          <div class="pc3-top-amount" id="pc-solde-hero">—</div>
+          <div class="pc3-top-badge"><i class="fa-solid fa-arrow-trend-up"></i> Actif</div>
+        </div>
+
+        <!-- Profil (bas) -->
+        <div class="pc3-bottom">
+          <div class="pc3-left">
+            <div class="pc3-ava-wrap" onclick="document.getElementById('pc-photo-input').click()">
+              <div class="pc-avatar pc3-ava" id="pc-avatar">?</div>
+              <div class="pc-avatar-badge"><i class="fa-solid fa-check"></i></div>
+            </div>
+            <div>
+              <div class="pc3-name" id="pc-name">—</div>
+              <div class="pc3-tel" id="pc-tel-hero">—</div>
+            </div>
+          </div>
+          <div class="pc3-right">
+            <div class="pc3-stat">
+              <div class="pc3-stat-val" id="pc-txn-count">—</div>
+              <div class="pc3-stat-lbl">Transferts</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- Coordonnées v2 -->
+      <div class="crd2-panel">
+        <div class="crd2-head">
+          <i class="fa-solid fa-id-card"></i>
+          <span>Mes coordonnées</span>
+        </div>
+
+        <div class="crd2-row">
+          <div class="crd2-ico" style="background:rgba(255,98,0,.1);">
+            <i class="fa-solid fa-phone" style="color:#FF6200;"></i>
+          </div>
+          <div class="crd2-info">
+            <div class="crd2-lbl">Téléphone</div>
+            <div class="crd2-val" id="pc-tel">—</div>
+          </div>
+        </div>
+
+        <div class="crd2-divider"></div>
+
+        <div class="crd2-row">
+          <div class="crd2-ico" style="background:rgba(34,197,94,.1);">
+            <i class="fa-solid fa-wallet" style="color:#22c55e;"></i>
+          </div>
+          <div class="crd2-info">
+            <div class="crd2-lbl">Solde disponible</div>
+            <div class="crd2-val crd2-val--green" id="pc-solde">—</div>
+          </div>
+        </div>
+
+        <div class="crd2-divider"></div>
+
+        <div class="crd2-row">
+          <div class="crd2-ico" style="background:rgba(245,158,11,.1);">
+            <i class="fa-solid fa-calendar-check" style="color:#f59e0b;"></i>
+          </div>
+          <div class="crd2-info">
+            <div class="crd2-lbl">Membre depuis</div>
+            <div class="crd2-val" id="pc-date">—</div>
+          </div>
+        </div>
+
+      </div>
+      <!-- Parrainage v2 -->
+      <div class="ref2-wrap">
+
+        <!-- Bandeau titre -->
+        <div class="ref2-banner">
+          <div class="ref2-banner-left">
+            <div class="ref2-banner-ico"><i class="fa-solid fa-users-between-lines"></i></div>
+            <div>
+              <div class="ref2-banner-title">Parrainez & gagnez</div>
+              <div class="ref2-banner-sub">+50 F par ami inscrit</div>
+            </div>
+          </div>
+          <div class="ref2-banner-pill">
+            <i class="fa-solid fa-gift"></i> Gratuit
+          </div>
+        </div>
+
+        <!-- Compteurs -->
+        <div class="ref2-counters">
+          <div class="ref2-counter">
+            <div class="ref2-counter-val" id="parrain-count">0</div>
+            <div class="ref2-counter-lbl"><i class="fa-solid fa-user-check"></i> Filleuls</div>
+          </div>
+          <div class="ref2-counter-sep"></div>
+          <div class="ref2-counter">
+            <div class="ref2-counter-val ref2-counter-val--green" id="parrain-total">0</div>
+            <div class="ref2-counter-lbl"><i class="fa-solid fa-coins"></i> F gagnés</div>
+          </div>
+        </div>
+
+        <!-- Lien -->
+        <div class="ref2-link">
+          <div class="ref2-link-label">Votre lien de parrainage</div>
+          <div class="ref2-link-box">
+            <i class="fa-solid fa-link ref2-link-icon"></i>
+            <div class="ref2-link-url" id="parrain-link">—</div>
+            <button class="ref2-copy" onclick="copyReferralLink()" title="Copier">
+              <i class="fa-solid fa-copy" id="parrain-copy-icon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Étapes condensées -->
+        <div class="ref2-flow">
+          <div class="ref2-flow-step">
+            <div class="ref2-flow-dot">1</div>
+            <span>Partagez</span>
+          </div>
+          <div class="ref2-flow-line"></div>
+          <div class="ref2-flow-step">
+            <div class="ref2-flow-dot">2</div>
+            <span>Inscription</span>
+          </div>
+          <div class="ref2-flow-line"></div>
+          <div class="ref2-flow-step">
+            <div class="ref2-flow-dot ref2-flow-dot--green">3</div>
+            <span>+50 F</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Télécharger l'application Android (visible uniquement sur Android,
+           voir renderAndroidProfileButton() dans js/client.js) -->
+      <div class="appdl-wrap" id="cs-profile-android-dl" style="display:none;">
+        <a class="appdl-btn" href="downloads/kbineplus.apk" download>
+          <div class="appdl-btn-bg"></div>
+          <div class="appdl-ico"><i class="fa-brands fa-android"></i></div>
+          <span class="appdl-label">Télécharger l'application Android</span>
+          <i class="fa-solid fa-download appdl-arrow"></i>
+        </a>
+      </div>
+
+      <!-- Sécurité : connexion biométrique (masqué si aucun capteur, voir
+           refreshClientBiometricToggle() dans js/client.js) -->
+      <div class="crd2-panel" id="cs-profile-biometric-panel" style="display:none;">
+        <div class="crd2-head">
+          <i class="fa-solid fa-fingerprint"></i>
+          <span>Sécurité</span>
+        </div>
+        <div class="crd2-row">
+          <div class="crd2-ico" style="background:rgba(99,102,241,.1);">
+            <i class="fa-solid fa-fingerprint" style="color:#6366f1;"></i>
+          </div>
+          <div class="crd2-info">
+            <div class="crd2-lbl">Connexion par empreinte digitale</div>
+            <div class="crd2-val" id="cs-biometric-status" style="font-size:.68rem;">Désactivée</div>
+          </div>
+          <input type="checkbox" id="cs-biometric-toggle" onchange="toggleClientBiometric(this)" style="width:20px;height:20px;">
+        </div>
+        <div class="crd2-row" id="cs-biometric-not-enrolled-row" style="display:none;">
+          <div class="crd2-info">
+            <div class="crd2-val" style="font-size:.68rem;color:var(--gray-400);">Configurez une empreinte dans les réglages de votre téléphone pour activer cette option.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Déconnexion -->
+      <div class="lgout3-wrap">
+        <div class="lgout3-session">
+          <div class="lgout3-dot"></div>
+          <span>Session active</span>
+        </div>
+        <button class="lgout3-btn" onclick="Auth.logout()">
+          <div class="lgout3-btn-bg"></div>
+          <div class="lgout3-ico"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+          <span class="lgout3-label">Se déconnecter</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- -- SECTION : ESPACE PARTENAIRES ------------------------- -->
+  <div class="cs-section" id="cs-partenaires">
+
+    <!-- Hero partenaire -->
+    <div class="ph5-hero3">
+
+      <!-- Lueurs fond -->
+      <div style="position:absolute;bottom:-40px;right:-30px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(255,98,0,.14) 0%,transparent 65%);pointer-events:none;"></div>
+      <div style="position:absolute;top:-20px;left:-20px;width:100px;height:100px;border-radius:50%;background:radial-gradient(circle,rgba(99,102,241,.1) 0%,transparent 65%);pointer-events:none;"></div>
+
+      <!-- Barre top : badges -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;position:relative;z-index:1;">
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,98,0,.1);border:1px solid rgba(255,98,0,.25);border-radius:99px;padding:4px 12px;">
+          <div style="width:6px;height:6px;border-radius:50%;background:#FF6200;animation:blink 1.6s infinite;"></div>
+          <span style="font-size:.58rem;font-weight:700;color:#FF6200;text-transform:uppercase;letter-spacing:.1em;">Programme Partenaire</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.25);border-radius:99px;padding:4px 10px;">
+          <i class="fa-solid fa-circle-check" style="color:#22c55e;font-size:.58rem;"></i>
+          <span style="font-size:.58rem;color:#22c55e;font-weight:700;">Certifié KBINE</span>
+        </div>
+      </div>
+
+      <!-- Titre + icône côte à côte -->
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:14px;position:relative;z-index:1;">
+        <div style="flex:1;">
+          <div style="font-size:1.45rem;font-weight:900;color:#fff;line-height:1.18;letter-spacing:-.02em;margin-bottom:8px;">
+            Votre <span style="color:#FF6200;">smartphone</span><br>devient votre<br>source de revenus
+          </div>
+          <div style="font-size:.68rem;color:rgba(255,255,255,.42);line-height:1.6;">
+            Traitez des commandes et gagnez plus de <span style="color:#FF6200;font-weight:700;">5&nbsp;000&nbsp;F</span> par jour grâce au réseau KBINE PLUS.
+          </div>
+        </div>
+        <div style="flex-shrink:0;width:66px;height:66px;border-radius:18px;background:linear-gradient(145deg,rgba(255,98,0,.18),rgba(194,61,0,.08));border:1px solid rgba(255,98,0,.2);display:flex;align-items:center;justify-content:center;">
+          <i class="fa-solid fa-mobile-screen-button" style="color:#FF6200;font-size:1.7rem;"></i>
+        </div>
+      </div>
+
+      <!-- Bandeau revenus + commission -->
+      <div style="background:linear-gradient(135deg,rgba(255,98,0,.14),rgba(255,98,0,.04));border:1px solid rgba(255,98,0,.2);border-radius:12px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;position:relative;z-index:1;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <i class="fa-solid fa-coins" style="color:#FF6200;font-size:1rem;"></i>
+          <div>
+            <div style="font-size:.52rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;">Revenu estimé</div>
+            <div style="font-size:.95rem;font-weight:900;color:#fff;">5 000 F <span style="font-size:.62rem;font-weight:400;color:rgba(255,255,255,.38);">/ jour</span></div>
+          </div>
+        </div>
+        <div style="width:1px;height:32px;background:rgba(255,255,255,.08);"></div>
+        <div style="text-align:center;">
+          <div style="font-size:.52rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;">Commission</div>
+          <div style="font-size:.95rem;font-weight:900;color:#FF6200;">5%</div>
+        </div>
+        <div style="width:1px;height:32px;background:rgba(255,255,255,.08);"></div>
+        <div style="text-align:center;">
+          <div style="font-size:.52rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.1em;">Paiement</div>
+          <div style="font-size:.95rem;font-weight:900;color:#22c55e;">24h/24h</div>
+        </div>
+      </div>
+
+      <!-- Bas : partenaires + opérateurs -->
+      <div style="display:flex;align-items:center;justify-content:space-between;position:relative;z-index:1;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <i class="fa-solid fa-users" style="color:rgba(255,255,255,.25);font-size:.7rem;"></i>
+          <span style="font-size:.62rem;color:rgba(255,255,255,.3);">20+ Partenaires</span>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <div style="background:#FF6200;color:#fff;font-size:.6rem;font-weight:800;padding:3px 8px;border-radius:5px;">Orange</div>
+          <div style="background:#FFCC00;color:#111;font-size:.6rem;font-weight:800;padding:3px 8px;border-radius:5px;">MTN</div>
+          <div style="background:#0066CC;color:#fff;font-size:.6rem;font-weight:800;padding:3px 8px;border-radius:5px;">Moov</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Section avantages clés -->
+    <div style="background:#0b0b12;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px;margin-bottom:10px;">
+
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+        <div style="width:3px;height:16px;background:#FF6200;border-radius:99px;"></div>
+        <span style="font-size:.58rem;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">Pourquoi nous rejoindre</span>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:8px;">
+
+        <div class="ph5-av-row">
+          <div class="ph5-av-ico" style="--ac:#FF6200;--ab:rgba(255,98,0,.1);">
+            <i class="fa-solid fa-coins"></i>
+          </div>
+          <div class="ph5-av-body">
+            <div class="ph5-av-title">Commission sur chaque transfert</div>
+            <div class="ph5-av-sub">Gagnez 5% sur chaque opération traitée.</div>
+          </div>
+        </div>
+
+        <div class="ph5-av-row">
+          <div class="ph5-av-ico" style="--ac:#22c55e;--ab:rgba(34,197,94,.1);">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div class="ph5-av-body">
+            <div class="ph5-av-title">Démarrage immédiat</div>
+            <div class="ph5-av-sub">Aucun investissement initial requis. Activez votre compte et commencez.</div>
+          </div>
+        </div>
+
+        <div class="ph5-av-row">
+          <div class="ph5-av-ico" style="--ac:#38bdf8;--ab:rgba(56,189,248,.1);">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <div class="ph5-av-body">
+            <div class="ph5-av-title">Plateforme sécurisée</div>
+            <div class="ph5-av-sub">Transactions protégées sur Orange, MTN et Moov en temps réel.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section En savoir plus -->
+    <div style="background:#0e0e14;border:1px solid rgba(255,255,255,.07);border-radius:16px;padding:14px 14px 4px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px;">
+
+      <!-- Label section -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <div style="width:3px;height:16px;background:#FF6200;border-radius:99px;"></div>
+        <span style="font-size:.58rem;font-weight:700;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.1em;">En savoir plus</span>
+      </div>
+
+    <!-- Accordéon 1 : Pourquoi nous rejoindre -->
+    <div class="ph5-accordion">
+      <button class="ph5-acc-btn ph5-acc-card" id="ph5-why-btn" onclick="toggleWhySection()">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="ph5-acc-ico" style="--aic:rgba(255,98,0,.15);--aicl:#FF6200;">
+            <i class="fa-solid fa-coins"></i>
+          </div>
+          <div style="text-align:left;">
+            <div class="ph5-acc-title">Pourquoi nous rejoindre ?</div>
+            <div class="ph5-acc-sub">Avantages &amp; statistiques</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="ph5-why-icon"></i>
+      </button>
+      <div id="ph5-sector2" style="display:none;background:#0e0e14;border:1px solid rgba(255,98,0,.25);border-top:none;border-radius:0 0 12px 12px;padding:16px 14px 14px;">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+
+          <!-- Avantage 1 -->
+          <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(255,98,0,.05);border:1px solid rgba(255,98,0,.15);border-radius:12px;padding:12px 13px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(255,98,0,.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-coins" style="color:#FF6200;font-size:.8rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.68rem;font-weight:800;color:#fff;margin-bottom:3px;">Commission garantie</div>
+              <div style="font-size:.58rem;color:rgba(255,255,255,.38);line-height:1.6;">Touchez une commission sur chaque transfert validé.</div>
+            </div>
+          </div>
+
+          <!-- Avantage 2 -->
+          <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(138,99,255,.05);border:1px solid rgba(138,99,255,.15);border-radius:12px;padding:12px 13px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(138,99,255,.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-chart-line" style="color:#a78bfa;font-size:.8rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.68rem;font-weight:800;color:#fff;margin-bottom:3px;">Tableau de bord personnalisé</div>
+              <div style="font-size:.58rem;color:rgba(255,255,255,.38);line-height:1.6;">Suivez vos commandes, votre solde et vos performances depuis un espace dédié, accessible à tout moment.</div>
+            </div>
+          </div>
+
+          <!-- Avantage 3 -->
+          <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(34,197,94,.04);border:1px solid rgba(34,197,94,.15);border-radius:12px;padding:12px 13px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(34,197,94,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-bolt" style="color:#22c55e;font-size:.8rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.68rem;font-weight:800;color:#fff;margin-bottom:3px;">Paiement sous 24h</div>
+              <div style="font-size:.58rem;color:rgba(255,255,255,.38);line-height:1.6;">Les paiements avec KBINE PLUS, c'est 24h/24h et 7j/7j.</div>
+            </div>
+          </div>
+
+          <!-- Avantage 4 -->
+          <div style="display:flex;align-items:flex-start;gap:12px;background:rgba(245,158,11,.04);border:1px solid rgba(245,158,11,.15);border-radius:12px;padding:12px 13px;">
+            <div style="width:38px;height:38px;border-radius:10px;background:rgba(245,158,11,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-headset" style="color:#f59e0b;font-size:.8rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.68rem;font-weight:800;color:#fff;margin-bottom:3px;">Support disponible 7j/7</div>
+              <div style="font-size:.58rem;color:rgba(255,255,255,.38);line-height:1.6;">Une équipe dédiée vous accompagne à chaque étape — questions, incidents ou réclamations, nous sommes là pour vous.</div>
+            </div>
+          </div>
+
+          <!-- Stats -->
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <div style="flex:1;background:rgba(255,98,0,.08);border:1px solid rgba(255,98,0,.2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:.9rem;font-weight:900;color:#FF6200;">20+</div>
+              <div style="font-size:.5rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Partenaires</div>
+            </div>
+            <div style="flex:1;background:rgba(138,99,255,.08);border:1px solid rgba(138,99,255,.2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:.9rem;font-weight:900;color:#a78bfa;">24h/24h</div>
+              <div style="font-size:.5rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Paiement</div>
+            </div>
+            <div style="flex:1;background:rgba(34,197,94,.06);border:1px solid rgba(34,197,94,.2);border-radius:10px;padding:10px;text-align:center;">
+              <div style="font-size:.9rem;font-weight:900;color:#22c55e;">100%</div>
+              <div style="font-size:.5rem;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">En ligne</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Accordéon 2 : Nos abonnements -->
+    <div class="ph5-accordion">
+      <button class="ph5-acc-btn ph5-acc-card" id="ph5-abo-btn" onclick="toggleAboSection()">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="ph5-acc-ico" style="--aic:rgba(245,158,11,.12);--aicl:#f59e0b;">
+            <i class="fa-solid fa-crown"></i>
+          </div>
+          <div style="text-align:left;">
+            <div class="ph5-acc-title">Nos abonnements</div>
+            <div class="ph5-acc-sub">Premium · VIP · VVIP</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="ph5-abo-icon"></i>
+      </button>
+    <div id="ph5-abo" style="display:none;background:#0a0a10;border:1px solid rgba(255,98,0,.2);border-top:none;border-radius:0 0 14px 14px;padding:16px 14px 14px;margin-bottom:0;">
+
+      <div style="display:flex;flex-direction:column;gap:10px;">
+
+        <!-- PREMIUM -->
+        <div style="border-radius:14px;overflow:hidden;position:relative;">
+          <div style="height:3px;background:linear-gradient(to right,#FF6200,rgba(255,98,0,.3));"></div>
+          <div style="background:rgba(255,98,0,.06);border:1px solid rgba(255,98,0,.18);border-top:none;border-radius:0 0 14px 14px;padding:14px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                  <span style="font-size:.8rem;font-weight:900;color:#fff;">Premium</span>
+                  <span style="font-size:.44rem;font-weight:700;background:rgba(255,98,0,.15);color:#FF6200;border:1px solid rgba(255,98,0,.3);padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.06em;">Entrée</span>
+                </div>
+                <div style="font-size:.57rem;color:rgba(255,255,255,.3);line-height:1.5;">Commissions cumulées jusqu'à<br><strong style="color:rgba(255,255,255,.6);">25 000 F</strong>, puis expiration auto.</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+                <div style="font-size:1.3rem;font-weight:900;color:#FF6200;line-height:1;">10 000</div>
+                <div style="font-size:.48rem;color:rgba(255,255,255,.3);margin-top:2px;text-align:right;">F</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Dashboard</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Notifications</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Commandes illimitées</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Support 24h/7j</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VIP -->
+        <div style="border-radius:14px;overflow:hidden;position:relative;">
+          <div style="position:absolute;top:0;right:12px;background:#FF6200;color:#fff;font-size:.42rem;font-weight:700;padding:3px 10px;border-radius:0 0 8px 8px;letter-spacing:.07em;text-transform:uppercase;z-index:1;">Le plus choisi</div>
+          <div style="height:3px;background:linear-gradient(to right,#FF6200,#ff9500);"></div>
+          <div style="background:rgba(255,98,0,.1);border:1.5px solid #FF6200;border-top:none;border-radius:0 0 14px 14px;padding:14px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                  <span style="font-size:.8rem;font-weight:900;color:#fff;">VIP</span>
+                  <span style="font-size:.44rem;font-weight:700;background:rgba(255,98,0,.2);color:#FF6200;border:1px solid rgba(255,98,0,.45);padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.06em;">Populaire</span>
+                </div>
+                <div style="font-size:.57rem;color:rgba(255,255,255,.35);line-height:1.5;">Commissions cumulées jusqu'à<br><strong style="color:rgba(255,255,255,.65);">50 000 F</strong>, puis expiration auto.</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+                <div style="font-size:1.3rem;font-weight:900;color:#FF6200;line-height:1;">20 000</div>
+                <div style="font-size:.48rem;color:rgba(255,255,255,.35);margin-top:2px;text-align:right;">F</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.55);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Dashboard</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.55);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Notifications</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.55);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Commandes illimitées</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.55);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Support 24h/7j</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- VVIP -->
+        <div style="border-radius:14px;overflow:hidden;">
+          <div style="height:3px;background:linear-gradient(to right,#f59e0b,rgba(245,158,11,.3));"></div>
+          <div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.25);border-top:none;border-radius:0 0 14px 14px;padding:14px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:10px;">
+              <div>
+                <div style="display:flex;align-items:center;gap:7px;margin-bottom:4px;">
+                  <span style="font-size:.8rem;font-weight:900;color:#fff;">VVIP</span>
+                  <span style="font-size:.44rem;font-weight:700;background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.35);padding:2px 8px;border-radius:99px;text-transform:uppercase;letter-spacing:.06em;">Élite</span>
+                </div>
+                <div style="font-size:.57rem;color:rgba(255,255,255,.3);line-height:1.5;">Commissions cumulées jusqu'à<br><strong style="color:rgba(255,255,255,.6);">200 000 F</strong>, puis expiration auto.</div>
+              </div>
+              <div style="text-align:right;flex-shrink:0;margin-left:12px;">
+                <div style="font-size:1.3rem;font-weight:900;color:#f59e0b;line-height:1;">50 000</div>
+                <div style="font-size:.48rem;color:rgba(255,255,255,.3);margin-top:2px;text-align:right;">F</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;">
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Dashboard</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Notifications</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Commandes illimitées</div>
+              <div style="display:flex;align-items:center;gap:5px;font-size:.55rem;color:rgba(255,255,255,.45);"><i class="fa-solid fa-check" style="color:#22c55e;font-size:.5rem;"></i>Support 24h/7j</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note -->
+        <div style="font-size:.52rem;color:rgba(255,255,255,.18);text-align:center;line-height:1.6;">
+          L'abonnement expire automatiquement au plafond de commissions atteint.
+        </div>
+
+      </div>
+    </div>
+    </div><!-- /ph5-accordion 2 -->
+
+    <div style="height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.08),transparent);margin:4px 0;"></div>
+
+    <!-- Accordéon 3 : Contact -->
+    <div class="ph5-accordion">
+      <button class="ph5-acc-btn ph5-acc-card" id="ph5-contact-btn" onclick="toggleContactSection()">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="ph5-acc-ico" style="--aic:rgba(34,197,94,.1);--aicl:#22c55e;">
+            <i class="fa-solid fa-headset"></i>
+          </div>
+          <div style="text-align:left;">
+            <div class="ph5-acc-title">Contact</div>
+            <div class="ph5-acc-sub">Téléphone · Email · WhatsApp</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="ph5-contact-icon"></i>
+      </button>
+      <div id="ph5-contact" style="display:none;background:#0e0e14;border:1px solid rgba(255,98,0,.25);border-top:none;border-radius:0 0 12px 12px;padding:16px 14px 14px;">
+
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <a href="tel:+2250576230860" style="text-decoration:none;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 14px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,98,0,.12);border:1px solid rgba(255,98,0,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-phone" style="color:#FF6200;font-size:.72rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.62rem;font-weight:700;color:#fff;">Téléphone</div>
+              <div style="font-size:.55rem;color:rgba(255,255,255,.35);margin-top:1px;">+225 05 76 23 08 60</div>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="color:rgba(255,98,0,.4);font-size:.55rem;margin-left:auto;"></i>
+          </a>
+
+          <a href="mailto:cabineci57@gmail.com" style="text-decoration:none;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 14px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(138,99,255,.1);border:1px solid rgba(138,99,255,.25);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-solid fa-envelope" style="color:#a78bfa;font-size:.72rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.62rem;font-weight:700;color:#fff;">Email</div>
+              <div style="font-size:.55rem;color:rgba(255,255,255,.35);margin-top:1px;">cabineci57@gmail.com</div>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="color:rgba(138,99,255,.4);font-size:.55rem;margin-left:auto;"></i>
+          </a>
+
+          <a href="https://wa.me/2250576230860" style="text-decoration:none;display:flex;align-items:center;gap:12px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:11px;padding:12px 14px;">
+            <div style="width:36px;height:36px;border-radius:50%;background:rgba(34,197,94,.08);border:1px solid rgba(34,197,94,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <i class="fa-brands fa-whatsapp" style="color:#22c55e;font-size:.85rem;"></i>
+            </div>
+            <div>
+              <div style="font-size:.62rem;font-weight:700;color:#fff;">WhatsApp</div>
+              <div style="font-size:.55rem;color:rgba(255,255,255,.35);margin-top:1px;">+225 05 76 23 08 60</div>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="color:rgba(34,197,94,.4);font-size:.55rem;margin-left:auto;"></i>
+          </a>
+        </div>
+
+      </div>
+    </div><!-- /ph5-accordion 3 -->
+
+    <!-- Séparateur visuel -->
+    <div style="height:1px;background:linear-gradient(to right,transparent,rgba(255,255,255,.08),transparent);margin:4px 0;"></div>
+
+    <!-- Accordéon 4 : À propos -->
+    <div class="ph5-accordion">
+      <button class="ph5-acc-btn ph5-acc-card" id="ph5-apropos-btn" onclick="toggleAproposSection()">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="ph5-acc-ico" style="--aic:rgba(138,99,255,.12);--aicl:#a78bfa;">
+            <i class="fa-solid fa-circle-info"></i>
+          </div>
+          <div style="text-align:left;">
+            <div class="ph5-acc-title">À propos</div>
+            <div class="ph5-acc-sub">Qui sommes-nous ?</div>
+          </div>
+        </div>
+        <i class="fa-solid fa-chevron-down ph5-why-icon" id="ph5-apropos-icon"></i>
+      </button>
+      <div id="ph5-apropos" style="display:none;background:#0e0e14;border:1px solid rgba(255,98,0,.25);border-top:none;border-radius:0 0 12px 12px;overflow:hidden;">
+
+        <!-- Bandeau identité -->
+        <div style="background:linear-gradient(135deg,#1a0a00,#2a1000);border-bottom:1px solid rgba(255,98,0,.2);padding:18px 16px 16px;text-align:center;position:relative;overflow:hidden;">
+          <div style="position:absolute;top:-20px;left:50%;transform:translateX(-50%);width:120px;height:120px;border-radius:50%;background:rgba(255,98,0,.07);pointer-events:none;"></div>
+          <div style="width:48px;height:48px;border-radius:14px;background:rgba(255,98,0,.15);border:1.5px solid rgba(255,98,0,.4);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;overflow:hidden;">
+            <img src="img/logo.png" alt="KBINE PLUS" style="width:100%;height:100%;object-fit:cover;">
+          </div>
+          <div style="font-size:1rem;font-weight:900;color:#fff;letter-spacing:.04em;margin-bottom:3px;">KBINE<span style="color:#FF6200;"> PLUS</span></div>
+          <div style="font-size:.56rem;color:rgba(255,255,255,.4);letter-spacing:.06em;text-transform:uppercase;">Plateforme de transfert en ligne — Côte d'Ivoire</div>
+        </div>
+
+        <!-- Mission -->
+        <div style="padding:14px 16px 0;">
+          <div style="font-size:.52rem;font-weight:700;color:#FF6200;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px;">Notre mission</div>
+          <div style="font-size:.6rem;color:rgba(255,255,255,.42);line-height:1.75;">
+            Notre plateforme a pour mission de répondre aux préoccupations quotidiennes des populations en leur offrant un accès simplifié et fiable à des services essentiels. En tant que plaque tournante, nous proposons une gamme diversifiée de prestations tout en contribuant activement à la création d'emplois grâce à notre réseau de partenaires.
+          </div>
+        </div>
+
+        <!-- Stats -->
+        <div style="display:flex;gap:0;margin:14px 16px;border:1px solid rgba(255,255,255,.07);border-radius:12px;overflow:hidden;">
+          <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.07);">
+            <div style="font-size:.9rem;font-weight:900;color:#FF6200;">20+</div>
+            <div style="font-size:.48rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Partenaires</div>
+          </div>
+          <div style="flex:1;padding:12px 8px;text-align:center;border-right:1px solid rgba(255,255,255,.07);">
+            <div style="font-size:.9rem;font-weight:900;color:#a78bfa;">3</div>
+            <div style="font-size:.48rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Opérateurs</div>
+          </div>
+          <div style="flex:1;padding:12px 8px;text-align:center;">
+            <div style="font-size:.9rem;font-weight:900;color:#22c55e;">24h/24h</div>
+            <div style="font-size:.48rem;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.06em;margin-top:2px;">Paiement</div>
+          </div>
+        </div>
+
+        <!-- Points forts en grille -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:0 16px 16px;">
+          <div style="background:rgba(255,98,0,.06);border:1px solid rgba(255,98,0,.15);border-radius:11px;padding:11px 12px;">
+            <i class="fa-solid fa-shield-halved" style="color:#FF6200;font-size:.8rem;margin-bottom:6px;display:block;"></i>
+            <div style="font-size:.6rem;font-weight:700;color:#fff;margin-bottom:2px;">Sécurisé</div>
+            <div style="font-size:.52rem;color:rgba(255,255,255,.3);line-height:1.45;">Chaque transaction vérifiée en temps réel.</div>
+          </div>
+          <div style="background:rgba(34,197,94,.05);border:1px solid rgba(34,197,94,.15);border-radius:11px;padding:11px 12px;">
+            <i class="fa-solid fa-mobile-screen" style="color:#22c55e;font-size:.8rem;margin-bottom:6px;display:block;"></i>
+            <div style="font-size:.6rem;font-weight:700;color:#fff;margin-bottom:2px;">100% Mobile</div>
+            <div style="font-size:.52rem;color:rgba(255,255,255,.3);line-height:1.45;">Orange · MTN · Moov Money.</div>
+          </div>
+          <div style="background:rgba(138,99,255,.05);border:1px solid rgba(138,99,255,.15);border-radius:11px;padding:11px 12px;">
+            <i class="fa-solid fa-headset" style="color:#a78bfa;font-size:.8rem;margin-bottom:6px;display:block;"></i>
+            <div style="font-size:.6rem;font-weight:700;color:#fff;margin-bottom:2px;">Support 7j/7</div>
+            <div style="font-size:.52rem;color:rgba(255,255,255,.3);line-height:1.45;">Équipe disponible à tout moment.</div>
+          </div>
+          <div style="background:rgba(245,158,11,.05);border:1px solid rgba(245,158,11,.15);border-radius:11px;padding:11px 12px;">
+            <i class="fa-solid fa-bolt" style="color:#f59e0b;font-size:.8rem;margin-bottom:6px;display:block;"></i>
+            <div style="font-size:.6rem;font-weight:700;color:#fff;margin-bottom:2px;">Paiement rapide</div>
+            <div style="font-size:.52rem;color:rgba(255,255,255,.3);line-height:1.45;">Commissions sous 24h ouvrées.</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="border-top:1px solid rgba(255,255,255,.05);padding:10px 16px;text-align:center;font-size:.5rem;color:rgba(255,255,255,.18);">
+          © 2024 KBINE PLUS · Tous droits réservés
+        </div>
+
+      </div>
+    </div>
+
+    </div><!-- /section En savoir plus -->
+
+    <!-- Section accès unifiée -->
+    <div class="ph5-gate">
+
+      <!-- En-tête -->
+      <div class="ph5-gate-header">
+        <div class="ph5-gate-header-ico"><i class="fa-solid fa-door-open"></i></div>
+        <div>
+          <div class="ph5-gate-header-title">Portail d'accès</div>
+          <div class="ph5-gate-header-sub">Choisissez votre espace</div>
+        </div>
+      </div>
+
+      <!-- Ligne partenaire -->
+      <div class="ph5-gate-row ph5-gate-row--partner" onclick="openPartnerLoginModal()">
+        <div class="ph5-gate-row-ico" style="--gc:#FF6200;--gb:rgba(255,98,0,.12);">
+          <i class="fa-solid fa-handshake"></i>
+        </div>
+        <div class="ph5-gate-row-body">
+          <div class="ph5-gate-row-title">Espace partenaire</div>
+          <div class="ph5-gate-row-sub">Partenaire · Cabiniste agréé</div>
+        </div>
+        <div class="ph5-gate-row-tag" style="--tc:#FF6200;--tb:rgba(255,98,0,.1);--tbd:rgba(255,98,0,.25);">Partenaire</div>
+        <i class="fa-solid fa-chevron-right ph5-gate-row-arr" style="color:#FF6200;"></i>
+      </div>
+
+      <!-- Séparateur -->
+      <div class="ph5-gate-divider">
+        <span>ou</span>
+      </div>
+
+      <!-- Ligne admin -->
+      <div class="ph5-gate-row ph5-gate-row--admin" onclick="openAdminAuthModal()">
+        <div class="ph5-gate-row-ico" style="--gc:#a78bfa;--gb:rgba(138,99,255,.12);">
+          <i class="fa-solid fa-shield-halved"></i>
+        </div>
+        <div class="ph5-gate-row-body">
+          <div class="ph5-gate-row-title">Espace Admin</div>
+          <div class="ph5-gate-row-sub">Réservé aux administrateurs</div>
+        </div>
+        <div class="ph5-gate-row-tag" style="--tc:#a78bfa;--tb:rgba(138,99,255,.1);--tbd:rgba(138,99,255,.25);">Admin</div>
+        <i class="fa-solid fa-chevron-right ph5-gate-row-arr" style="color:#a78bfa;"></i>
+      </div>
+
+    </div>
+
+  </div><!-- /#cs-partenaires -->
+
+</div><!-- /.client-page -->
+
+<!-- --------------------------------------------------------------
+     BARRE DE NAVIGATION BAS — bulle flottante
+-------------------------------------------------------------- -->
+<nav class="bottom-nav">
+  <div class="bn-item active" data-section="transfer" onclick="showSection('transfer')">
+    <i class="fa-solid fa-bars"></i>
+    <span>Accueil</span>
+  </div>
+  <div class="bn-item" data-section="historique" onclick="showSection('historique')">
+    <i class="fa-solid fa-clock-rotate-left bn-ico--indigo"></i>
+    <span>Historique</span>
+  </div>
+  <div class="bn-item bn-whatsapp" onclick="handleClientWhatsappClick()" title="Assistance KBINE PLUS sur WhatsApp">
+    <div class="bn-wa-circle"><i class="fa-brands fa-whatsapp"></i></div>
+    <span>Aide</span>
+  </div>
+  <div class="bn-item" data-section="profit" onclick="showSection('profit')">
+    <i class="fa-solid fa-circle-user bn-ico--violet"></i>
+    <span>Profil</span>
+  </div>
+  <div class="bn-item" data-section="partenaires" onclick="goPartenairesSection()">
+    <i class="fa-solid fa-handshake bn-ico--teal"></i>
+    <span>Partenaires</span>
+    <span class="bn-badge">NEW</span>
+  </div>
+</nav>
+
+<!-- --------------------------------------------------------------
+     MODALES
+-------------------------------------------------------------- -->
+
+<!-- Rappel "Espace privé" — affiché au tap sur une action réservée
+     aux clients connectés (Facture, Recharge UV, Exchange, Cadeau,
+     onglet Partenaires), à la place du renvoi direct vers le login. -->
+<div class="modal-overlay" id="modal-private-space">
+  <div class="modal priv-modal">
+    <button class="priv-modal-close" onclick="closeModal('modal-private-space')" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    <div class="elc-wall" style="margin-bottom:0;">
+      <div class="elc-wall-lock"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
+      <div class="elc-wall-title">Espace privé</div>
+      <div class="elc-wall-sub" id="priv-space-msg">Connectez-vous pour accéder à cette fonctionnalité.</div>
+      <button class="elc-wall-btn" onclick="closeModal('modal-private-space'); openPartnerAuthModal();">
+        <i class="fa-solid fa-right-to-bracket"></i> Se connecter
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Répertoire rapide -->
+<div class="modal-overlay" id="modal-contacts">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-address-book" style="color:var(--primary)"></i> Répertoire rapide</span>
+      <button class="modal-close" onclick="closeModal('modal-contacts')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:12px 16px;">
+      <p style="font-size:.82rem;color:var(--gray-500);margin-bottom:12px;">Sélectionnez un numéro parmi vos transferts récents.</p>
+      <div class="contacts-list" id="contacts-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Assistant WhatsApp (sélection manuelle) -->
+<div class="modal-overlay" id="modal-client-wa-picker">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-body" style="padding:12px 16px;">
+      <div class="contacts-list" id="client-wa-picker-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirmer le transfert -->
+<div class="modal-overlay" id="modal-confirm-transfer">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-circle-check" style="color:var(--secondary)"></i> Confirmer le transfert</span>
+      <button class="modal-close" onclick="closeModal('modal-confirm-transfer')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="receipt">
+        <div class="receipt-header">
+          <div class="receipt-logo">KBINE PLUS</div>
+          <div style="font-size:.78rem;color:var(--gray-400)">Résumé de votre commande</div>
+        </div>
+        <div class="receipt-row"><span class="label">Opérateur</span><span class="value" id="confirm-operator">—</span></div>
+        <div class="receipt-row" id="confirm-svc-row"><span class="label">Service</span><span class="value">—</span></div>
+        <div class="receipt-row"><span class="label">Montant / Forfait</span><span class="value" id="confirm-montant">—</span></div>
+        <div class="receipt-row"><span class="label">N° Bénéficiaire</span><span class="value" id="confirm-numero">—</span></div>
+        <div class="receipt-row" id="confirm-pay-row"><span class="label">Paiement</span><span class="value">—</span></div>
+        <div class="receipt-row" id="confirm-frais-row"><span class="label">Frais de service</span><span class="value" style="color:var(--gray-400)">15 F</span></div>
+        <div class="receipt-row"><span class="label">Commission (5%)</span><span class="value" id="confirm-commission" style="color:var(--gray-500)">—</span></div>
+        <div class="receipt-total">
+          <span style="font-weight:700">Total à débiter</span>
+          <span style="font-weight:800;color:var(--primary)" id="confirm-total">—</span>
+        </div>
+      </div>
+      <p style="font-size:.82rem;margin-top:14px;color:var(--gray-500);text-align:center;">
+        <i class="fa-solid fa-lock"></i> Votre solde sera débité immédiatement.
+      </p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-confirm-transfer')">Annuler</button>
+      <button class="btn btn-primary" id="btn-confirm-send">
+        <i class="fa-solid fa-paper-plane"></i> Confirmer l'envoi
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Recharger le portefeuille -->
+<div class="modal-overlay" id="modal-recharge">
+  <div class="modal rch-modal">
+
+    <!-- Header -->
+    <div class="rch-header">
+      <div class="rch-header-left">
+        <div class="rch-header-icon"><i class="fa-solid fa-wallet"></i></div>
+        <div>
+          <div class="rch-header-title">Recharger</div>
+          <div class="rch-header-sub">mon portefeuille</div>
+        </div>
+      </div>
+      <button class="rch-close" onclick="closeModal('modal-recharge')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="rch-body">
+      <form id="recharge-form" onsubmit="handleRecharge(event)">
+
+        <!-- étape 1 : Montant -->
+        <div class="rch-step rch-step--active" id="rch-step-1">
+          <div class="rch-amount-lbl">Montant à recharger</div>
+          <div class="rch-amount-card">
+            <input type="number" id="recharge-amount" class="rch-amount-input" size="6"
+              inputmode="numeric" min="1000" step="500" placeholder="0" />
+            <span class="rch-amount-currency">F</span>
+          </div>
+          <div class="rch-amount-hint">Touchez pour saisir un autre montant</div>
+
+          <div class="rch-chips-row">
+            <button type="button" class="rch-chip" onclick="rchAddAmount(5000)"><span class="rch-chip-plus">+</span>5 000</button>
+            <button type="button" class="rch-chip" onclick="rchAddAmount(10000)"><span class="rch-chip-plus">+</span>10 000</button>
+            <button type="button" class="rch-chip" onclick="rchAddAmount(25000)"><span class="rch-chip-plus">+</span>25 000</button>
+            <button type="button" class="rch-chip" onclick="rchAddAmount(50000)"><span class="rch-chip-plus">+</span>50 000</button>
+          </div>
+
+          <div class="rch-hint">Minimum 1 000 F</div>
+
+          <button type="button" class="rch-confirm-btn" onclick="rchGoStep2()">
+            <i class="fa-solid fa-arrow-right"></i> Suivant
+          </button>
+        </div>
+
+        <!-- étape 2 : Mode de paiement -->
+        <div class="rch-step" id="rch-step-2" style="display:none;">
+          <button type="button" class="rch-back-btn" onclick="rchGoStep1()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+
+          <div class="rch-section-label"><i class="fa-solid fa-credit-card"></i> Mode de paiement</div>
+          <div class="rch-methods-row">
+
+            <div class="rch-mth" data-method="Orange Money" data-color="#FF6200" style="--rch-clr:#FF6200" onclick="selectRchMethod(this)">
+              <div class="rch-mth-check"><i class="fa-solid fa-check"></i></div>
+              <div class="rch-mth-ico">
+                <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span>🟠</span>'">
+              </div>
+              <div class="rch-mth-pill">Orange</div>
+            </div>
+
+            <div class="rch-mth" data-method="MTN MoMo" data-color="#FFCC00" style="--rch-clr:#FFCC00" onclick="selectRchMethod(this)">
+              <div class="rch-mth-check"><i class="fa-solid fa-check"></i></div>
+              <div class="rch-mth-ico">
+                <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span>🟡</span>'">
+              </div>
+              <div class="rch-mth-pill">MTN</div>
+            </div>
+
+            <div class="rch-mth" data-method="Moov Money" data-color="#0066CC" style="--rch-clr:#0066CC" onclick="selectRchMethod(this)">
+              <div class="rch-mth-check"><i class="fa-solid fa-check"></i></div>
+              <div class="rch-mth-ico">
+                <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span>🔵</span>'">
+              </div>
+              <div class="rch-mth-pill">Moov</div>
+            </div>
+
+            <div class="rch-mth" data-method="Wave CI" data-color="#1DC7FF" style="--rch-clr:#1DC7FF" onclick="selectRchMethod(this)">
+              <div class="rch-mth-check"><i class="fa-solid fa-check"></i></div>
+              <div class="rch-mth-ico">
+                <img src="img/logos/wave.png" alt="Wave" onerror="this.outerHTML='<span style=color:#1DC7FF;font-weight:900;font-size:.9rem>W</span>'">
+              </div>
+              <div class="rch-mth-pill">Wave</div>
+            </div>
+
+          </div>
+
+          <!-- Champ numéro (s'ouvre à la sélection) -->
+          <div class="rch-phone-wrap" id="rch-phone-wrap">
+            <div class="rch-phone-label" id="rch-phone-label">Votre numéro</div>
+            <div class="rch-phone-input">
+              <span class="rch-flag">🇨🇮 <strong>+225</strong></span>
+              <span class="rch-sep"></span>
+              <input type="tel" id="rch-phone" class="rch-input" placeholder="XX XX XX XX XX"
+                maxlength="14" inputmode="numeric" oninput="formatPhoneInput(this)" />
+            </div>
+          </div>
+
+          <!-- Bouton confirmer -->
+          <input type="hidden" id="rch-method-hidden" name="recharge-method" />
+          <button type="submit" class="rch-confirm-btn" id="rch-confirm-btn">
+            <i class="fa-solid fa-circle-check"></i> Confirmer la recharge
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal login partenaire (cabine) — Step-by-step -->
+<div class="modal-overlay" id="modal-partner-login">
+  <div class="pln-modal">
+
+    <div class="pln-glow"></div>
+
+    <!-- Topbar -->
+    <div class="pln-topbar">
+      <button class="pln-back-btn" id="prt-back-btn" onclick="prtGoStep(1)" style="display:none;">
+        <i class="fa-solid fa-arrow-left"></i>
+      </button>
+      <div class="pln-brand"><span class="pln-brand-dot"></span> Espace Partenaire</div>
+      <button class="pln-close" onclick="closeModal('modal-partner-login')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Indicateur d'étapes -->
+    <div class="pln-steps">
+      <div class="pln-step pln-step--active" id="prt-dot-1"></div>
+      <div class="pln-step-line" id="prt-line-1"></div>
+      <div class="pln-step" id="prt-dot-2"></div>
+    </div>
+
+    <!-- Slides -->
+    <div class="pln-slides" id="prt-slides">
+
+      <!-- Étape biométrique (affichée en priorité si activée) -->
+      <div class="pln-slide" id="prt-slide-bio" style="display:none;">
+        <div class="pln-hero">
+          <div class="pln-hero-ring" id="prt-bio-btn" onclick="attemptPartnerBiometricLogin()" role="button" tabindex="0" style="cursor:pointer;">
+            <div class="pln-hero-ico"><i class="fa-solid fa-fingerprint"></i></div>
+          </div>
+          <div class="pln-hero-title">Toucher le capteur</div>
+          <div class="pln-hero-sub">Pour accéder à votre espace partenaire</div>
+        </div>
+        <div class="ag-switch-line">
+          <button type="button" onclick="prtShowCodeForm()">Se connecter avec mon code</button>
+        </div>
+      </div>
+
+      <!-- Étape 1 : Téléphone -->
+      <div class="pln-slide" id="prt-slide-1">
+        <div class="pln-hero">
+          <div class="pln-hero-ring">
+            <div class="pln-hero-ico"><i class="fa-solid fa-envelope"></i></div>
+          </div>
+          <div class="pln-hero-title">Votre adresse Gmail</div>
+          <div class="pln-hero-sub">Renseignez votre adresse Gmail partenaire pour continuer</div>
+        </div>
+
+        <div class="pln-form">
+          <div class="pln-field">
+            <label class="pln-label"><i class="fa-solid fa-envelope"></i> Adresse Gmail</label>
+            <div class="pln-input-wrap">
+              <input id="prt-tel" type="email" inputmode="email" maxlength="60"
+                     class="pln-input" placeholder="exemple@gmail.com"
+                     onkeydown="if(event.key==='Enter')prtGoStep(2);" autocomplete="off">
+            </div>
+          </div>
+
+          <button class="pln-cta" onclick="prtGoStep(2)">
+            <div class="pln-cta-bg"></div>
+            <span class="pln-cta-label">Continuer</span>
+            <div class="pln-cta-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          </button>
+        </div>
+
+        <!-- Footer étape 1 -->
+        <button class="pln-join3" onclick="closeModal('modal-partner-login');openPartnerRegister();">
+          <div class="pln-join3-glow"></div>
+          <div class="pln-join3-left">
+            <div class="pln-join3-ico"><i class="fa-solid fa-store"></i></div>
+            <div>
+              <div class="pln-join3-title">Devenir partenaire</div>
+              <div class="pln-join3-sub">Rejoignez le réseau KBINE PLUS</div>
+            </div>
+          </div>
+          <div class="pln-join3-tag">Gratuit <i class="fa-solid fa-arrow-right"></i></div>
+        </button>
+      </div>
+
+      <!-- Étape 2 : PIN -->
+      <div class="pln-slide pln-slide--hidden" id="prt-slide-2">
+
+        <!-- Avatar utilisateur trouvé -->
+        <div class="pln-user-card" id="prt-user-card">
+          <div class="pln-user-ava" id="prt-user-ava">?</div>
+          <div>
+            <div class="pln-user-name" id="prt-user-name">—</div>
+            <div class="pln-user-tel" id="prt-user-tel">—</div>
+          </div>
+        </div>
+
+        <div id="prt-denied" class="pln-denied" style="display:none;">
+          <i class="fa-solid fa-circle-xmark"></i>
+          <span>Accès refusé — ce compte n'est pas un compte partenaire.</span>
+        </div>
+
+        <div class="pln-form">
+          <div class="pln-field">
+            <label class="pln-label"><i class="fa-solid fa-lock"></i> Code PIN confidentiel</label>
+            <div class="pln-pin-row" id="prt-pin-row">
+              <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+            </div>
+          </div>
+
+          <label class="pln-remember">
+            <input type="checkbox" id="prt-remember">
+            <span class="pln-remember-box"><i class="fa-solid fa-check"></i></span>
+            <span class="pln-remember-txt">Rester connecté sur cet appareil</span>
+          </label>
+
+          <button class="pln-cta" onclick="submitPartnerLogin()">
+            <div class="pln-cta-bg"></div>
+            <span class="pln-cta-label">Accéder à mon espace</span>
+            <div class="pln-cta-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+          </button>
+        </div>
+
+        <!-- Footer étape 2 -->
+        <div class="pln-reset-strip">
+          <div class="pln-reset-left">
+            <div class="pln-reset-ico"><i class="fa-solid fa-lock"></i></div>
+            <span>Mot de passe oublié ?</span>
+          </div>
+          <button class="pln-reset-cta" onclick="closeModal('modal-partner-login');openResetModal('cabine');">
+            Réinitialiser <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+
+      </div>
+    </div><!-- /slides -->
+
+  </div>
+</div>
+
+<!-- Modal inscription partenaire (multi-étapes) -->
+<div class="modal-overlay" id="modal-partner-register">
+  <div class="prg-modal">
+
+    <!-- Barre supérieure -->
+    <div class="prg-topbar">
+      <div class="prg-topbar-brand">
+        <span class="prg-topbar-logo">K+</span>
+        <span class="prg-topbar-title">Devenir Partenaire</span>
+      </div>
+      <button class="prg-topbar-close" onclick="closeModal('modal-partner-register')">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Stepper horizontal -->
+    <div class="prg-stepper">
+      <div class="prg-stp prg-stp--active" id="prg-dot-1">
+        <div class="prg-stp-num">1</div>
+        <div class="prg-stp-lbl">Identité</div>
+      </div>
+      <div class="prg-stp-line" id="prg-line-1"></div>
+      <div class="prg-stp" id="prg-dot-2">
+        <div class="prg-stp-num">2</div>
+        <div class="prg-stp-lbl">Documents</div>
+      </div>
+      <div class="prg-stp-line" id="prg-line-2"></div>
+      <div class="prg-stp" id="prg-dot-3">
+        <div class="prg-stp-num">3</div>
+        <div class="prg-stp-lbl">Profil</div>
+      </div>
+    </div>
+
+    <!-- Corps scrollable -->
+    <div class="prg-body">
+
+      <!-- -- ÉTAPE 1 : Informations personnelles -- -->
+      <div class="prg-panel" id="prg-step-1">
+        <div class="prg-step-hero" style="--sc:#FF6200;--sn:'01';">
+          <div class="prg-step-hero-num">01</div>
+          <div class="prg-step-hero-tag"><i class="fa-solid fa-user"></i> Identité</div>
+          <div class="prg-step-hero-title">Informations personnelles</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="prg-field">
+            <label class="prg-label">Prénom *</label>
+            <input id="prg-prenom" class="prg-input" type="text" placeholder="Ex : Sandrine">
+          </div>
+          <div class="prg-field">
+            <label class="prg-label">Nom *</label>
+            <input id="prg-nom" class="prg-input" type="text" placeholder="Ex : Droubli">
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Adresse e-mail (Gmail) *</label>
+          <div class="prg-input-wrap">
+            <i class="fa-solid fa-envelope prg-ico"></i>
+            <input id="prg-email" class="prg-input prg-input--icon" type="email" placeholder="exemple@gmail.com">
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Téléphone principal *</label>
+          <div class="prg-input-wrap">
+            <i class="fa-solid fa-phone prg-ico"></i>
+            <input id="prg-tel" class="prg-input prg-input--icon" type="tel" inputmode="numeric" maxlength="14" placeholder="XX XX XX XX XX" oninput="formatPhoneInput(this)">
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label" style="display:flex;align-items:center;justify-content:space-between;">
+            <span>Numéro WhatsApp *</span>
+            <label style="font-size:.5rem;color:rgba(255,255,255,.35);cursor:pointer;">
+              <input type="checkbox" id="prg-wa-same" onchange="prgWaSame(this)" style="margin-right:4px;">
+              Même numéro
+            </label>
+          </label>
+          <div class="prg-input-wrap">
+            <i class="fa-brands fa-whatsapp prg-ico" style="color:#22c55e;"></i>
+            <input id="prg-wa" class="prg-input prg-input--icon" type="tel" inputmode="numeric" maxlength="14" placeholder="XX XX XX XX XX" oninput="formatPhoneInput(this)">
+          </div>
+        </div>
+
+        <!-- Nom de la cabine -->
+        <div class="prg-field" style="margin-top:8px;">
+          <label class="prg-label"><i class="fa-solid fa-store"></i> Quel nom voulez-vous donner à votre cabine ? *</label>
+          <div class="prg-input-wrap">
+            <i class="fa-solid fa-store prg-ico"></i>
+            <input id="prg-cabine-nom" class="prg-input prg-input--icon" type="text" placeholder="Ex : Cabine Plus Yopougon Centre">
+          </div>
+          <div style="font-size:.55rem;color:rgba(255,255,255,.28);margin-top:3px;">Ce nom sera affiché sur votre espace partenaire et dans l'application.</div>
+        </div>
+
+        <!-- Code PIN accès -->
+        <div style="background:rgba(255,98,0,.05);border:1px solid rgba(255,98,0,.15);border-radius:12px;padding:12px;margin-top:4px;">
+          <div class="prg-section-title" style="margin-bottom:10px;border:none;padding:0;">
+            <i class="fa-solid fa-lock"></i> Code PIN d'accès
+          </div>
+          <div class="prg-field" style="margin-bottom:10px;">
+            <label class="prg-label">Choisissez un code à 4 chiffres *</label>
+            <div class="adm-pin-row" id="prg-pin-row">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+            </div>
+          </div>
+          <div class="prg-field" style="margin-bottom:0;">
+            <label class="prg-label">Confirmez le code PIN *</label>
+            <div class="adm-pin-row" id="prg-pin-confirm-row">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+              <input class="adm-pin-box prt-pin-box" type="password" inputmode="numeric" maxlength="1">
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- -- ÉTAPE 2 : Documents -- -->
+      <div class="prg-panel" id="prg-step-2" style="display:none">
+        <div class="prg-step-hero" style="--sc:#38bdf8;">
+          <div class="prg-step-hero-num">02</div>
+          <div class="prg-step-hero-tag" style="color:#38bdf8;border-color:rgba(56,189,248,.3);background:rgba(56,189,248,.08);"><i class="fa-solid fa-id-card"></i> Documents</div>
+          <div class="prg-step-hero-title">Pièces justificatives</div>
+        </div>
+        <div class="prg-notice"><i class="fa-solid fa-circle-info"></i> Formats acceptés : JPG, PNG, PDF — Max 2 Mo par fichier</div>
+
+        <div class="prg-field">
+          <label class="prg-label">Pièce d'identité — Recto *</label>
+          <div class="prg-upload" id="prg-up-recto" onclick="document.getElementById('prg-file-recto').click()">
+            <input type="file" id="prg-file-recto" accept="image/*,.pdf" style="display:none" onchange="prgFileChange(this,'prg-up-recto','prg-fn-recto')">
+            <i class="fa-solid fa-cloud-arrow-up prg-upload-ico"></i>
+            <div class="prg-upload-lbl">Cliquez pour importer</div>
+            <div class="prg-upload-fn" id="prg-fn-recto">Aucun fichier sélectionné</div>
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Pièce d'identité — Verso *</label>
+          <div class="prg-upload" id="prg-up-verso" onclick="document.getElementById('prg-file-verso').click()">
+            <input type="file" id="prg-file-verso" accept="image/*,.pdf" style="display:none" onchange="prgFileChange(this,'prg-up-verso','prg-fn-verso')">
+            <i class="fa-solid fa-cloud-arrow-up prg-upload-ico"></i>
+            <div class="prg-upload-lbl">Cliquez pour importer</div>
+            <div class="prg-upload-fn" id="prg-fn-verso">Aucun fichier sélectionné</div>
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Photo d'identité récente *</label>
+          <div class="prg-upload" id="prg-up-photo" onclick="document.getElementById('prg-file-photo').click()">
+            <input type="file" id="prg-file-photo" accept="image/*" style="display:none" onchange="prgFileChange(this,'prg-up-photo','prg-fn-photo')">
+            <i class="fa-solid fa-camera prg-upload-ico"></i>
+            <div class="prg-upload-lbl">Cliquez pour importer</div>
+            <div class="prg-upload-fn" id="prg-fn-photo">Aucun fichier sélectionné</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- -- ÉTAPE 3 : Profil cabine -- -->
+      <div class="prg-panel" id="prg-step-3" style="display:none">
+        <div class="prg-step-hero" style="--sc:#a78bfa;">
+          <div class="prg-step-hero-num">03</div>
+          <div class="prg-step-hero-tag" style="color:#a78bfa;border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.08);"><i class="fa-solid fa-briefcase"></i> Profil</div>
+          <div class="prg-step-hero-title">Abonnement & Expérience</div>
+        </div>
+
+        <!-- Abonnement -->
+        <div class="prg-field">
+          <label class="prg-label">Type d'abonnement *</label>
+          <div class="prg-abo-list">
+
+            <!-- Premium -->
+            <div class="prg-abo2" data-abo="Premium" onclick="prgSelectAbo(this)">
+              <div class="prg-abo2-top">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="prg-abo2-name">Premium</span>
+                  <span class="prg-abo2-badge" style="background:rgba(255,98,0,.15);color:#FF6200;border-color:rgba(255,98,0,.3);">ENTRÉE</span>
+                </div>
+                <div class="prg-abo2-price">10 000 <span>F</span></div>
+              </div>
+              <div class="prg-abo2-desc">Commissions cumulées jusqu'à <strong>25 000 F</strong>, puis expiration auto.</div>
+              <div class="prg-abo2-feats">
+                <span><i class="fa-solid fa-check"></i> Dashboard</span>
+                <span><i class="fa-solid fa-check"></i> Notifications</span>
+                <span><i class="fa-solid fa-check"></i> Commandes illimitées</span>
+                <span><i class="fa-solid fa-check"></i> Support 24h/7j</span>
+              </div>
+              <div class="prg-abo2-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+
+            <!-- VIP -->
+            <div class="prg-abo2 prg-abo2--popular" data-abo="VIP" onclick="prgSelectAbo(this)">
+              <div class="prg-abo2-popular-tag">LE PLUS CHOISI</div>
+              <div class="prg-abo2-top">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="prg-abo2-name">VIP</span>
+                  <span class="prg-abo2-badge" style="background:rgba(255,98,0,.15);color:#FF6200;border-color:rgba(255,98,0,.3);">POPULAIRE</span>
+                </div>
+                <div class="prg-abo2-price">20 000 <span>F</span></div>
+              </div>
+              <div class="prg-abo2-desc">Commissions cumulées jusqu'à <strong>50 000 F</strong>, puis expiration auto.</div>
+              <div class="prg-abo2-feats">
+                <span><i class="fa-solid fa-check"></i> Dashboard</span>
+                <span><i class="fa-solid fa-check"></i> Notifications</span>
+                <span><i class="fa-solid fa-check"></i> Commandes illimitées</span>
+                <span><i class="fa-solid fa-check"></i> Support 24h/7j</span>
+              </div>
+              <div class="prg-abo2-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+
+            <!-- VVIP -->
+            <div class="prg-abo2" data-abo="VVIP" onclick="prgSelectAbo(this)">
+              <div class="prg-abo2-top">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="prg-abo2-name">VVIP</span>
+                  <span class="prg-abo2-badge" style="background:rgba(245,158,11,.12);color:#f59e0b;border-color:rgba(245,158,11,.3);">ÉLITE</span>
+                </div>
+                <div class="prg-abo2-price" style="color:#f59e0b;">50 000 <span>F</span></div>
+              </div>
+              <div class="prg-abo2-desc">Commissions cumulées jusqu'à <strong>200 000 F</strong>, puis expiration auto.</div>
+              <div class="prg-abo2-feats">
+                <span><i class="fa-solid fa-check"></i> Dashboard</span>
+                <span><i class="fa-solid fa-check"></i> Notifications</span>
+                <span><i class="fa-solid fa-check"></i> Commandes illimitées</span>
+                <span><i class="fa-solid fa-check"></i> Support 24h/7j</span>
+              </div>
+              <div class="prg-abo2-check"><i class="fa-solid fa-circle-check"></i></div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Motivation -->
+        <div class="prg-field">
+          <label class="prg-label">Pourquoi souhaitez-vous devenir partenaire ? *</label>
+          <textarea id="prg-motivation" class="prg-input prg-textarea" rows="4"
+                    placeholder="Expliquez vos motivations, votre projet, vos objectifs…"></textarea>
+        </div>
+
+        <!-- Expérience -->
+        <div class="prg-field">
+          <label class="prg-label">Années d'expérience en gestion de cabine *</label>
+          <select id="prg-exp" class="prg-input prg-select">
+            <option value="">— Sélectionnez —</option>
+            <option value="Moins d'1 an">Moins d'1 an</option>
+            <option value="1 à 3 ans">1 à 3 ans</option>
+            <option value="3 à 5 ans">3 à 5 ans</option>
+            <option value="Plus de 5 ans">Plus de 5 ans</option>
+          </select>
+        </div>
+
+        <!-- Puces -->
+        <div class="prg-field">
+          <label class="prg-label">Puces téléphoniques détenues *</label>
+          <div class="prg-notice" style="margin-bottom:10px;"><i class="fa-solid fa-circle-info"></i> Indiquez le nombre de puces par réseau</div>
+
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div class="prg-puce-row">
+              <div class="prg-puce-op" style="background:#FF6200;">Orange</div>
+              <input id="prg-puce-orange" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
+              <span class="prg-puce-unit">puce(s)</span>
+            </div>
+            <div class="prg-puce-row">
+              <div class="prg-puce-op" style="background:#FFCC00;color:#111;">MTN</div>
+              <input id="prg-puce-mtn" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
+              <span class="prg-puce-unit">puce(s)</span>
+            </div>
+            <div class="prg-puce-row">
+              <div class="prg-puce-op" style="background:#0066CC;">Moov</div>
+              <input id="prg-puce-moov" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
+              <span class="prg-puce-unit">puce(s)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Préférences financières -->
+        <div class="prg-field">
+          <label class="prg-label">Moyen de paiement de l'abonnement *</label>
+          <div class="prg-pay-grid" id="prg-pay-abo">
+            <div class="prg-pay-card" data-pay="Orange Money" onclick="prgSelectPay('prg-pay-abo',this)">
+              <div class="prg-pay-dot" style="background:#FF6200;"></div>
+              <span>Orange Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="MTN MoMo" onclick="prgSelectPay('prg-pay-abo',this)">
+              <div class="prg-pay-dot" style="background:#FFCC00;"></div>
+              <span>MTN MoMo</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Moov Money" onclick="prgSelectPay('prg-pay-abo',this)">
+              <div class="prg-pay-dot" style="background:#0066CC;"></div>
+              <span>Moov Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Wave" onclick="prgSelectPay('prg-pay-abo',this)">
+              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <span>Wave</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Moyen de réception des versements *</label>
+          <div class="prg-pay-grid" id="prg-pay-vers">
+            <div class="prg-pay-card" data-pay="Orange Money" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#FF6200;"></div>
+              <span>Orange Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="MTN MoMo" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#FFCC00;"></div>
+              <span>MTN MoMo</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Moov Money" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#0066CC;"></div>
+              <span>Moov Money</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Djamo" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#7c3aed;"></div>
+              <span>Djamo</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Wave Business" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <span>Wave Business</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Wave Normal" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <span>Wave Normal</span>
+            </div>
+            <div class="prg-pay-card" data-pay="Compte bancaire" onclick="prgSelectPay('prg-pay-vers',this)">
+              <div class="prg-pay-dot" style="background:#374151;"></div>
+              <span>Compte bancaire</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="prg-field">
+          <label class="prg-label">Numéro de compte *</label>
+          <div class="prg-input-wrap">
+            <i class="fa-solid fa-hashtag prg-ico"></i>
+            <input id="prg-numero-compte" class="prg-input prg-input--icon" type="text" placeholder="Numéro mobile money ou compte bancaire">
+          </div>
+        </div>
+
+        <!-- Wave Business / Wave Normal : preuve du code QR de réception -->
+        <div class="prg-field" id="prg-qr-wrap" style="display:none">
+          <label class="prg-label">Code QR de réception (Wave) *</label>
+          <div class="prg-upload" id="prg-up-qr" onclick="document.getElementById('prg-file-qr').click()">
+            <input type="file" id="prg-file-qr" accept="image/*" style="display:none" onchange="prgFileChange(this,'prg-up-qr','prg-fn-qr')">
+            <i class="fa-solid fa-qrcode prg-upload-ico"></i>
+            <div class="prg-upload-lbl">Cliquez pour importer</div>
+            <div class="prg-upload-fn" id="prg-fn-qr">Aucun fichier sélectionné</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- -- CONFIRMATION -- -->
+      <div class="prg-panel" id="prg-confirm" style="display:none">
+        <div class="prg-success">
+          <div class="prg-success-ico"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="prg-success-title">Demande envoyée !</div>
+          <div class="prg-success-msg">
+            Votre candidature a bien été reçue et est en cours d'analyse par notre équipe.<br><br>
+            Vous serez notifié par e-mail et SMS de la décision dans un délai de <strong>24 à 48h</strong>.<br><br>
+            En cas de validation, votre espace partenaire sera activé et vos identifiants vous seront transmis.
+          </div>
+          <button class="prg-success-btn" onclick="closeModal('modal-partner-register')">Fermer</button>
+        </div>
+      </div>
+
+    </div><!-- /prg-body -->
+
+    <!-- Footer navigation -->
+    <div class="prg-footer" id="prg-footer">
+      <button class="prg-btn-back" id="prg-prev-btn" onclick="prgPrev()" style="display:none">
+        <i class="fa-solid fa-arrow-left"></i> Retour
+      </button>
+      <button class="prg-btn-fwd" id="prg-next-btn" onclick="prgNext()">
+        Continuer <i class="fa-solid fa-arrow-right"></i>
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- Modal réinitialisation mot de passe -->
+<div class="modal-overlay" id="modal-reset-pwd">
+  <div class="rst-modal">
+
+    <div class="rst-header">
+      <button class="rst-close" onclick="closeModal('modal-reset-pwd')"><i class="fa-solid fa-xmark"></i></button>
+      <div class="rst-header-ico"><i class="fa-solid fa-lock-open"></i></div>
+      <div class="rst-header-title">Mot de passe oublié</div>
+      <div class="rst-header-sub">Saisissez votre identifiant de connexion pour soumettre une demande de réinitialisation</div>
+    </div>
+
+    <div class="rst-body">
+
+      <!-- Alerte envoyée -->
+      <div id="rst-sent" class="rst-sent" style="display:none;">
+        <i class="fa-solid fa-circle-check"></i>
+        <div>
+          <div class="rst-sent-title">Demande envoyée</div>
+          <div class="rst-sent-msg">Votre demande est en cours de traitement. Vous serez contacté sur WhatsApp une fois votre mot de passe réinitialisé.</div>
+        </div>
+      </div>
+
+      <!-- Formulaire -->
+      <div id="rst-form">
+
+        <!-- Nouveau mot de passe : code PIN à 4 chiffres, identique pour
+             les 3 espaces (client/cabine/admin) — voir submitResetRequest()
+             dans js/client.js pour la validation. -->
+        <div class="rst-field">
+          <label class="rst-label">Nouveau code (4 chiffres)</label>
+          <div class="pin-row" id="pin-reset-new-row">
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          </div>
+        </div>
+        <div class="rst-field">
+          <label class="rst-label">Confirmer le nouveau code</label>
+          <div class="pin-row" id="pin-reset-confirm-row">
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          </div>
+        </div>
+
+        <div class="rst-field" id="rst-tel-field">
+          <label class="rst-label">Numéro WhatsApp de contact</label>
+          <div class="rst-input-wrap">
+            <i class="fa-brands fa-whatsapp rst-ico"></i>
+            <input id="rst-tel" type="tel" inputmode="numeric" maxlength="14"
+                   class="rst-input" placeholder="XX XX XX XX XX"
+                   oninput="formatPhoneInput(this)">
+          </div>
+        </div>
+        <div class="rst-field" id="rst-email-field" style="display:none;">
+          <label class="rst-label">Adresse Gmail</label>
+          <div class="rst-input-wrap">
+            <i class="fa-solid fa-envelope rst-ico"></i>
+            <input id="rst-email" type="email" inputmode="email" maxlength="60"
+                   class="rst-input" placeholder="exemple@gmail.com">
+          </div>
+        </div>
+        <button class="rst-btn" onclick="submitResetRequest()">
+          <i class="fa-solid fa-paper-plane"></i> Confirmer
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal login administrateur -->
+<div class="modal-overlay" id="modal-admin-auth">
+  <div class="adx-modal">
+
+    <!-- Décors fond -->
+    <div class="adx-grid"></div>
+    <div class="adx-glow-top"></div>
+
+    <!-- Topbar -->
+    <div class="adx-topbar">
+      <div class="adx-badge"><i class="fa-solid fa-shield-halved"></i> ADMIN</div>
+      <button class="adx-close" onclick="closeModal('modal-admin-auth')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Slides -->
+    <div class="adx-slides">
+
+      <!-- Étape biométrique (affichée en priorité si activée) -->
+      <div class="adx-slide" id="adx-slide-bio" style="display:none;">
+        <div class="adx-hero">
+          <div class="adx-hero-ring" id="adx-bio-btn" onclick="attemptAdminBiometricLogin()" role="button" tabindex="0" style="cursor:pointer;">
+            <div class="adx-hero-ico"><i class="fa-solid fa-fingerprint"></i></div>
+          </div>
+          <div class="adx-hero-title">Toucher le capteur</div>
+          <div class="adx-hero-sub">Pour accéder au tableau de bord</div>
+        </div>
+        <div class="ag-switch-line">
+          <button type="button" onclick="admShowCodeForm()">Se connecter avec mon code</button>
+        </div>
+      </div>
+
+      <!-- Étape 1 : Téléphone -->
+      <div class="adx-slide" id="adx-slide-1">
+        <div class="adx-hero">
+          <div class="adx-hero-ring">
+            <div class="adx-hero-ico"><i class="fa-solid fa-shield-halved"></i></div>
+          </div>
+          <div class="adx-hero-title">Espace Administrateur</div>
+          <div class="adx-hero-sub">Accès restreint · Identifiez-vous</div>
+        </div>
+
+        <div class="adx-form">
+          <div class="adx-field">
+            <label class="adx-label"><i class="fa-solid fa-envelope"></i> Adresse Gmail</label>
+            <div class="adx-input-wrap">
+              <input id="adm-tel" type="email" inputmode="email" maxlength="60"
+                     class="adx-input" placeholder="exemple@gmail.com"
+                     onkeydown="if(event.key==='Enter')admGoStep(2);" autocomplete="off">
+            </div>
+          </div>
+          <button class="adx-cta" onclick="admGoStep(2)">
+            <span>Continuer</span>
+            <div class="adx-cta-arr"><i class="fa-solid fa-arrow-right"></i></div>
+          </button>
+        </div>
+      </div>
+
+      <!-- Étape 2 : PIN -->
+      <div class="adx-slide adx-slide--hidden" id="adx-slide-2">
+
+        <div class="adx-user-card" id="adx-user-card">
+          <div class="adx-user-ava" id="adx-user-ava">A</div>
+          <div>
+            <div class="adx-user-name" id="adx-user-name">Administrateur</div>
+            <div class="adx-user-role"><i class="fa-solid fa-shield-halved"></i> Accès administrateur</div>
+          </div>
+        </div>
+
+        <div id="adm-denied" class="adx-denied" style="display:none;">
+          <i class="fa-solid fa-circle-xmark"></i>
+          <span>Accès refusé — droits administrateur requis.</span>
+        </div>
+
+        <div class="adx-form">
+          <div class="adx-field">
+            <label class="adx-label"><i class="fa-solid fa-lock"></i> Code PIN sécurisé</label>
+            <div class="adx-pin-row" id="adm-pin-row">
+              <input class="adx-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="adx-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="adx-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+              <input class="adx-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+            </div>
+          </div>
+          <button class="adx-cta" onclick="submitAdminLogin()">
+            <span>Accéder au tableau de bord</span>
+            <div class="adx-cta-arr"><i class="fa-solid fa-arrow-right"></i></div>
+          </button>
+        </div>
+
+        <div class="ag-switch-line">
+          <button type="button" onclick="closeModal('modal-admin-auth');openResetModal('admin');">Mot de passe oublié ?</button>
+        </div>
+
+        <div class="adx-secure">
+          <i class="fa-solid fa-lock"></i> Connexion chiffrée · Accès journalisé
+        </div>
+
+      </div>
+    </div><!-- /slides -->
+
+    <!-- Steps indicator -->
+    <div class="adx-steps">
+      <div class="adx-step adx-step--active" id="adx-dot-1"></div>
+      <div class="adx-step-line"></div>
+      <div class="adx-step" id="adx-dot-2"></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Auth gate (invité ? commande) -->
+<div class="modal-overlay" id="modal-auth-gate">
+  <div class="ag-modal">
+
+    <!-- En-tête -->
+    <div class="ag-modal-head">
+      <div class="ag-brand-name">
+        <img src="img/logo.png" alt="" class="ag-brand-logo"> KBINE PLUS
+      </div>
+      <button class="ag-close-btn" onclick="closeAuthModal()">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+
+    <!-- Bannière commande en attente -->
+    <div class="ag-pending-order" id="ag-pending-order" style="display:none;">
+      <div class="agpo-emoji">🛒</div>
+      <div>
+        <div class="agpo-title">Commande en attente</div>
+        <div class="agpo-detail" id="ag-order-detail">—</div>
+      </div>
+    </div>
+
+    <!-- -- CONNEXION BIOMÉTRIQUE (affichée en priorité si activée) --- -->
+    <div id="ag-panel-biometric" style="display:none;">
+      <div class="ag-success-wrap">
+        <div class="ag-success-circle" id="ag-bio-btn" onclick="attemptClientBiometricLogin()" role="button" tabindex="0" style="cursor:pointer;">
+          <i class="fa-solid fa-fingerprint"></i>
+        </div>
+        <div class="ag-success-title">Toucher le capteur</div>
+        <div class="ag-success-sub">Pour vous connecter à votre compte</div>
+      </div>
+      <div class="ag-switch-line">
+        <button type="button" onclick="switchAuthGateTab('login')">Se connecter avec mon code</button>
+      </div>
+    </div>
+
+    <!-- -- CONNEXION ----------------------------------- -->
+    <div id="ag-panel-login">
+      <div class="ag-hero">
+        <div class="ag-hero-icon"><img src="img/logo.png" alt="" class="ag-hero-logo"></div>
+        <div class="ag-title">Connexion</div>
+        <div class="ag-sub">Entrez vos identifiants pour continuer</div>
+      </div>
+      <!-- Carte formulaire -->
+      <div class="ag-form-card">
+        <form onsubmit="handleAuthGateLogin(event)" autocomplete="off">
+          <div class="ag-field-label"><i class="fa-solid fa-phone"></i> Numéro de téléphone</div>
+          <div class="form-group">
+            <div class="ag-input-wrap">
+              <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
+              <span class="ag-prefix-sep"></span>
+              <input type="tel" class="ag-input" id="ag-login-tel"
+                placeholder="00 00 00 00 00" maxlength="14"
+                inputmode="numeric" oninput="onLoginPhoneInput(this)" required />
+            </div>
+          </div>
+          <!-- PIN — apparaît automatiquement après numéro valide -->
+          <div class="ag-pin-reveal" id="ag-pin-reveal">
+            <div class="ag-pin-section">
+              <div class="ag-pin-reveal-label">
+                <i class="fa-solid fa-lock"></i> Code PIN
+              </div>
+              <div class="pin-row" id="pin-login-row">
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="ag-submit-btn" id="ag-login-submit-btn" style="display:none">
+            <i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter
+          </button>
+        </form>
+
+        <div class="ag-switch-line">
+          <button type="button" onclick="closeModal('modal-auth-gate');openResetModal('client');">Mot de passe oublié ?</button>
+        </div>
+
+        <div class="ag-live-success" id="ag-live-success">
+          <i class="fa-solid fa-circle-check"></i>
+          <div>
+            <div>Connecté !</div>
+            <div class="ag-live-success-sub">Chargement…</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="ag-switch-line">
+        Pas de compte ?
+        <button type="button" onclick="switchAuthGateTab('register')">Créer un compte</button>
+      </div>
+    </div>
+
+    <!-- -- INSCRIPTION ---------------------------------- -->
+    <div id="ag-panel-register" style="display:none;">
+      <div class="ag-hero">
+        <div class="ag-title">Créer un compte 🎉</div>
+        <div class="ag-sub">Rejoignez KBINE PLUS en quelques secondes</div>
+      </div>
+      <form onsubmit="handleAuthGateRegister(event)" autocomplete="off">
+        <div class="form-group">
+          <label class="ag-label">Numéro de téléphone</label>
+          <div class="ag-input-wrap">
+            <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
+            <span class="ag-prefix-sep"></span>
+            <input type="tel" class="ag-input" id="ag-reg-tel"
+              placeholder="XX XX XX XX XX" maxlength="14"
+              inputmode="numeric" oninput="formatPhoneInput(this)" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="ag-label">Choisissez votre code (4 chiffres)</label>
+          <div class="pin-row" id="pin-register-row">
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="ag-label">Confirmer le code</label>
+          <div class="pin-row" id="pin-register-confirm-row">
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          </div>
+        </div>
+        <button type="submit" class="ag-submit-btn">
+          <i class="fa-solid fa-user-plus"></i> Créer mon compte
+        </button>
+      </form>
+      <div class="ag-switch-line">
+        Déjà un compte ?
+        <button type="button" onclick="switchAuthGateTab('login')">Se connecter</button>
+      </div>
+    </div>
+
+    <!-- -- SUCCÈS CONNEXION -------------------------------- -->
+    <div id="ag-panel-success" style="display:none;">
+      <div class="ag-success-wrap">
+        <div class="ag-success-circle">
+          <i class="fa-solid fa-circle-check"></i>
+        </div>
+        <div class="ag-success-title">Compte connecté</div>
+        <div class="ag-success-sub" id="ag-success-name">Bienvenue !</div>
+        <div class="ag-success-bar"><div class="ag-success-fill"></div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Scanner QR (caméra) -->
+<div class="modal-overlay" id="modal-qr-scan">
+  <div class="modal qrs-modal">
+    <div class="qrs-header">
+      <div class="qrs-header-title">
+        <span class="qrs-header-ico"><i class="fa-solid fa-qrcode"></i></span>
+        Scanner un code
+      </div>
+      <button class="qrs-close" onclick="closeQrScanner()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <div class="qrs-video-wrap">
+        <video id="qrs-video" playsinline autoplay muted></video>
+        <div class="qrs-frame">
+          <div class="qrs-corner qrs-corner--tl"></div>
+          <div class="qrs-corner qrs-corner--tr"></div>
+          <div class="qrs-corner qrs-corner--bl"></div>
+          <div class="qrs-corner qrs-corner--br"></div>
+          <div class="qrs-scanline"></div>
+        </div>
+      </div>
+      <canvas id="qrs-canvas" style="display:none;"></canvas>
+      <p id="qrs-status" class="qrs-status">Placez le code KBINE de votre correspondant dans le cadre.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Transfert client à client -->
+<div class="modal-overlay" id="modal-client-transfer">
+  <div class="modal ct-modal">
+
+    <!-- Header -->
+    <div class="ct-header">
+      <div class="ct-header-left">
+        <div class="ct-header-icon"><i class="fa-solid fa-paper-plane"></i></div>
+        <div>
+          <div class="ct-header-title">Transférer</div>
+          <div class="ct-header-sub">de l'argent</div>
+        </div>
+      </div>
+      <button class="rch-close" onclick="closeModal('modal-client-transfer')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <!-- Progression -->
+    <div class="ct-step-indicator">
+      <span class="ct-step-text" id="ct-step-text">étape 1/2</span>
+      <div class="ct-step-track">
+        <span class="ct-step-seg done" id="ct-step-seg-1"></span>
+        <span class="ct-step-seg" id="ct-step-seg-2"></span>
+      </div>
+    </div>
+
+    <div class="ct-body">
+      <form id="client-transfer-form" onsubmit="handleClientTransfer(event)" autocomplete="off">
+
+        <!-- Erreur -->
+        <div class="ct-error" id="ct-error" style="display:none;"></div>
+
+        <!-- Numéro destinataire -->
+        <div class="ct-field-label"><i class="fa-solid fa-mobile-screen"></i> Numéro du destinataire</div>
+        <div class="ct-input-pill">
+          <span class="ct-flag">🇨🇮 <strong>+225</strong></span>
+          <span class="ct-pill-sep"></span>
+          <input type="tel" class="ct-input" id="ct-phone"
+            placeholder="XX XX XX XX XX" maxlength="14"
+            inputmode="numeric" oninput="formatPhoneInput(this); lookupTransferRecipient()" required />
+        </div>
+
+        <!-- Aperçu destinataire -->
+        <div class="ct-recipient-preview" id="ct-recipient-preview" style="display:none;">
+          <div class="ct-rcp-avatar" id="ct-rcp-avatar">?</div>
+          <div class="ct-rcp-info">
+            <div class="ct-rcp-name" id="ct-recipient-name">—</div>
+            <div class="ct-rcp-tag"><i class="fa-solid fa-circle-check"></i> Client KBINE PLUS</div>
+          </div>
+          <div class="ct-rcp-check"><i class="fa-solid fa-check"></i></div>
+        </div>
+
+        <!-- Montant -->
+        <div class="ct-field-label" style="margin-top:16px"><i class="fa-solid fa-coins"></i> Montant à transférer</div>
+        <div class="ct-input-pill">
+          <i class="fa-solid fa-coins ct-input-ico"></i>
+          <input type="number" class="ct-input" id="ct-amount"
+            placeholder="Min. 100 F" min="100" required />
+          <span class="ct-pill-suffix">F</span>
+        </div>
+        <div class="ct-solde-hint" id="ct-solde-hint"></div>
+
+        <!-- Bouton -->
+        <button type="submit" class="ct-confirm-btn">
+          <i class="fa-solid fa-paper-plane"></i> Continuer
+        </button>
+
+      </form>
+
+      <!-- étape récap (obligatoire avant tout débit) -->
+      <div id="ct-step-recap" style="display:none;">
+        <button class="svc-back-btn" onclick="ctGoBackToForm()"><i class="fa-solid fa-arrow-left"></i> Modifier</button>
+        <div style="font-size:.75rem;font-weight:700;color:rgba(255,255,255,.5);margin:4px 0 10px;"><i class="fa-solid fa-receipt"></i> Récapitulatif</div>
+        <div id="ct-recap-content"></div>
+        <button class="ct-confirm-btn" onclick="ctConfirmTransfer()">
+          <i class="fa-solid fa-circle-check"></i> Confirmer le transfert
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- -- MODAL : RÉCAPITULATIF + COUNTDOWN -------------------------- -->
+<div class="modal-overlay" id="modal-order-status">
+  <div class="modal ors-modal">
+
+    <!-- Header dynamique -->
+    <div class="ors-header" id="ors-header">
+      <div class="ors-header-icon" id="ors-icon"><i class="fa-solid fa-clock-rotate-left"></i></div>
+      <div class="ors-header-title" id="ors-title">Commande envoyée</div>
+      <div class="ors-header-sub" id="ors-sub">Traitement en cours…</div>
+    </div>
+
+    <!-- Countdown -->
+    <div class="ors-countdown-wrap" id="ors-countdown-wrap">
+      <div class="ors-countdown-num" id="ors-countdown-num">5:00</div>
+      <div class="ors-countdown-label">Traitement en cours</div>
+      <div class="ors-track">
+        <div class="ors-track-fill" id="ors-track-fill"></div>
+        <div class="ors-track-icon" id="ors-track-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4 20-7Z"/></svg>
+        </div>
+      </div>
+      <div class="ors-track-labels">
+        <span class="on">Envoyée</span>
+        <span>En cours de traitement</span>
+      </div>
+    </div>
+
+    <!-- Récapitulatif de la commande -->
+    <div class="ors-recap" id="ors-recap"></div>
+
+    <div class="ors-actions">
+      <button class="ors-close-btn" onclick="stopOrsPoll(); showReclaFloatWidget(_orsTxnId); closeModal('modal-order-status')">
+        <i class="fa-solid fa-xmark"></i> Fermer
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- -- MODAL : LISTE DES REÇUS (preuves de paiement, services facture) -- -->
+<div class="modal-overlay" id="modal-receipts-list">
+  <div class="modal rcl-modal">
+
+    <div class="rcl-header">
+      <div class="rcl-header-icon"><i class="fa-solid fa-receipt"></i></div>
+      <div class="rcl-header-title">Mes reçus</div>
+      <div class="rcl-header-sub">Preuves de paiement, classées de la plus récente à la plus ancienne</div>
+    </div>
+
+    <div class="rcl-list" id="rcl-list"></div>
+
+    <div class="rcl-actions">
+      <button class="rcl-close-btn" onclick="closeModal('modal-receipts-list')">
+        <i class="fa-solid fa-xmark"></i> Fermer
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- -- MODAL : DÉTAIL D'UN REÇU (capture ou message d'attente) ------- -->
+<div class="modal-overlay" id="modal-receipt-detail">
+  <div class="modal ors-modal">
+
+    <div class="ors-header">
+      <div class="ors-header-icon"><i class="fa-solid fa-receipt"></i></div>
+      <div class="ors-header-title" id="rcv-ref">—</div>
+      <div class="ors-header-sub" id="rcv-date">—</div>
+    </div>
+
+    <div style="padding:14px 20px;" id="rcv-body"></div>
+
+    <div class="ors-actions">
+      <button class="ors-close-btn" onclick="closeModal('modal-receipt-detail')">
+        <i class="fa-solid fa-xmark"></i> Fermer
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- -- MODAL : SUIVI DE COMMANDE (services facture) --------------- -->
+<div class="modal-overlay" id="modal-order-tracking">
+  <div class="modal ors-modal otk-modal">
+
+    <div class="ors-header">
+      <div class="ors-header-icon"><i class="fa-solid fa-location-dot"></i></div>
+      <div class="ors-header-title">Suivi de commande</div>
+      <div class="ors-header-sub" id="otk-sub">Évolution en temps réel</div>
+    </div>
+
+    <div class="ors-recap" id="otk-recap"></div>
+
+    <div class="otk-tl" id="otk-timeline"></div>
+
+    <div class="otk-countdown-wrap" id="otk-countdown-wrap">
+      <i class="fa-solid fa-hourglass-half"></i>
+      <span>Réclamation possible dans <strong id="otk-countdown-num">5:00</strong></span>
+    </div>
+
+    <button class="otk-recla-btn" id="otk-recla-btn" style="display:none;" onclick="otkTriggerReclamation()">
+      <i class="fa-solid fa-triangle-exclamation"></i> Faire une réclamation
+    </button>
+
+    <div class="ors-actions">
+      <button class="ors-close-btn" onclick="stopOtkPoll(); closeModal('modal-order-tracking')">
+        <i class="fa-solid fa-xmark"></i> Fermer
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- -- MODAL : RÉCLAMATION (interface de chat) ------------------- -->
+<div class="modal-overlay" id="modal-reclamation-hub">
+  <div class="modal rclhub-modal">
+    <div class="rh-head">
+      <div class="rh-head-row">
+        <div class="rh-title-wrap">
+          <div class="rh-title-ico"><i class="fa-solid fa-comment-dots"></i></div>
+          <div>
+            <div class="rh-title">Réclamation</div>
+            <div class="rh-sub">Assistance KBINE PLUS</div>
+          </div>
+        </div>
+        <button class="rh-close" onclick="closeModal('modal-reclamation-hub')"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="rh-tabs" id="rclhub-tabs"></div>
+    </div>
+    <div class="rh-body" id="rclhub-body"></div>
+  </div>
+</div>
+
+<!-- -- MODAL : PAIEMENT DE FACTURE ---------------------------- -->
+<div class="modal-overlay" id="modal-facture">
+  <div class="modal svc-modal" style="max-width:440px;border-radius:20px;">
+
+    <div class="svc-modal-header">
+      <div class="svc-modal-title" style="color:#fff;">
+        <i class="fa-solid fa-file-invoice" style="color:#f59e0b;"></i> Paiement de Facture
+      </div>
+      <button class="svc-modal-close" onclick="closeModal('modal-facture')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="svc-modal-body">
+      <div class="svc-frais-badge"><i class="fa-solid fa-info-circle"></i> Frais de service : 200 F</div>
+
+      <div class="svc-stepper" id="fact-stepper">
+        <div class="svc-stepper-dot current" id="fact-dot-1">1</div>
+        <div class="svc-stepper-line" id="fact-line-1"></div>
+        <div class="svc-stepper-dot" id="fact-dot-2">2</div>
+        <div class="svc-stepper-line" id="fact-line-2"></div>
+        <div class="svc-stepper-dot" id="fact-dot-3">3</div>
+        <div class="svc-stepper-line" id="fact-line-3"></div>
+        <div class="svc-stepper-dot" id="fact-dot-4">4</div>
+      </div>
+
+      <!-- Étape 1 : Choix du service -->
+      <div id="fact-step-select">
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-list-check"></i></div>
+          <div class="svc-step-head-title">Sélectionnez votre service</div>
+        </div>
+        <div class="fact-services-grid">
+          <div class="fact-svc-card cie" data-service="cie_prepaye" onclick="factPickService('cie_prepaye',this)">
+            <i class="fa-solid fa-bolt"></i><span>Prépayé CIE</span>
+          </div>
+          <div class="fact-svc-card cie" data-service="cie_facture" onclick="factPickService('cie_facture',this)">
+            <i class="fa-solid fa-file-invoice-dollar"></i><span>Facture CIE</span>
+          </div>
+          <div class="fact-svc-card sodeci" data-service="sodeci" onclick="factPickService('sodeci',this)">
+            <i class="fa-solid fa-droplet"></i><span>SODECI</span>
+          </div>
+          <div class="fact-svc-card canal" data-service="canal_plus" onclick="factPickService('canal_plus',this)">
+            <i class="fa-solid fa-tv"></i><span>CANAL+</span>
+          </div>
+          <div class="fact-svc-card canal" data-service="canalbox" onclick="factPickService('canalbox',this)">
+            <i class="fa-solid fa-wifi"></i><span>CANALBOX</span>
+          </div>
+          <div class="fact-svc-card sotra" data-service="sotra" onclick="factPickService('sotra',this)">
+            <i class="fa-solid fa-bus"></i><span>SOTRA</span>
+          </div>
+        </div>
+        <button class="svc-continue-btn" id="fact-select-continue-btn" style="display:none;" onclick="factConfirmService()">Suivant <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+
+      <!-- Étape 2 : Formulaire spécifique -->
+      <div id="fact-step-form" style="display:none;">
+        <button class="svc-back-btn" onclick="factGoBack()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div id="fact-form-content"></div>
+      </div>
+
+      <!-- Étape 3 : Récapitulatif -->
+      <div id="fact-step-recap" style="display:none;">
+        <button class="svc-back-btn" onclick="factGoBackToForm()"><i class="fa-solid fa-arrow-left"></i> Modifier</button>
+        <div style="font-size:.75rem;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:10px;"><i class="fa-solid fa-receipt"></i> Récapitulatif</div>
+        <div id="fact-recap-content"></div>
+        <div class="tf-recap-timer">
+          <i class="fa-solid fa-hourglass-half"></i>
+          Temps restant pour valider : <strong id="fact-recap-countdown">0:30</strong>
+        </div>
+        <button class="svc-validate-btn" onclick="factSubmit()">
+          <i class="fa-solid fa-circle-check"></i> Je valide le paiement
+        </button>
+      </div>
+
+      <!-- étape 4 : Confirmation + suivi -->
+      <div id="fact-step-confirm" style="display:none;">
+        <div class="svc-confirm-ico"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="svc-confirm-title">Commande envoyée</div>
+        <div class="svc-confirm-sub">Un cabiniste va prendre en charge votre paiement.</div>
+        <div id="fact-confirm-recap"></div>
+        <button class="svc-track-btn" onclick="openOrderTracking(_factConfirmTxnId)">
+          <i class="fa-solid fa-location-dot"></i> Suivre ma commande
+        </button>
+        <button class="svc-back-btn" onclick="closeModal('modal-facture')">Fermer</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- -- MODAL : RECHARGE UV ------------------------------------ -->
+<div class="modal-overlay" id="modal-uv">
+  <div class="modal svc-modal" style="max-width:440px;border-radius:20px;">
+
+    <div class="svc-modal-header">
+      <div class="svc-modal-title" style="color:#67e8f9;">
+        <i class="fa-solid fa-bolt-lightning" style="color:#06b6d4;"></i> Recharge UV
+      </div>
+      <button class="svc-modal-close" onclick="closeModal('modal-uv')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="svc-modal-body">
+      <div class="svc-frais-badge"><i class="fa-solid fa-info-circle"></i> Frais de service : 200 F</div>
+
+      <div class="svc-stepper" id="uv-stepper">
+        <div class="svc-stepper-dot current" id="uv-dot-1">1</div>
+        <div class="svc-stepper-line" id="uv-line-1"></div>
+        <div class="svc-stepper-dot" id="uv-dot-2">2</div>
+        <div class="svc-stepper-line" id="uv-line-2"></div>
+        <div class="svc-stepper-dot" id="uv-dot-3">3</div>
+        <div class="svc-stepper-line" id="uv-line-3"></div>
+        <div class="svc-stepper-dot" id="uv-dot-4">4</div>
+        <div class="svc-stepper-line" id="uv-line-4"></div>
+        <div class="svc-stepper-dot" id="uv-dot-5">5</div>
+        <div class="svc-stepper-line" id="uv-line-5"></div>
+        <div class="svc-stepper-dot" id="uv-dot-6">6</div>
+      </div>
+
+      <!-- Étape 1 : Réseau -->
+      <div id="uv-step-1">
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-tower-broadcast"></i></div>
+          <div class="svc-step-head-title">Réseau à recharger</div>
+        </div>
+        <div class="svc-net-row">
+          <div class="svc-net-btn uv-op-card" style="--net-clr:#FF6200" onclick="uvSelectNetwork('Orange',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span style=font-size:1.3rem>🟠</span>'">
+            <span>Orange</span>
+          </div>
+          <div class="svc-net-btn uv-op-card" style="--net-clr:#FFCC00" onclick="uvSelectNetwork('MTN',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span style=font-size:1.3rem>🟡</span>'">
+            <span>MTN</span>
+          </div>
+          <div class="svc-net-btn uv-op-card" style="--net-clr:#0066CC" onclick="uvSelectNetwork('Moov',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span style=font-size:1.3rem>🔵</span>'">
+            <span>Moov</span>
+          </div>
+        </div>
+        <button class="svc-continue-btn" onclick="uvGoStep2()">Continuer <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+
+      <!-- Étape 2 : Numéro + Montant -->
+      <div id="uv-step-2" style="display:none;">
+        <button class="svc-back-btn" onclick="uvGoBack()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-mobile-screen"></i></div>
+          <div class="svc-step-head-title">Numéro à recharger</div>
+        </div>
+        <div class="svc-field">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+            <span style="color:rgba(255,255,255,.4);font-size:.8rem;">🇨🇮</span>
+            <input type="tel" id="uv-numero" class="svc-input" placeholder="XX XX XX XX XX" maxlength="14"
+              inputmode="numeric" oninput="formatPhoneInput(this)"
+              style="border:none;background:transparent;padding:11px 0;flex:1;">
+          </div>
+        </div>
+        <div class="svc-field">
+          <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant (F)</label>
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+            <input type="number" id="uv-montant" class="svc-input" placeholder="Min. 10 000 F" min="10000"
+              style="border:none;background:transparent;padding:11px 0;flex:1;">
+            <span style="color:rgba(255,255,255,.4);font-size:.75rem;font-weight:700;">F</span>
+          </div>
+        </div>
+        <button class="svc-continue-btn" onclick="uvGoStep3()">Continuer <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+
+      <!-- étape 3 : Réseau de paiement -->
+      <div id="uv-step-3" style="display:none;">
+        <button class="svc-back-btn" onclick="uvGoBackToStep2()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-tower-broadcast"></i></div>
+          <div class="svc-step-head-title">Réseau de paiement</div>
+        </div>
+        <div class="svc-net-row">
+          <div class="svc-net-btn uv-pay-card" style="--net-clr:#FF6200" onclick="uvSelectPayNetwork('Orange Money',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span style=font-size:1.3rem>🟠</span>'">
+            <span>Orange Money</span>
+          </div>
+          <div class="svc-net-btn uv-pay-card" style="--net-clr:#FFCC00" onclick="uvSelectPayNetwork('MTN MoMo',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span style=font-size:1.3rem>🟡</span>'">
+            <span>MTN MoMo</span>
+          </div>
+          <div class="svc-net-btn uv-pay-card" style="--net-clr:#0066CC" onclick="uvSelectPayNetwork('Moov Money',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span style=font-size:1.3rem>🔵</span>'">
+            <span>Moov Money</span>
+          </div>
+          <div class="svc-net-btn uv-pay-card" style="--net-clr:#FF4E6A" onclick="uvSelectPayNetwork('Djamo',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <img src="img/logos/djamo.png" alt="Djamo" onerror="this.outerHTML='<span style=font-size:1.3rem>💳</span>'">
+            <span>Djamo</span>
+          </div>
+          <div class="svc-net-btn uv-pay-card" style="--net-clr:#22C55E" onclick="uvSelectPayNetwork('Solde disponible',this)">
+            <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+            <i class="fa-solid fa-wallet" style="font-size:1.15rem;color:#22C55E;"></i>
+            <span>Solde disponible</span>
+          </div>
+        </div>
+        <button class="svc-continue-btn" onclick="uvGoStep4()">Continuer <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+
+      <!-- étape 4 : Numéro du moyen de paiement -->
+      <div id="uv-step-4" style="display:none;">
+        <button class="svc-back-btn" onclick="uvGoBackToStep3()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-phone"></i></div>
+          <div class="svc-step-head-title">Numéro du moyen de paiement</div>
+        </div>
+        <div class="svc-field" id="uv-pay-number-field">
+          <input type="tel" id="uv-pay-number" class="svc-input" placeholder="Ex : 07 00 00 00 00" maxlength="10">
+        </div>
+        <div class="svc-field" id="uv-pay-solde-note" style="display:none;font-size:.72rem;color:rgba(255,255,255,.4);">
+          <i class="fa-solid fa-circle-info"></i> Le montant sera prélevé directement sur votre solde disponible.
+        </div>
+        <button class="svc-continue-btn" onclick="uvShowRecap()">Voir récapitulatif <i class="fa-solid fa-arrow-right"></i></button>
+      </div>
+
+      <!-- étape 5 : Récap + Valider -->
+      <div id="uv-step-recap" style="display:none;">
+        <button class="svc-back-btn" onclick="uvGoBackToForm()"><i class="fa-solid fa-arrow-left"></i> Modifier</button>
+        <div style="font-size:.75rem;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:10px;"><i class="fa-solid fa-receipt"></i> Récapitulatif</div>
+        <div id="uv-recap-content"></div>
+        <div class="tf-recap-timer">
+          <i class="fa-solid fa-hourglass-half"></i>
+          Temps restant pour valider : <strong id="uv-recap-countdown">0:30</strong>
+        </div>
+        <button class="svc-validate-btn" onclick="uvSubmit()">
+          <i class="fa-solid fa-circle-check"></i> Je valide la recharge
+        </button>
+      </div>
+
+      <!-- étape 6 : Confirmation + suivi -->
+      <div id="uv-step-confirm" style="display:none;">
+        <div class="svc-confirm-ico"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="svc-confirm-title">Commande envoyée</div>
+        <div class="svc-confirm-sub">Un cabiniste va prendre en charge votre recharge.</div>
+        <div id="uv-confirm-recap"></div>
+        <button class="svc-track-btn" onclick="openOrderTracking(_uvConfirmTxnId,'modal-uv')">
+          <i class="fa-solid fa-location-dot"></i> Suivre ma commande
+        </button>
+        <button class="svc-back-btn" onclick="closeModal('modal-uv')">Fermer</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- -- MODAL : EXCHANGE ---------------------------------------- -->
+<div class="modal-overlay" id="modal-exchange">
+  <div class="modal svc-modal" style="max-width:440px;border-radius:20px;">
+
+    <div class="svc-modal-header">
+      <div class="svc-modal-title" style="color:#c4b5fd;">
+        <i class="fa-solid fa-arrows-rotate" style="color:#8b5cf6;"></i> Exchange
+      </div>
+      <button class="svc-modal-close" onclick="closeModal('modal-exchange')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+
+    <div class="svc-modal-body">
+      <div class="svc-frais-badge"><i class="fa-solid fa-info-circle"></i> Frais de service : 200 F</div>
+
+      <div class="svc-stepper" id="exch-stepper">
+        <div class="svc-stepper-dot current" id="exch-dot-1">1</div>
+        <div class="svc-stepper-line" id="exch-line-1"></div>
+        <div class="svc-stepper-dot" id="exch-dot-2">2</div>
+        <div class="svc-stepper-line" id="exch-line-2"></div>
+        <div class="svc-stepper-dot" id="exch-dot-3">3</div>
+        <div class="svc-stepper-line" id="exch-line-3"></div>
+        <div class="svc-stepper-dot" id="exch-dot-4">4</div>
+        <div class="svc-stepper-line" id="exch-line-4"></div>
+        <div class="svc-stepper-dot" id="exch-dot-5">5</div>
+      </div>
+
+      <!-- étape 1 : Compte de réception -->
+      <div id="exch-step-1">
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico" style="background:rgba(34,197,94,.12);border-color:rgba(34,197,94,.3);color:#22c55e;"><i class="fa-solid fa-arrow-right-to-bracket"></i></div>
+          <div class="svc-step-head-title">Compte de réception</div>
+        </div>
+        <div class="svc-field">
+          <label class="svc-label">Réseau de réception</label>
+          <div class="svc-net-row">
+            <div class="svc-net-btn exch-recep-net" data-net="Orange" style="--net-clr:#FF6200" onclick="exchSelectRecepNet('Orange',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span style=font-size:1.3rem>🟠</span>'">
+              <span>Orange</span>
+            </div>
+            <div class="svc-net-btn exch-recep-net" data-net="MTN" style="--net-clr:#FFCC00" onclick="exchSelectRecepNet('MTN',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span style=font-size:1.3rem>🟡</span>'">
+              <span>MTN</span>
+            </div>
+            <div class="svc-net-btn exch-recep-net" data-net="Moov" style="--net-clr:#0066CC" onclick="exchSelectRecepNet('Moov',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span style=font-size:1.3rem>🔵</span>'">
+              <span>Moov</span>
+            </div>
+          </div>
+        </div>
+        <div class="svc-field">
+          <label class="svc-label">Numéro de réception</label>
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+            <span style="color:rgba(255,255,255,.4);font-size:.8rem;">🇨🇮</span>
+            <input type="tel" id="exch-recep-num" class="svc-input" placeholder="XX XX XX XX XX" maxlength="14"
+              inputmode="numeric" oninput="formatPhoneInput(this)"
+              style="border:none;background:transparent;padding:11px 0;flex:1;">
+          </div>
+        </div>
+        <button class="svc-continue-btn" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="exchGoStep2()">
+          Continuer <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- étape 2 : Compte à débiter -->
+      <div id="exch-step-2" style="display:none;">
+        <button class="svc-back-btn" onclick="exchGoBackToStep1()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico" style="background:rgba(239,68,68,.12);border-color:rgba(239,68,68,.3);color:#ef4444;"><i class="fa-solid fa-arrow-right-from-bracket"></i></div>
+          <div class="svc-step-head-title">Compte à débiter</div>
+        </div>
+        <div class="svc-field">
+          <label class="svc-label">Réseau de débit</label>
+          <div class="svc-net-row">
+            <div class="svc-net-btn exch-debit-net" data-net="Orange" style="--net-clr:#FF6200" onclick="exchSelectDebitNet('Orange',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span style=font-size:1.3rem>🟠</span>'">
+              <span>Orange</span>
+            </div>
+            <div class="svc-net-btn exch-debit-net" data-net="MTN" style="--net-clr:#FFCC00" onclick="exchSelectDebitNet('MTN',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span style=font-size:1.3rem>🟡</span>'">
+              <span>MTN</span>
+            </div>
+            <div class="svc-net-btn exch-debit-net" data-net="Moov" style="--net-clr:#0066CC" onclick="exchSelectDebitNet('Moov',this)">
+              <div class="svc-net-btn-check"><i class="fa-solid fa-check"></i></div>
+              <img src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span style=font-size:1.3rem>🔵</span>'">
+              <span>Moov</span>
+            </div>
+          </div>
+        </div>
+        <div class="svc-field">
+          <label class="svc-label">Numéro de débit</label>
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+            <span style="color:rgba(255,255,255,.4);font-size:.8rem;">🇨🇮</span>
+            <input type="tel" id="exch-debit-num" class="svc-input" placeholder="XX XX XX XX XX" maxlength="14"
+              inputmode="numeric" oninput="formatPhoneInput(this)"
+              style="border:none;background:transparent;padding:11px 0;flex:1;">
+          </div>
+        </div>
+        <button class="svc-continue-btn" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="exchGoStep3()">
+          Continuer <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- étape 3 : Montant -->
+      <div id="exch-step-3" style="display:none;">
+        <button class="svc-back-btn" onclick="exchGoBackToStep2()"><i class="fa-solid fa-arrow-left"></i> Retour</button>
+        <div class="svc-step-head">
+          <div class="svc-step-head-ico"><i class="fa-solid fa-coins"></i></div>
+          <div class="svc-step-head-title">Montant à échanger</div>
+        </div>
+        <div class="svc-field">
+          <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.12);border-radius:10px;padding:0 12px;">
+            <input type="number" id="exch-montant" class="svc-input" placeholder="Min. 500 F" min="500"
+              style="border:none;background:transparent;padding:11px 0;flex:1;">
+            <span style="color:rgba(255,255,255,.4);font-size:.75rem;font-weight:700;">F</span>
+          </div>
+        </div>
+        <button class="svc-continue-btn" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="exchShowRecap()">
+          Voir récapitulatif <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </div>
+
+      <!-- étape 4 : Récapitulatif -->
+      <div id="exch-step-recap" style="display:none;">
+        <button class="svc-back-btn" onclick="exchGoBackToStep3()"><i class="fa-solid fa-arrow-left"></i> Modifier</button>
+        <div style="font-size:.75rem;font-weight:700;color:rgba(255,255,255,.5);margin-bottom:10px;"><i class="fa-solid fa-receipt"></i> Récapitulatif</div>
+        <div id="exch-recap-content"></div>
+        <div class="tf-recap-timer">
+          <i class="fa-solid fa-hourglass-half"></i>
+          Temps restant pour valider : <strong id="exch-recap-countdown">0:30</strong>
+        </div>
+        <button class="svc-validate-btn" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);" onclick="exchSubmit()">
+          <i class="fa-solid fa-circle-check"></i> Je valide l'échange
+        </button>
+      </div>
+
+      <!-- étape 5 : Confirmation + suivi -->
+      <div id="exch-step-confirm" style="display:none;">
+        <div class="svc-confirm-ico"><i class="fa-solid fa-circle-check"></i></div>
+        <div class="svc-confirm-title">Commande envoyée</div>
+        <div class="svc-confirm-sub">Un cabiniste va prendre en charge votre échange.</div>
+        <div id="exch-confirm-recap"></div>
+        <button class="svc-track-btn" onclick="openOrderTracking(_exchConfirmTxnId,'modal-exchange')">
+          <i class="fa-solid fa-location-dot"></i> Suivre ma commande
+        </button>
+        <button class="svc-back-btn" onclick="closeModal('modal-exchange')">Fermer</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- -- MODAL : CADEAU RÉCOMPENSE ----------------------------- -->
+<div class="modal-overlay" id="modal-cadeau">
+  <div class="modal svc-modal" style="max-width:380px;border-radius:20px;">
+    <div class="svc-modal-header">
+      <div class="svc-modal-title" style="color:#f9a8d4;">
+        <i class="fa-solid fa-gift" style="color:#ec4899;"></i> Récompense KBINE PLUS
+      </div>
+      <button class="svc-modal-close" onclick="closeModal('modal-cadeau')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="svc-modal-body" id="cadeau-modal-body">
+      <!-- Contenu généré dynamiquement -->
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/supabase-config.js"></script>
+<script src="js/supabase-client.js"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/biometric.js?v=1"></script>
+<script src="js/client.js"></script>
+</body>
+</html>
+
+
+
+
+

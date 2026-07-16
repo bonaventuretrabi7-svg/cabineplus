@@ -1,0 +1,32 @@
+# Dépendances
+node_modules/
+
+# Web assets générés pour Capacitor (voir scripts/build-www.js)
+www/
+
+# Paquets de déploiement web générés (voir scripts/build-dist.js /
+# build-dist-client.js) — régénérables via npm run build:dist
+dist/
+dist-client/
+*.zip
+
+# Android — artefacts de build, ne pas versionner
+android/app/build/
+android/build/
+android/.gradle/
+android/local.properties
+android/keystore.properties
+*.keystore
+*.jks
+
+# APK compilés localement (le seul publié est downloads/kbineplus.apk, à
+# copier manuellement après compilation — voir BUILD_APK.md)
+*.apk
+!downloads/kbineplus.apk
+
+# Sauvegardes d'éditeur, logs d'installation locaux
+*.bak
+*.log
+
+# État/outils locaux de Claude Code — pas partie du projet
+.claude/

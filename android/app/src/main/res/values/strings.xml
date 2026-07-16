@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">KBINE PLUS</string>
+    <string name="title_activity_main">KBINE PLUS</string>
+    <string name="package_name">ci.kbineplus.app</string>
+    <string name="custom_url_scheme">ci.kbineplus.app</string>
+</resources>
