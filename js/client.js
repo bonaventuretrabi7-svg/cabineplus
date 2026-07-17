@@ -395,6 +395,18 @@ function boot() {
     initRevCarousel();
     initClientCounterAnim();
 
+    // Pull-to-refresh (glisser vers le bas pour actualiser) : chaque
+    // section rappelle simplement sa propre fonction de chargement déjà
+    // existante, aucune logique de données dupliquée ici — voir
+    // js/pull-to-refresh.js.
+    PullToRefresh.register('transfer',     loadRecentRecap);
+    PullToRefresh.register('historique',   loadHistory);
+    PullToRefresh.register('depenses',     loadDepenses);
+    PullToRefresh.register('portefeuille', loadWallet);
+    PullToRefresh.register('profit',       loadProfit);
+    PullToRefresh.register('partenaires',  loadPartenaires);
+    PullToRefresh.init();
+
     if (currentUser) {
       loadHistory();
       loadWallet();
@@ -4079,6 +4091,15 @@ function renderParrainage(u) {
   const totalEl = document.getElementById('parrain-total');
   if (countEl) countEl.textContent = stored.count;
   if (totalEl) totalEl.textContent = Fmt.money(stored.total);
+}
+
+// Section Partenaires (cs-partenaires) : pas de rendu de liste complexe
+// comme les autres sections, juste le bloc parrainage — voir
+// goPartenairesSection() et PullToRefresh.register() dans boot().
+function loadPartenaires() {
+  if (!currentUser) return;
+  const u = DB.users.byId(currentUser.id);
+  if (u) renderParrainage(u);
 }
 
 /* ── Mes favoris (numéros de destinataires) ────────────────────────

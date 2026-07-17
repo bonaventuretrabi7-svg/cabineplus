@@ -1,10 +1,11 @@
 'use strict';
-// Harnais de test combiné pour js/db.js + js/auth.js + js/biometric.js —
-// les trois se partagent un même contexte vm (comme dans un vrai navigateur,
-// les 3 fichiers sont chargés l'un après l'autre dans la même page). Étend
-// le patron de tests/helpers/loadDb.js avec les globals supplémentaires
-// dont auth.js/biometric.js ont besoin (sessionStorage, document minimal,
-// NativeBiometric injectable — le plugin Capacitor natif, mocké ici).
+// Harnais de test combiné pour js/db.js + js/auth.js + js/biometric.js +
+// js/pull-to-refresh.js — les quatre se partagent un même contexte vm
+// (comme dans un vrai navigateur, les fichiers sont chargés l'un après
+// l'autre dans la même page). Étend le patron de tests/helpers/loadDb.js
+// avec les globals supplémentaires dont auth.js/biometric.js ont besoin
+// (sessionStorage, document minimal, NativeBiometric injectable — le
+// plugin Capacitor natif, mocké ici).
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -12,6 +13,7 @@ const vm = require('node:vm');
 const DB_JS_PATH = path.join(__dirname, '..', '..', 'js', 'db.js');
 const AUTH_JS_PATH = path.join(__dirname, '..', '..', 'js', 'auth.js');
 const BIOMETRIC_JS_PATH = path.join(__dirname, '..', '..', 'js', 'biometric.js');
+const PTR_JS_PATH = path.join(__dirname, '..', '..', 'js', 'pull-to-refresh.js');
 
 function makeStorage() {
   const store = new Map();
@@ -72,7 +74,10 @@ function loadApp(opts = {}) {
   const bioSrc = fs.readFileSync(BIOMETRIC_JS_PATH, 'utf8');
   vm.runInContext(bioSrc + '\nthis.BiometricAuth = BiometricAuth;', sandbox, { filename: BIOMETRIC_JS_PATH });
 
-  return { DB: sandbox.DB, Auth: sandbox.Auth, BiometricAuth: sandbox.BiometricAuth, localStorage, sessionStorage, clock };
+  const ptrSrc = fs.readFileSync(PTR_JS_PATH, 'utf8');
+  vm.runInContext(ptrSrc + '\nthis.PullToRefresh = PullToRefresh;', sandbox, { filename: PTR_JS_PATH });
+
+  return { DB: sandbox.DB, Auth: sandbox.Auth, BiometricAuth: sandbox.BiometricAuth, PullToRefresh: sandbox.PullToRefresh, localStorage, sessionStorage, clock };
 }
 
 module.exports = { loadApp };
