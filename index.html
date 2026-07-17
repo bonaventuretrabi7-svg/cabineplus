@@ -179,17 +179,18 @@
       </div>
     </div>
 
-    <!-- Bannière "nouvelle version disponible" (voir js/update-notifier.js
-         + sw.js) — masquée par défaut, juste sous la grille d'actions
+    <!-- Bannière "nouvelle version disponible" (voir js/update-notifier.js)
+         — uniquement dans l'app Android (jamais sur le site web, voir ce
+         fichier), masquée par défaut, juste sous la grille d'actions
          rapides (Facture/Recharge UV/Exchange/Cadeau), visible dès
          qu'une mise à jour est détectée. -->
     <div id="update-banner">
       <div class="upb-icon"><img src="img/logo.png" alt=""></div>
       <div class="upb-text">
         <div class="upb-title">Nouvelle version disponible</div>
-        <div class="upb-sub">Actualisez pour profiter des dernières améliorations.</div>
+        <div class="upb-sub">Téléchargez la dernière version de l'application.</div>
       </div>
-      <button type="button" class="upb-btn" onclick="UpdateNotifier.applyUpdate()">Actualiser</button>
+      <button type="button" class="upb-btn" onclick="UpdateNotifier.applyUpdate()">Télécharger</button>
       <button type="button" class="upb-close" onclick="UpdateNotifier.dismiss()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
     </div>
 

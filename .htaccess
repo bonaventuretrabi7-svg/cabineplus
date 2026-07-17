@@ -25,3 +25,13 @@ DirectoryIndex index.html
   RewriteCond %{REQUEST_FILENAME}\.html -f
   RewriteRule ^([^/]+)$ $1.html [L]
 </IfModule>
+
+<IfModule mod_headers.c>
+  # L'app Android (contenu local, autre origine) doit pouvoir lire ce
+  # fichier en cross-origin pour détecter les mises à jour — voir
+  # js/update-notifier.js. Étendue à app-version.json uniquement,
+  # aucune donnée sensible.
+  <Files "app-version.json">
+    Header set Access-Control-Allow-Origin "*"
+  </Files>
+</IfModule>

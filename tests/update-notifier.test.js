@@ -1,11 +1,11 @@
 'use strict';
-// js/update-notifier.js enregistre un vrai service worker (API navigateur
-// indisponible sous Node) — ces tests mockent navigator.serviceWorker et un
-// DOM minimal (juste les méthodes réellement utilisées) pour vérifier la
-// logique de décision : n'affiche la bannière qu'une fois, la reporte tant
-// qu'une modale est ouverte, et la réaffiche dès qu'elle se ferme. Le rendu
-// visuel réel (voir la capture d'écran faite en session) doit être revérifié
-// à l'œil après toute modification de ce fichier.
+// js/update-notifier.js ne concerne que l'app Android empaquetée (jamais le
+// site web, voir le fichier) : compare une version locale embarquée à une
+// version distante hébergée en ligne, toutes deux lues via fetch() (API
+// indisponible telle quelle sous Node) — ces tests mockent window.Capacitor
+// (détection app native) et fetch() pour vérifier la logique de décision.
+// Le rendu visuel réel doit être revérifié à l'œil après toute modification
+// de ce fichier.
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -38,36 +38,28 @@ function makeFakeDom({ modalOpenInitially = false } = {}) {
   };
 }
 
-function makeEventTarget() {
-  const listeners = {};
-  return {
-    addEventListener(type, fn) { (listeners[type] ||= []).push(fn); },
-    _fire(type, ev) { (listeners[type] || []).slice().forEach(fn => fn(ev)); },
+// local/remote : numéros de version renvoyés par le fichier "embarqué" vs
+// "en ligne". failLocal/failRemote : simule une réponse HTTP en erreur
+// (fichier absent). throwOnFetch : simule une exception (hors ligne).
+function makeFakeFetch({ local = 1, remote = 1, failLocal = false, failRemote = false, throwOnFetch = false } = {}) {
+  const calls = [];
+  const fn = async (url) => {
+    calls.push(url);
+    if (throwOnFetch) throw new Error('network unavailable');
+    const isRemote = /^https?:\/\//.test(url);
+    if (isRemote) return failRemote ? { ok: false } : { ok: true, json: async () => ({ version: remote }) };
+    return failLocal ? { ok: false } : { ok: true, json: async () => ({ version: local }) };
   };
+  fn.calls = calls;
+  return fn;
 }
 
-// withWaiting: une mise à jour est déjà en attente au moment de register()
-// (cas "déployée pendant que le client n'utilisait pas l'app").
-function makeFakeServiceWorker({ withWaiting = false } = {}) {
-  const registration = Object.assign(makeEventTarget(), {
-    waiting: withWaiting ? { postMessage() {} } : null,
-    installing: null,
-    update() {},
-  });
-  const container = Object.assign(makeEventTarget(), {
-    controller: {}, // une page déjà contrôlée par un ancien SW — sinon rien à notifier
-    register: async () => registration,
-  });
-  return { registration, container };
-}
-
-function load({ dom, navigatorOverride, reload = () => {} }) {
+function load({ dom, fetchImpl, isNativeApp = true, open = () => {} }) {
   const sandbox = {
     console,
     document: dom.document,
-    navigator: navigatorOverride,
-    window: { location: { reload } },
-    setInterval: () => 0,
+    fetch: fetchImpl,
+    window: { Capacitor: isNativeApp ? {} : undefined, open },
   };
   vm.createContext(sandbox);
   const src = fs.readFileSync(SRC_PATH, 'utf8');
@@ -75,87 +67,89 @@ function load({ dom, navigatorOverride, reload = () => {} }) {
   return sandbox.UpdateNotifier;
 }
 
-test('aucun navigator.serviceWorker : init() ne fait rien, jamais d\'erreur', async () => {
+test('site web (pas d\'app native) : init() ne fait rien, aucun appel réseau', async () => {
   const dom = makeFakeDom();
-  const UpdateNotifier = load({ dom, navigatorOverride: {} });
+  const fetchImpl = makeFakeFetch({ local: 1, remote: 2 });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: false });
+  await UpdateNotifier.init();
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
+  assert.strictEqual(fetchImpl.calls.length, 0, 'ne doit jamais vérifier depuis le site web');
+});
+
+test('app native, version en ligne plus récente : la bannière s\'affiche', async () => {
+  const dom = makeFakeDom();
+  const fetchImpl = makeFakeFetch({ local: 1, remote: 2 });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
+  await UpdateNotifier.init();
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true);
+});
+
+test('app native, même version : pas de bannière', async () => {
+  const dom = makeFakeDom();
+  const fetchImpl = makeFakeFetch({ local: 2, remote: 2 });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
   await UpdateNotifier.init();
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
 });
 
-test('mise à jour déjà en attente au chargement : la bannière s\'affiche', async () => {
+test('app native, version en ligne plus ancienne (site pas encore redéployé) : pas de bannière', async () => {
   const dom = makeFakeDom();
-  const { container } = makeFakeServiceWorker({ withWaiting: true });
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container } });
+  const fetchImpl = makeFakeFetch({ local: 3, remote: 2 });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
   await UpdateNotifier.init();
-  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true);
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
+});
+
+test('app native, fichier distant absent (site jamais déployé avec app-version.json) : pas de bannière, pas d\'erreur', async () => {
+  const dom = makeFakeDom();
+  const fetchImpl = makeFakeFetch({ local: 1, failRemote: true });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
+  await assert.doesNotReject(UpdateNotifier.init());
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
+});
+
+test('app native, hors ligne (fetch lève une exception) : pas de bannière, pas d\'erreur', async () => {
+  const dom = makeFakeDom();
+  const fetchImpl = makeFakeFetch({ throwOnFetch: true });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
+  await assert.doesNotReject(UpdateNotifier.init());
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
 });
 
 test('une modale est ouverte : l\'affichage est reporté, pas annulé', async () => {
   const dom = makeFakeDom({ modalOpenInitially: true });
-  const { container } = makeFakeServiceWorker({ withWaiting: true });
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container } });
+  const fetchImpl = makeFakeFetch({ local: 1, remote: 2 });
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true });
   await UpdateNotifier.init();
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false, 'ne doit pas interrompre une action en cours');
 
   dom.setModalOpen(false);
-  dom.fireClick(); // simule la fermeture de la modale (clic sur le bouton "Fermer" par ex.)
+  dom.fireClick(); // simule la fermeture de la modale
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true, 'doit s\'afficher dès que la modale se ferme');
 });
 
-test('updatefound + installed avec un controller déjà actif : affiche la bannière', async () => {
+test('applyUpdate() : ouvre le téléchargement de l\'APK et masque la bannière', async () => {
   const dom = makeFakeDom();
-  const { container, registration } = makeFakeServiceWorker();
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container } });
-  await UpdateNotifier.init();
-  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
-
-  const newWorker = Object.assign(makeEventTarget(), { state: 'installing' });
-  registration.installing = newWorker;
-  registration._fire('updatefound');
-  newWorker.state = 'installed';
-  newWorker._fire('statechange');
-
-  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true);
-});
-
-test('ne s\'affiche qu\'une seule fois : un second événement ne relance rien', async () => {
-  const dom = makeFakeDom();
-  const { container, registration } = makeFakeServiceWorker({ withWaiting: true });
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container } });
+  const fetchImpl = makeFakeFetch({ local: 1, remote: 2 });
+  let openedUrl = null;
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true, open: (url) => { openedUrl = url; } });
   await UpdateNotifier.init();
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true);
-
-  dom.bannerEl.classList.remove('upb-show'); // simule un dismiss() manuel
-  registration._fire('updatefound'); // un événement redondant ne doit pas la refaire apparaître
-  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
-});
-
-test('applyUpdate() : poste SKIP_WAITING et recharge au controllerchange', async () => {
-  const dom = makeFakeDom();
-  const { container, registration } = makeFakeServiceWorker({ withWaiting: true });
-  let posted = null;
-  registration.waiting.postMessage = (msg) => { posted = msg; };
-  let reloaded = false;
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container }, reload: () => { reloaded = true; } });
-  await UpdateNotifier.init();
 
   UpdateNotifier.applyUpdate();
-  assert.strictEqual(posted, 'SKIP_WAITING');
-  assert.strictEqual(reloaded, false, 'ne recharge pas avant que le nouveau SW ait réellement pris le contrôle');
-
-  container._fire('controllerchange');
-  assert.strictEqual(reloaded, true);
+  assert.match(openedUrl, /\/downloads\/kbineplus\.apk$/);
+  assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
 });
 
-test('dismiss() : masque la bannière sans recharger ni forcer la mise à jour', async () => {
+test('dismiss() : masque la bannière sans rien télécharger', async () => {
   const dom = makeFakeDom();
-  const { container } = makeFakeServiceWorker({ withWaiting: true });
-  let reloaded = false;
-  const UpdateNotifier = load({ dom, navigatorOverride: { serviceWorker: container }, reload: () => { reloaded = true; } });
+  const fetchImpl = makeFakeFetch({ local: 1, remote: 2 });
+  let opened = false;
+  const UpdateNotifier = load({ dom, fetchImpl, isNativeApp: true, open: () => { opened = true; } });
   await UpdateNotifier.init();
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), true);
 
   UpdateNotifier.dismiss();
   assert.strictEqual(dom.bannerEl.classList.contains('upb-show'), false);
-  assert.strictEqual(reloaded, false);
+  assert.strictEqual(opened, false);
 });

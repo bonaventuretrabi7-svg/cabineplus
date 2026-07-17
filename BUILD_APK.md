@@ -90,6 +90,16 @@ npm install -D @capacitor/assets
 npx capacitor-assets generate --android
 ```
 
+## Signaler la mise à jour aux clients déjà installés
+
+L'application (pas le site web — voir `js/update-notifier.js`) compare sa
+propre copie embarquée de `app-version.json` à celle actuellement en ligne
+sur `kbineplus.com` : si le nombre en ligne est plus grand, une bannière
+propose de télécharger le nouvel APK. Incrémenter `version` dans
+`app-version.json` avant de publier un nouvel APK à recommander (pas à
+chaque build automatique de la CI — seulement quand il vaut la peine de le
+signaler), puis redéployer le site web (le fichier fait partie de `dist/`).
+
 ## À chaque modification du site web
 
 Après toute modification de `client.html`, `admin.html`, `cabine.html`,

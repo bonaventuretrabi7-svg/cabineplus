@@ -18,10 +18,10 @@ const JS_FILES = [
   'pull-to-refresh.js', 'update-notifier.js', 'client.js',
 ];
 const DIRS = ['css', 'img'];
-// sw.js doit vivre à la racine du paquet (même niveau que index.html),
-// pas dans js/ — un service worker enregistré en '/sw.js' ne peut
-// contrôler que les pages sous son propre chemin ou en-dessous.
-const ROOT_FILES = ['sw.js'];
+// app-version.json doit vivre à la racine du paquet (même niveau
+// qu'index.html) — voir js/update-notifier.js, qui compare la copie
+// embarquée dans l'app à celle en ligne à cette même adresse relative.
+const ROOT_FILES = ['app-version.json'];
 const SKIP_RE = /\.bak$|~$|^\.DS_Store$|^Thumbs\.db$/i;
 
 function copyRecursive(src, dest) {
