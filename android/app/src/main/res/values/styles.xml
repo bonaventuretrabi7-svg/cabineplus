@@ -17,6 +17,16 @@
 
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <!-- windowSplashScreenBackground non défini auparavant : la
+             librairie AndroidX core-splashscreen retombe alors sur le fond
+             système (sombre sur certains appareils) au lieu du blanc du
+             logo — voir android/app/src/main/res/drawable*/splash.png,
+             déjà généré avec un fond blanc, mais ignoré par cette API tant
+             que ce fond n'est pas explicitement fixé ici. -->
+        <item name="windowSplashScreenBackground">#FFFFFF</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="windowSplashScreenIconBackgroundColor">#FFFFFF</item>
+        <item name="postSplashScreenTheme">@style/AppTheme.NoActionBar</item>
         <item name="android:background">@drawable/splash</item>
     </style>
 </resources>
