@@ -221,6 +221,15 @@ const DB = (() => {
       changed = true;
     }
 
+    // Le super admin ne doit jamais rester verrouillé après 3 tentatives
+    // de code incorrectes (voir Auth.login()) : c'est le SEUL compte admin
+    // possible (aucune auto-inscription admin) — un blocage resterait
+    // définitif sans ce déverrouillage automatique à chaque chargement.
+    if (list[idx].statut === 'bloqué' || list[idx].tentatives_echouees) {
+      list[idx] = { ...list[idx], statut: 'actif', tentatives_echouees: 0 };
+      changed = true;
+    }
+
     if (changed) set(KEY.users, list);
   }
 
