@@ -28,7 +28,6 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `admin_create_account.php`
 - `settings_get.php`
 - `settings_update.php`
-- `seed_admin.php`
 - `config.example.php`
 - `.htaccess`
 
@@ -54,14 +53,11 @@ exclu via `.gitignore`) — il contient un mot de passe réel.
 
 ## 5. Créer le compte super administrateur
 
-Visite une seule fois, dans ton navigateur : `https://kbineplus.com/api/seed_admin.php`
-
-Tu dois voir `{"ok":true,...}`. Si tu vois `{"ok":false,"message":"Un
-super administrateur existe déjà..."}`, c'est que cette étape a déjà été
-faite — rien à refaire.
-
-**Ensuite, supprime `seed_admin.php`** du Gestionnaire de fichiers (ce
-script n'a plus aucune utilité et ne doit pas rester accessible).
+Déjà fait (compte créé avec succès, `seed_admin.php` supprimé du serveur
+ET retiré du dépôt — il ne sera plus jamais redéposé par la synchronisation
+automatique). Si tu dois un jour recréer une base de données neuve : ce
+fichier n'existe plus, insérer directement le compte super admin en SQL
+nécessitera de recalculer un hash bcrypt côté PHP (redemande-le si besoin).
 
 ## 6. Vérifier
 
