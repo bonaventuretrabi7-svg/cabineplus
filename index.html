@@ -8,26 +8,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" />
-  <link rel="stylesheet" href="css/style.css?v=112" />
+  <link rel="stylesheet" href="css/style.css?v=113" />
   <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin />
   <link rel="dns-prefetch" href="https://cdnjs.cloudflare.com" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
 </head>
 <body class="on-home">
 <div id="toast-container"></div>
-
-<!-- Bannière "nouvelle version disponible" (voir js/update-notifier.js
-     + sw.js) — masquée par défaut, glisse depuis le bas au-dessus de la
-     barre de navigation dès qu'une mise à jour est détectée. -->
-<div id="update-banner">
-  <div class="upb-icon"><img src="img/logo.png" alt=""></div>
-  <div class="upb-text">
-    <div class="upb-title">Nouvelle version disponible</div>
-    <div class="upb-sub">Actualisez pour profiter des dernières améliorations.</div>
-  </div>
-  <button type="button" class="upb-btn" onclick="UpdateNotifier.applyUpdate()">Actualiser</button>
-  <button type="button" class="upb-close" onclick="UpdateNotifier.dismiss()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
-</div>
 
 <!-- -- ÉCRAN DE CHARGEMENT -------------------------------------- -->
 <div id="page-loader">
@@ -190,6 +177,20 @@
           <span class="pgc-act-lbl">Cadeau</span>
         </button>
       </div>
+    </div>
+
+    <!-- Bannière "nouvelle version disponible" (voir js/update-notifier.js
+         + sw.js) — masquée par défaut, juste sous la grille d'actions
+         rapides (Facture/Recharge UV/Exchange/Cadeau), visible dès
+         qu'une mise à jour est détectée. -->
+    <div id="update-banner">
+      <div class="upb-icon"><img src="img/logo.png" alt=""></div>
+      <div class="upb-text">
+        <div class="upb-title">Nouvelle version disponible</div>
+        <div class="upb-sub">Actualisez pour profiter des dernières améliorations.</div>
+      </div>
+      <button type="button" class="upb-btn" onclick="UpdateNotifier.applyUpdate()">Actualiser</button>
+      <button type="button" class="upb-close" onclick="UpdateNotifier.dismiss()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
     </div>
 
     <!-- IDs conservés pour la compatibilité JS (masqués) -->

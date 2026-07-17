@@ -6380,26 +6380,26 @@ body.dark .ptr-label { color: var(--dark-text, #E6EDF3); }
    BANNIÈRE "NOUVELLE VERSION DISPONIBLE" (voir js/update-notifier.js
    + sw.js) — même carte crème/charcoal que .toast (#FBF6EE/#241C12),
    volontairement indépendante du thème clair/sombre comme le toast.
-   Placée au-dessus de .bottom-nav (même repère que .recla-float-widget,
-   bottom: 84px + safe-area), jamais superposée à la barre de nav.
+   Intégrée au flux normal de la page (pas en position fixe), juste sous
+   la grille d'actions rapides (Facture/Recharge UV/Exchange/Cadeau) sur
+   l'accueil — voir index.html, juste après #hbc-guest-panel.
 ══════════════════════════════════════════════════════════════ */
 #update-banner {
-  position: fixed;
-  left: 50%; bottom: calc(140px + env(safe-area-inset-bottom, 0px));
-  transform: translateX(-50%) translateY(140%);
-  width: calc(100% - 32px); max-width: 420px;
-  z-index: 240;
-  display: flex; align-items: center; gap: 10px;
+  display: none;
+  align-items: center; gap: 10px;
+  margin: 14px 12px 0;
   background: #FBF6EE;
   border: 1px solid rgba(36,28,18,.08);
   border-radius: 18px;
-  box-shadow: 0 12px 32px rgba(36,28,18,.25);
+  box-shadow: 0 8px 24px rgba(36,28,18,.15);
   padding: 10px 10px 10px 12px;
   box-sizing: border-box;
-  transition: transform .35s cubic-bezier(.34,1.2,.64,1);
-  pointer-events: none;
 }
-#update-banner.upb-show { transform: translateX(-50%) translateY(0); pointer-events: all; }
+#update-banner.upb-show { display: flex; animation: upbIn .35s cubic-bezier(.34,1.2,.64,1); }
+@keyframes upbIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
 
 .upb-icon {
   position: relative; width: 36px; height: 36px; flex-shrink: 0;

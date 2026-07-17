@@ -1,0 +1,27 @@
+# ================================================================
+# KBINE PLUS | URLs propres (sans extension .html)
+# ================================================================
+# Utile maintenant que le site tourne sur son propre nom de domaine
+# (hébergement Hostinger, Apache/LiteSpeed avec mod_rewrite) : les
+# fichiers admin.html/cabine.html restent en place tels quels — les
+# supprimer casserait le site (et l'app Android, qui n'a aucun serveur
+# pour réécrire les URLs) — seule l'adresse affichée dans le navigateur
+# change, jamais le contenu réellement servi.
+
+DirectoryIndex index.html
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # /admin.html ou /cabine.html tapé/partagé directement → redirige vers
+  # l'adresse propre sans extension (jamais index.html, déjà la racine).
+  RewriteCond %{THE_REQUEST} \s/+(admin|cabine)\.html[\s?] [NC]
+  RewriteRule ^(admin|cabine)\.html$ /$1 [R=301,L]
+
+  # Sert le vrai fichier .html quand l'URL sans extension est demandée —
+  # uniquement si aucun fichier/dossier réel ne porte déjà ce nom exact.
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteCond %{REQUEST_FILENAME}\.html -f
+  RewriteRule ^([^/]+)$ $1.html [L]
+</IfModule>
