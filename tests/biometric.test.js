@@ -173,3 +173,135 @@ test('désactivation : refusée sans le bon code (vérifié par l\'appelant via 
   if (rightPinOk) await BiometricAuth.disable('client');
   assert.equal(BiometricAuth.isEnabled('client'), false);
 });
+
+/* ================================================================
+   BACKEND WEBAUTHN (site web / "PWA" — pas de plugin Capacitor natif)
+   ================================================================
+   Même API navigator.credentials.create/get indisponible sous Node —
+   ces tests mockent window.PublicKeyCredential + navigator.credentials
+   pour vérifier que la même logique de décision (BiometricAuth) se
+   comporte correctement avec ce second pont. Le comportement matériel
+   réel (vrai prompt Face ID/empreinte du navigateur) doit être validé
+   sur un appareil/navigateur réel (voir le plan). */
+function makeFakeWebAuthn() {
+  const _state = { available: true, failCreate: false, failGet: false };
+  return {
+    _state,
+    get available() { return _state.available; },
+    async create() {
+      if (_state.failCreate) throw new Error('user cancelled');
+      const rawId = new TextEncoder().encode('cred-' + Math.random().toString(36).slice(2)).buffer;
+      return { rawId };
+    },
+    async get() {
+      if (_state.failGet) throw new Error('not recognized');
+      return { id: 'assertion-ok' };
+    },
+  };
+}
+
+test('WebAuthn — activation : stocke l\'identifiant de la clé, jamais de secret séparé', async () => {
+  const webauthn = makeFakeWebAuthn();
+  const { DB, BiometricAuth, localStorage } = loadApp({ webauthn });
+  DB.init();
+  const user = makeUser(DB);
+
+  const res = await BiometricAuth.enroll(user, 'client');
+  assert.equal(res.ok, true);
+
+  const flag = JSON.parse(localStorage.getItem('kbine_biometric_client'));
+  assert.equal(flag.user_id, user.id);
+  assert.equal(flag.backend, 'webauthn');
+  assert.ok(flag.credential_id, 'identifiant de la clé WebAuthn conservé');
+  assert.equal(flag.token_hash, undefined, 'aucun secret/hash séparé côté WebAuthn — la clé elle-même est déjà liée au capteur');
+
+  const raw = localStorage.getItem('kbine_biometric_client');
+  assert.ok(!raw.includes('1234'), 'jamais le code en clair');
+});
+
+test('WebAuthn — connexion biométrique réussie : ouvre une session pour le bon utilisateur', async () => {
+  const webauthn = makeFakeWebAuthn();
+  const { DB, Auth, BiometricAuth } = loadApp({ webauthn });
+  DB.init();
+  const user = makeUser(DB);
+
+  await BiometricAuth.enroll(user, 'client');
+  const res = await BiometricAuth.loginWithBiometric('client');
+
+  assert.equal(res.ok, true);
+  assert.equal(res.user.id, user.id);
+  assert.equal(Auth.current().id, user.id);
+});
+
+test('WebAuthn — repli sur le code après 3 échecs consécutifs', async () => {
+  const webauthn = makeFakeWebAuthn();
+  const { DB, BiometricAuth } = loadApp({ webauthn });
+  DB.init();
+  const user = makeUser(DB);
+  await BiometricAuth.enroll(user, 'client');
+
+  webauthn._state.failGet = true; // le capteur ne reconnaît plus le doigt/visage
+
+  await BiometricAuth.loginWithBiometric('client');
+  await BiometricAuth.loginWithBiometric('client');
+  const r3 = await BiometricAuth.loginWithBiometric('client');
+  assert.equal(r3.fallback, true, 'après 3 échecs, doit signaler le repli sur le code');
+});
+
+test('WebAuthn — checkAvailability() : capteur indisponible → no-hardware (pas de distinction possible avec "non enrôlé")', async () => {
+  const webauthn = makeFakeWebAuthn();
+  webauthn._state.available = false;
+  const { DB, BiometricAuth } = loadApp({ webauthn });
+  DB.init();
+
+  const avail = await BiometricAuth.checkAvailability();
+  assert.equal(avail.available, false);
+  assert.equal(avail.reason, 'no-hardware');
+});
+
+test('WebAuthn — désactivation efface la référence locale (aucune API navigateur pour supprimer la clé elle-même)', async () => {
+  const webauthn = makeFakeWebAuthn();
+  const { DB, BiometricAuth } = loadApp({ webauthn });
+  DB.init();
+  const user = makeUser(DB);
+  await BiometricAuth.enroll(user, 'client');
+  assert.equal(BiometricAuth.isEnabled('client'), true);
+
+  await BiometricAuth.disable('client');
+  assert.equal(BiometricAuth.isEnabled('client'), false);
+  const res = await BiometricAuth.loginWithBiometric('client');
+  assert.equal(res.ok, false, 'ne peut plus être utilisée par l\'app une fois désactivée');
+});
+
+test('Sélection du pont : le plugin natif Capacitor est prioritaire si les deux sont présents', async () => {
+  const bio = makeFakeNativeBiometric();
+  const webauthn = makeFakeWebAuthn();
+  const { DB, BiometricAuth, localStorage } = loadApp({ nativeBiometric: bio, webauthn });
+  DB.init();
+  const user = makeUser(DB);
+
+  await BiometricAuth.enroll(user, 'client');
+  const flag = JSON.parse(localStorage.getItem('kbine_biometric_client'));
+  assert.equal(flag.backend, 'capacitor');
+});
+
+test('Une biométrie activée via un pont ne peut pas être utilisée via l\'autre (jamais interchangeable)', async () => {
+  const bio = makeFakeNativeBiometric();
+  const { DB, BiometricAuth } = loadApp({ nativeBiometric: bio }); // activée côté Capacitor (app Android)
+  DB.init();
+  const user = makeUser(DB);
+  await BiometricAuth.enroll(user, 'client');
+
+  // Même appareil/compte, mais cette fois-ci depuis le site web (pas de
+  // window.Capacitor.Plugins) : simulé en rechargeant l'app avec le même
+  // flag localStorage déjà écrit, mais un environnement WebAuthn-only.
+  const rawFlag = JSON.stringify({ user_id: user.id, token_hash: 'whatever', enabled: true, backend: 'capacitor' });
+  const webauthn = makeFakeWebAuthn();
+  const second = loadApp({ webauthn });
+  second.DB.init();
+  second.localStorage.setItem('kbine_biometric_client', rawFlag);
+
+  const res = await second.BiometricAuth.loginWithBiometric('client');
+  assert.equal(res.ok, false);
+  assert.equal(res.error, 'Biométrie indisponible sur cet appareil.');
+});

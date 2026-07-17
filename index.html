@@ -2372,7 +2372,33 @@
         <div class="ag-success-sub">Pour vous connecter à votre compte</div>
       </div>
       <div class="ag-switch-line">
-        <button type="button" onclick="switchAuthGateTab('login')">Se connecter avec mon code</button>
+        <button type="button" onclick="switchAuthGateTab(_rememberedClient ? 'unlock' : 'login')">Se connecter avec mon code</button>
+      </div>
+    </div>
+
+    <!-- -- DÉVERROUILLAGE (identifiant mémorisé, code seul) ---------- -->
+    <div id="ag-panel-unlock" style="display:none;">
+      <div class="ag-hero">
+        <div class="ag-hero-icon"><img src="img/logo.png" alt="" class="ag-hero-logo"></div>
+        <div class="ag-title">Content de vous revoir</div>
+        <div class="ag-sub" id="ag-unlock-name">—</div>
+      </div>
+      <div class="ag-form-card">
+        <form onsubmit="handleAuthGateUnlock(event)" autocomplete="off">
+          <div class="ag-field-label"><i class="fa-solid fa-lock"></i> Code PIN</div>
+          <div class="pin-row" id="pin-unlock-row">
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+          </div>
+        </form>
+        <div class="ag-switch-line">
+          <button type="button" onclick="closeModal('modal-auth-gate');openResetModal('client');">Mot de passe oublié ?</button>
+        </div>
+      </div>
+      <div class="ag-switch-line">
+        <button type="button" onclick="forgetRememberedClient()">Ce n'est pas vous ? Se connecter avec un autre compte</button>
       </div>
     </div>
 

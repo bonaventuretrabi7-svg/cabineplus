@@ -6,6 +6,33 @@
 let currentUser  = null;
 let pendingOrder = false;
 
+// Identité client mémorisée sur cet appareil (jeton "rester connecté",
+// voir DB.partnerDevices) — jamais utilisée pour ouvrir la session
+// directement (contrairement à _tryRememberMeRestore() côté cabine, voir
+// js/cabine.js) : sert seulement à afficher "Content de vous revoir,
+// {prénom}" et à sauter la saisie du téléphone, voir _lookupRememberedClient()
+// et le panneau ag-panel-unlock.
+let _rememberedClient = null;
+function _lookupRememberedClient() {
+  const token = localStorage.getItem(Auth.REMEMBER_TOKEN_KEY);
+  if (!token) return null;
+  const rec = DB.partnerDevices.findByToken(Auth.getDeviceId(), token);
+  if (!rec) { localStorage.removeItem(Auth.REMEMBER_TOKEN_KEY); return null; }
+  const user = DB.users.byId(rec.user_id);
+  return (user && user.role === 'client') ? user : null;
+}
+
+// "Ce n'est pas vous ?" (panneau ag-panel-unlock ou écran empreinte) :
+// un autre client va utiliser cet appareil — on oublie l'identité
+// mémorisée ET l'empreinte enregistrée (elle était liée au compte
+// précédent, jamais au nouvel utilisateur de l'appareil).
+function forgetRememberedClient() {
+  localStorage.removeItem(Auth.REMEMBER_TOKEN_KEY);
+  _rememberedClient = null;
+  BiometricAuth.disable('client');
+  switchAuthGateTab('login');
+}
+
 /* ── Reprise d'état au rechargement (voir ResumeState dans auth.js) ──
    Un seul objet en mémoire, sauvegardé à chaque mutation et relu une
    fois au boot (restoreClientState()). */
@@ -420,6 +447,13 @@ function boot() {
       startClientPresence();
     } else {
       renderLockedSections(true);
+      // Un client mémorisé sur cet appareil (jeton "rester connecté")
+      // revient : on lui propose de déverrouiller (empreinte ou code
+      // seul) plutôt que de tout ressaisir — voir openAuthModal() plus
+      // bas, qui choisit automatiquement le bon panneau. Fermable (×) :
+      // rien n'empêche de continuer en invité si ce n'est pas lui.
+      _rememberedClient = _lookupRememberedClient();
+      if (_rememberedClient) openAuthModal();
     }
 
     restoreClientState();
@@ -899,12 +933,15 @@ function showLoginSuccess(user, callback) {
    AUTH GATE
    ================================================================ */
 function openAuthModal(tab) {
-  // Écran empreinte affiché en priorité si activée sur cet appareil — sauf
-  // si un onglet précis est explicitement demandé (ex. "register" depuis
-  // "Créer un compte"). "Se connecter avec mon code" reste toujours
-  // accessible en dessous (voir switchAuthGateTab('login')).
+  // Priorité (sauf si un onglet précis est explicitement demandé, ex.
+  // "register" depuis "Créer un compte") : empreinte si activée, sinon
+  // déverrouillage PIN seul si un client est mémorisé sur cet appareil,
+  // sinon le formulaire complet. Un lien de repli reste toujours
+  // accessible depuis les deux premiers cas (voir switchAuthGateTab).
   if (!tab && BiometricAuth.isEnabled('client')) {
     switchAuthGateTab('biometric');
+  } else if (!tab && _rememberedClient) {
+    switchAuthGateTab('unlock');
   } else {
     switchAuthGateTab(tab || 'login');
   }
@@ -949,6 +986,7 @@ function closeAuthModal() {
 
 function switchAuthGateTab(tab) {
   document.getElementById('ag-panel-biometric').style.display = tab === 'biometric' ? 'block' : 'none';
+  document.getElementById('ag-panel-unlock').style.display    = tab === 'unlock'    ? 'block' : 'none';
   document.getElementById('ag-panel-login').style.display    = tab === 'login'    ? 'block' : 'none';
   document.getElementById('ag-panel-register').style.display = tab === 'register' ? 'block' : 'none';
   // Compteur d'échecs remis à zéro à chaque (ré)affichage de l'écran
@@ -956,6 +994,15 @@ function switchAuthGateTab(tab) {
   // bloqueraient définitivement toute nouvelle tentative pour le reste de
   // la session (le compteur ne vit qu'en mémoire, voir js/biometric.js).
   if (tab === 'biometric') BiometricAuth.resetAttempts('client');
+  if (tab === 'unlock') {
+    clearPinRow('pin-unlock-row');
+    const nameEl = document.getElementById('ag-unlock-name');
+    if (nameEl && _rememberedClient) {
+      const isPhone = /^0[0-9]{9}$/.test(_rememberedClient.prenom);
+      nameEl.textContent = isPhone ? Fmt.phone(_rememberedClient.telephone) : _rememberedClient.prenom;
+    }
+    setTimeout(() => document.querySelector('#pin-unlock-row .pin-box')?.focus(), 280);
+  }
   if (tab === 'login') {
     clearPinRow('pin-login-row');
   } else if (tab === 'register') {
@@ -1023,7 +1070,8 @@ function onLoginPhoneInput(input) {
 function initPinRows() {
   document.querySelectorAll('.pin-row, .cab-pin-row, .cab2-pin-row, .cab3-pin-row').forEach(row => {
     const boxes = [...row.querySelectorAll('.pin-box')];
-    const isLoginRow = row.id === 'pin-login-row';
+    const isLoginRow  = row.id === 'pin-login-row';
+    const isUnlockRow = row.id === 'pin-unlock-row';
     boxes.forEach((box, idx) => {
       box.addEventListener('input', () => {
         const v = box.value.replace(/\D/g, '');
@@ -1031,8 +1079,9 @@ function initPinRows() {
         box.classList.toggle('pin-filled', !!box.value);
         if (box.value && idx < boxes.length - 1) {
           boxes[idx + 1].focus();
-        } else if (box.value && idx === boxes.length - 1 && isLoginRow) {
-          checkLoginLive();
+        } else if (box.value && idx === boxes.length - 1) {
+          if (isLoginRow)  checkLoginLive();
+          if (isUnlockRow) handleAuthGateUnlock();
         }
       });
       box.addEventListener('keydown', e => {
@@ -1052,7 +1101,10 @@ function initPinRows() {
         });
         const next = boxes[Math.min(digits.length, boxes.length - 1)];
         if (next) next.focus();
-        if (isLoginRow && digits.length === 4) checkLoginLive();
+        if (digits.length === 4) {
+          if (isLoginRow)  checkLoginLive();
+          if (isUnlockRow) handleAuthGateUnlock();
+        }
       });
     });
   });
@@ -1084,7 +1136,11 @@ async function checkLoginLive() {
   modal.classList.remove('login-valid', 'login-error');
   if (banner) banner.style.display = 'none';
 
-  const res = await Auth.login(tel, pin, false, 'client');
+  // remember:true — le client est désormais toujours mémorisé sur cet
+  // appareil dès sa connexion (voir _lookupRememberedClient()/le panneau
+  // "ag-panel-unlock" : au prochain retour, plus besoin de ressaisir le
+  // téléphone, juste le code ou l'empreinte).
+  const res = await Auth.login(tel, pin, true, 'client');
 
   if (res.ok) {
     if (res.user.role === 'admin')  { window.location.href = 'admin.html';  return; }
@@ -1110,7 +1166,7 @@ async function handleAuthGateLogin(e) {
   if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
   if (pin.length !== 4)         { Toast.error('Saisissez votre code à 4 chiffres.'); return; }
 
-  const res = await Auth.login(tel, pin, false, 'client');
+  const res = await Auth.login(tel, pin, true, 'client');
   if (res.ok) {
     if (res.user.role === 'admin')  { window.location.href = 'admin.html';  return; }
     if (res.user.role === 'cabine') { window.location.href = 'cabine.html'; return; }
@@ -1120,6 +1176,31 @@ async function handleAuthGateLogin(e) {
     Toast.error(res.error || 'Numéro ou code incorrect.');
     clearPinRow('pin-login-row');
     document.querySelector('#pin-login-row .pin-box')?.focus();
+  }
+}
+
+// Déverrouillage (panneau ag-panel-unlock) : identifiant déjà connu
+// (_rememberedClient, voir _lookupRememberedClient()) — uniquement le
+// code à saisir, réutilise Auth.login() telle quelle pour bénéficier des
+// mêmes règles (blocage 3 tentatives, statut de compte, etc.). Appelée à
+// la fois par la soumission du formulaire (Entrée) et par le remplissage
+// automatique de la 4e case (voir initPinRows()) — e est alors absent.
+async function handleAuthGateUnlock(e) {
+  if (e && e.preventDefault) e.preventDefault();
+  if (!_rememberedClient) { switchAuthGateTab('login'); return; }
+  const pin = getPinValue('pin-unlock-row');
+  if (pin.length !== 4) return;
+
+  const res = await Auth.login(_rememberedClient.telephone, pin, true, 'client');
+  if (res.ok) {
+    if (res.user.role === 'admin')  { window.location.href = 'admin.html';  return; }
+    if (res.user.role === 'cabine') { window.location.href = 'cabine.html'; return; }
+    await _maybeOfferBiometricEnrollment(res.user, 'client');
+    closeAuthModalAnimated(() => afterLogin(res.user, true));
+  } else {
+    Toast.error(res.error || 'Code incorrect.');
+    clearPinRow('pin-unlock-row');
+    document.querySelector('#pin-unlock-row .pin-box')?.focus();
   }
 }
 

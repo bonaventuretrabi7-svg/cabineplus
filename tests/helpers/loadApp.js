@@ -39,23 +39,42 @@ function makeFakeDate(initialNow) {
 }
 
 /* Charge DB + Auth + BiometricAuth dans un seul contexte vm isolé.
-   opts: { initialNow, nativeBiometric } — nativeBiometric est le mock du
-   plugin Capacitor natif (voir tests/biometric.test.js), omis = biométrie
-   indisponible sur l'appareil simulé. */
+   opts: { initialNow, nativeBiometric, webauthn } — nativeBiometric est le
+   mock du plugin Capacitor natif, webauthn celui de l'API navigateur
+   (voir tests/biometric.test.js) : { available, create(options), get(options) },
+   create/get renvoient un objet credential-like ou rejettent comme le
+   ferait navigator.credentials. Omis = biométrie indisponible sur
+   l'appareil simulé (aucun des deux ponts). */
 function loadApp(opts = {}) {
   const initialNow = opts.initialNow ?? Date.now();
   const localStorage = makeStorage();
   const sessionStorage = makeStorage();
   const { FakeDate, clock } = makeFakeDate(initialNow);
 
+  // window.PublicKeyCredential et le PublicKeyCredential global doivent
+  // être le même objet (voir _webauthnSupported() vs checkAvailability()
+  // dans js/biometric.js, qui lisent l'un puis l'autre) — dans un vrai
+  // navigateur, window EST déjà le scope global, donc les deux coïncident
+  // naturellement ; ici il faut les poser explicitement sur les deux.
+  const publicKeyCredential = opts.webauthn
+    ? { isUserVerifyingPlatformAuthenticatorAvailable: async () => !!opts.webauthn.available }
+    : undefined;
+  const credentialsContainer = opts.webauthn
+    ? {
+        create: (o) => opts.webauthn.create(o),
+        get: (o) => opts.webauthn.get(o),
+      }
+    : undefined;
+
   const sandbox = {
     localStorage, sessionStorage,
     console,
     Date: FakeDate,
     crypto, atob, btoa, TextEncoder,
-    navigator: { userAgent: 'node-test', onLine: true },
-    window: { addEventListener() {}, removeEventListener() {}, location: { href: '' } },
+    navigator: { userAgent: 'node-test', onLine: true, credentials: credentialsContainer },
+    window: { addEventListener() {}, removeEventListener() {}, location: { href: '' }, PublicKeyCredential: publicKeyCredential },
     document: { addEventListener() {} },
+    PublicKeyCredential: publicKeyCredential,
     // Pas de Fmt pré-posé ici : auth.js (chargé juste après db.js, avant
     // tout appel réel à DB.business.*) définit son PROPRE `const Fmt` au
     // niveau module — le prédéfinir sur le sandbox risquerait un conflit
