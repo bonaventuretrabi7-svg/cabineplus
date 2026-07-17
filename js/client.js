@@ -3359,59 +3359,57 @@ async function rclHubQuickReply(reclaId, kind) {
   renderReclamationHub();
 }
 
-/* ── Contacts rapides ──────────────────────────────────────────── */
-function openContactsPicker() {
+/* ── Répertoire du téléphone ────────────────────────────────────── */
+// Un plugin Capacitor natif ne se charge pas via <script src> (voir même
+// remarque dans js/biometric.js) : une fois installé, Capacitor l'expose
+// lui-même au runtime sur window.Capacitor.Plugins.<Nom>. undefined dans un
+// navigateur desktop classique ou sous Node (tests).
+function _contactsPlugin() {
+  return (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.Plugins)
+    ? window.Capacitor.Plugins.Contacts
+    : undefined;
+}
+
+async function openContactsPicker() {
   if (!currentUser) {
     Toast.info('Connectez-vous pour accéder à votre répertoire.');
     return;
   }
-  openModal('modal-contacts');
-  const list = document.getElementById('contacts-list');
 
-  // Favoris (gérés depuis le profil, voir loadFavoris()) affichés en tête,
-  // au-dessus des numéros récents déjà dérivés de l'historique ci-dessous.
-  const favoris = DB.favoris.forUser(currentUser.id);
-  const favorisHtml = favoris.length ? `
-    <div class="contacts-group-label">Favoris</div>
-    ${favoris.map(f => `
-      <div class="contact-item" onclick="tfPickContact('${f.numero}')">
-        <div class="contact-avatar">${(f.nom || f.numero).slice(0, 2).toUpperCase()}</div>
-        <div>
-          <div class="contact-name">${f.nom || Fmt.phone(f.numero)}</div>
-          ${f.nom ? `<div class="contact-num">${Fmt.phone(f.numero)}</div>` : ''}
-        </div>
-        <i class="fa-solid fa-star" style="color:#F59E0B;font-size:.7rem;"></i>
-      </div>`).join('')}` : '';
-
-  const txns = DB.transactions.byClient(currentUser.id).filter(t => t.numero_beneficiaire);
-  const seen = new Set();
-  const contacts = txns
-    .filter(t => { if (seen.has(t.numero_beneficiaire)) return false; seen.add(t.numero_beneficiaire); return true; })
-    .slice(0, 8);
-  const opColors = { Orange:'#FF6200', MTN:'#CA8A04', Moov:'#0066CC' };
-  const recentsHtml = contacts.length ? `
-    ${favoris.length ? '<div class="contacts-group-label">Récents</div>' : ''}
-    ${contacts.map(t => `
-      <div class="contact-item" onclick="tfPickContact('${t.numero_beneficiaire}')">
-        <div class="contact-avatar">${t.numero_beneficiaire.slice(-2)}</div>
-        <div>
-          <div class="contact-name">${Fmt.phone(t.numero_beneficiaire)}</div>
-          <div class="contact-num">Dernier transfert : ${Fmt.date(t.date)}</div>
-        </div>
-        <span class="contact-op" style="background:${opColors[t.operateur]||'#666'}22;color:${opColors[t.operateur]||'#666'}">${t.operateur}</span>
-      </div>`).join('')}` : '';
-
-  if (!favorisHtml && !recentsHtml) {
-    list.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-icon"><i class="fa-solid fa-address-book"></i></div><div class="empty-title">Aucun contact récent</div></div>';
+  const plugin = _contactsPlugin();
+  if (plugin) {
+    try {
+      const { contact } = await plugin.pickContact({ projection: { name: true, phones: true } });
+      const numero = contact?.phones?.find(p => p.number)?.number;
+      if (!numero) { Toast.error('Ce contact ne possède aucun numéro de téléphone.'); return; }
+      tfPickContact(numero);
+    } catch (e) {
+      // Sélection annulée ou permission refusée — rien à afficher.
+    }
     return;
   }
-  list.innerHTML = favorisHtml + recentsHtml;
+
+  // Application ouverte dans un navigateur (site web, hors app Android) :
+  // aucun pont Capacitor — repli sur l'API standard Contact Picker si le
+  // navigateur la propose (Chrome Android récent).
+  if (typeof navigator !== 'undefined' && navigator.contacts && navigator.contacts.select) {
+    try {
+      const [contact] = await navigator.contacts.select(['tel'], { multiple: false });
+      const numero = contact?.tel?.[0];
+      if (!numero) { Toast.error('Ce contact ne possède aucun numéro de téléphone.'); return; }
+      tfPickContact(numero);
+    } catch (e) {
+      // Sélection annulée.
+    }
+    return;
+  }
+
+  Toast.info("L'accès au répertoire du téléphone n'est disponible que dans l'application KBINE PLUS.");
 }
 
 function tfPickContact(numero) {
   document.getElementById('tf-recipient').value = numero;
   tfUpdateRecipient(numero);
-  closeModal('modal-contacts');
   Toast.info(`Numéro ${Fmt.phone(numero)} sélectionné.`);
 }
 

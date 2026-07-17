@@ -353,7 +353,7 @@
                   placeholder="XX XX XX XX XX" maxlength="14"
                   inputmode="numeric" oninput="tfUpdateRecipient(this.value)" />
                 <button type="button" class="contacts-btn"
-                  onclick="openContactsPicker()" title="Répertoire récent">
+                  onclick="openContactsPicker()" title="Répertoire du téléphone">
                   <i class="fa-solid fa-address-book"></i>
                 </button>
               </div>
@@ -1463,19 +1463,6 @@
   </div>
 </div>
 
-<!-- Répertoire rapide -->
-<div class="modal-overlay" id="modal-contacts">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-header">
-      <span class="modal-title"><i class="fa-solid fa-address-book" style="color:var(--primary)"></i> Répertoire rapide</span>
-      <button class="modal-close" onclick="closeModal('modal-contacts')"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    <div class="modal-body" style="padding:12px 16px;">
-      <p style="font-size:.82rem;color:var(--gray-500);margin-bottom:12px;">Sélectionnez un numéro parmi vos transferts récents.</p>
-      <div class="contacts-list" id="contacts-list"></div>
-    </div>
-  </div>
-</div>
 
 <!-- Assistant WhatsApp (sélection manuelle) -->
 <div class="modal-overlay" id="modal-client-wa-picker">
