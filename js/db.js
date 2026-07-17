@@ -4,7 +4,7 @@
 
 const DB = (() => {
   const PREFIX = 'cbp_';
-  const DB_VERSION = '6';
+  const DB_VERSION = '7';
   const KEY = {
     users:            PREFIX + 'users',
     transactions:     PREFIX + 'transactions',
@@ -85,6 +85,10 @@ const DB = (() => {
 
   /* ── Seed data ──────────────────────────────────────────────────── */
   function seed() {
+    // Seul le compte super-admin est pré-créé (application en production —
+    // aucun compte de démonstration) : c'est le seul moyen de démarrer, les
+    // comptes cabine/client se créent ensuite normalement depuis l'app
+    // (auto-inscription) ou depuis le panneau admin.
     const users = [
       {
         id: 'u_admin', nom: 'TRA BI', prenom: 'BONAVENTURE VANIE HOLLAND',
@@ -92,163 +96,17 @@ const DB = (() => {
         mot_de_passe: hashPwd('1973'),
         role: 'admin', solde: 0, statut: 'actif', admin_level: 'super',
         date_creation: '2024-01-01T00:00:00Z', zone: 'Abidjan'
-      },
-      {
-        id: 'u_cab1', nom: 'KONÉ', prenom: 'Aminata',
-        telephone: '0705123456', email: 'cabine1@gmail.com',
-        mot_de_passe: hashPwd('1234'),
-        role: 'cabine', solde: 185000, statut: 'actif',
-        date_creation: '2024-01-15T09:00:00Z', zone: 'Cocody',
-        cabine_nom: 'KBINE Plus Cocody',
-        commissions_total: 23500, transferts_total: 187
-      },
-      {
-        id: 'u_cab2', nom: 'TRAORÉ', prenom: 'Moussa',
-        telephone: '0103789012', email: 'cabine2@gmail.com',
-        mot_de_passe: hashPwd('1234'),
-        role: 'cabine', solde: 92000, statut: 'actif',
-        date_creation: '2024-02-01T10:30:00Z', zone: 'Yopougon',
-        cabine_nom: 'KBINE Plus Yopougon',
-        commissions_total: 11200, transferts_total: 98
-      },
-      {
-        id: 'u_cab3', nom: 'OUATTARA', prenom: 'Fatoumata',
-        telephone: '0759345678', email: 'cabine3@gmail.com',
-        mot_de_passe: hashPwd('1234'),
-        role: 'cabine', solde: 43000, statut: 'inactif',
-        date_creation: '2024-03-10T08:00:00Z', zone: 'Abobo',
-        cabine_nom: 'KBINE Plus Abobo',
-        commissions_total: 5800, transferts_total: 52
-      },
-      {
-        id: 'u_cli1', nom: 'COULIBALY', prenom: 'Jean-Baptiste',
-        telephone: '0504112233', email: 'client@kbineplus.ci',
-        mot_de_passe: hashPwd('1234'),
-        role: 'client', solde: 47500, statut: 'actif',
-        date_creation: '2024-02-10T11:00:00Z'
-      },
-      {
-        id: 'u_cli2', nom: 'BAMBA', prenom: 'Mariam',
-        telephone: '0717223344', email: 'mariam@example.ci',
-        mot_de_passe: hashPwd('Client@2024'),
-        role: 'client', solde: 12000, statut: 'actif',
-        date_creation: '2024-02-20T14:00:00Z'
-      },
-      {
-        id: 'u_cli3', nom: 'N\'GUESSAN', prenom: 'Koffi',
-        telephone: '0585334455', email: 'koffi@example.ci',
-        mot_de_passe: hashPwd('Client@2024'),
-        role: 'client', solde: 5000, statut: 'suspendu',
-        date_creation: '2024-03-05T16:00:00Z'
-      },
-      {
-        id: 'u_cli4', nom: 'DIABATÉ', prenom: 'Aïcha',
-        telephone: '0102445566', email: 'aicha@example.ci',
-        mot_de_passe: hashPwd('Client@2024'),
-        role: 'client', solde: 78200, statut: 'actif',
-        date_creation: '2024-04-01T09:30:00Z'
-      },
-      {
-        id: 'u_cli5', nom: 'YAO', prenom: 'Serge',
-        telephone: '0768556677', email: 'serge@example.ci',
-        mot_de_passe: hashPwd('Client@2024'),
-        role: 'client', solde: 3500, statut: 'actif',
-        date_creation: '2024-04-15T12:00:00Z'
       }
     ];
 
-    const dates = [
-      '2024-06-01','2024-06-03','2024-06-05','2024-06-07',
-      '2024-06-09','2024-06-11','2024-06-13','2024-06-15',
-      '2024-06-17','2024-06-19','2024-06-20','2024-06-21',
-      '2024-06-22','2024-06-23','2024-06-24','2024-06-25'
-    ];
-
-    const operators = ['Orange','MTN','Moov'];
-    const statuses  = ['terminé','terminé','terminé','terminé','en_attente','refusé'];
-    const amounts   = [500,1000,1500,2000,2500,3000,5000,10000];
-
     const transactions = [];
-
-    // Transactions pour le client démo (u_cli1)
-    [
-      { montant:10000, operateur:'Orange', numero:'0728518505', statut:'terminé',   service:'Transfert direct', moyen_paiement:'orange_money', numero_paiement:'0504112233', date:'2026-06-25T11:45:00Z' },
-      { montant: 5000, operateur:'Orange', numero:'0747037010', statut:'terminé',   service:'Transfert direct', moyen_paiement:'orange_money', numero_paiement:'0504112233', date:'2026-06-24T14:30:00Z' },
-      { montant: 2500, operateur:'MTN',    numero:'0554814804', statut:'terminé',   service:'Transfert direct', moyen_paiement:'mtn_momo',     numero_paiement:'0504112233', date:'2026-06-22T08:24:00Z' },
-      { montant: 2000, operateur:'Orange', numero:'0743333309', statut:'terminé',   service:'Transfert direct', moyen_paiement:'orange_money', numero_paiement:'0504112233', date:'2026-06-21T11:09:00Z' },
-      { montant: 1000, operateur:'Moov',   numero:'0701111103', statut:'en_attente',service:'Transfert direct', moyen_paiement:'wave',          numero_paiement:'0504112233', date:'2026-06-19T17:03:00Z' },
-      { montant:  500, operateur:'Orange', numero:'0739629608', statut:'refusé',    service:'Transfert direct', moyen_paiement:'orange_money', numero_paiement:'0504112233', date:'2026-06-17T08:48:00Z' },
-    ].forEach((item, i) => {
-      const commission = item.statut === 'terminé' ? Math.round(item.montant * 0.05) : 0;
-      transactions.push({
-        id: 'txn_demo_' + i,
-        client_id: 'u_cli1',
-        cabine_id: item.statut !== 'en_attente' ? 'u_cab1' : null,
-        operateur: item.operateur,
-        service: item.service,
-        numero_beneficiaire: item.numero,
-        moyen_paiement: item.moyen_paiement,
-        numero_paiement: item.numero_paiement,
-        montant: item.montant,
-        frais_service: Math.round(item.montant * 0.05),
-        commission,
-        statut: item.statut,
-        date: item.date,
-        notes: ''
-      });
-    });
-
-    for (let i = 0; i < 32; i++) {
-      const clients = ['u_cli2','u_cli3','u_cli4','u_cli5'];
-      const cabines = ['u_cab1','u_cab2','u_cab3'];
-      const client_id = clients[i % clients.length];
-      const cabine_id = cabines[i % cabines.length];
-      const montant   = amounts[i % amounts.length];
-      const commission = Math.round(montant * 0.05);
-      const statut    = statuses[i % statuses.length];
-      const date      = dates[i % dates.length];
-      const hrs = String(8 + (i % 12)).padStart(2,'0');
-      const min = String((i * 7) % 60).padStart(2,'0');
-
-      transactions.push({
-        id: 'txn_' + uid(),
-        client_id,
-        cabine_id: statut !== 'en_attente' ? cabine_id : null,
-        operateur: operators[i % 3],
-        numero_beneficiaire: '07' + String(10000000 + i * 1234567).slice(0,8),
-        montant,
-        commission: statut === 'terminé' ? commission : 0,
-        statut,
-        date: date + 'T' + hrs + ':' + min + ':00Z',
-        notes: ''
-      });
-    }
-
-    const notifications = [
-      { id: uid(), utilisateur_id: 'u_cli1', message: 'Votre transfert de 2 000 FCFA vers Orange 0712345678 est terminé.', lu: false, date: now(), type: 'success' },
-      { id: uid(), utilisateur_id: 'u_cli1', message: 'Votre portefeuille a été rechargé de 10 000 FCFA.', lu: false, date: now(), type: 'info' },
-      { id: uid(), utilisateur_id: 'u_cli1', message: 'Votre demande de transfert MTN 5 000 FCFA est en cours.', lu: true, date: '2024-06-24T10:00:00Z', type: 'info' },
-      { id: uid(), utilisateur_id: 'u_cab1', message: 'Nouvelle demande de transfert Orange 2 000 FCFA.', lu: false, date: now(), type: 'new_request' },
-      { id: uid(), utilisateur_id: 'u_cab1', message: 'Commission de 250 FCFA créditée suite à votre transfert.', lu: false, date: now(), type: 'commission' },
-      { id: uid(), utilisateur_id: 'u_cab1', message: 'Nouvelle demande MTN 5 000 FCFA en attente.', lu: true, date: '2024-06-25T08:00:00Z', type: 'new_request' },
-      { id: uid(), utilisateur_id: 'u_admin', message: '32 transactions enregistrées ce mois.', lu: false, date: now(), type: 'info' },
-    ];
+    const notifications = [];
 
     const commissions = [
       { id: uid(), label: 'Commission standard', pourcentage: 5, montant_min: 0, montant_max: 99999, actif: true, date: '2024-01-01T00:00:00Z' },
     ];
 
-    // Retraits de commission du cabiniste démo (u_cab1), répartis sur
-    // les 6 méthodes de paiement disponibles.
-    const retraits = [
-      { id: 'ret_demo_1', cabine_id: 'u_cab1', montant: 4000, methode_retrait: 'Orange Money',   statut: 'terminé',    date: '2026-06-24T09:12:00Z' },
-      { id: 'ret_demo_2', cabine_id: 'u_cab1', montant: 2250, methode_retrait: 'Orange Money',   statut: 'terminé',    date: '2026-06-18T16:40:00Z' },
-      { id: 'ret_demo_3', cabine_id: 'u_cab1', montant: 1500, methode_retrait: 'Moov Money',     statut: 'terminé',    date: '2026-06-20T11:05:00Z' },
-      { id: 'ret_demo_4', cabine_id: 'u_cab1', montant: 3000, methode_retrait: 'Djamo',          statut: 'terminé',    date: '2026-06-15T14:22:00Z' },
-      { id: 'ret_demo_5', cabine_id: 'u_cab1', montant: 5000, methode_retrait: 'Wave Business',  statut: 'terminé',    date: '2026-06-10T08:50:00Z' },
-      { id: 'ret_demo_6', cabine_id: 'u_cab1', montant:  975, methode_retrait: 'Wave Normal',    statut: 'en_attente', date: '2026-06-26T07:30:00Z' },
-      { id: 'ret_demo_7', cabine_id: 'u_cab1', montant: 8500, methode_retrait: 'Compte bancaire',statut: 'terminé',    date: '2026-06-05T13:15:00Z' },
-    ];
+    const retraits = [];
 
     const settings = {
       platformName: 'KBINE PLUS',
