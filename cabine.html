@@ -102,6 +102,85 @@
   <div class="pl-label">Chargement…</div>
 </div>
 
+<!-- ══ CONNEXION (aucune session cabine active sur cet appareil) — voir
+     showCabineLoginGate()/submitCabineLoginGate() dans js/cabine.js ══ -->
+<div class="cab-login-gate" id="cab-login-gate" style="display:none;">
+  <div class="pln-modal">
+    <div class="pln-glow"></div>
+
+    <div class="pln-topbar">
+      <div class="pln-brand"><span class="pln-brand-dot"></span> Espace Partenaire</div>
+    </div>
+
+    <!-- Étape biométrique (affichée en priorité si activée) -->
+    <div class="pln-slide" id="cab-login-slide-bio" style="display:none;">
+      <div class="pln-hero">
+        <div class="pln-hero-ring" id="cab-login-bio-btn" onclick="attemptCabineGateBiometricLogin()" role="button" tabindex="0" style="cursor:pointer;">
+          <div class="pln-hero-ico"><i class="fa-solid fa-fingerprint"></i></div>
+        </div>
+        <div class="pln-hero-title">Toucher le capteur</div>
+        <div class="pln-hero-sub">Pour accéder à votre espace partenaire</div>
+      </div>
+      <div class="ag-switch-line">
+        <button type="button" onclick="cabLoginGateShowCodeForm()">Se connecter avec mon code</button>
+      </div>
+    </div>
+
+    <!-- Formulaire code -->
+    <div class="pln-slide" id="cab-login-slide-form">
+      <div class="pln-hero">
+        <div class="pln-hero-ring">
+          <div class="pln-hero-ico"><i class="fa-solid fa-store"></i></div>
+        </div>
+        <div class="pln-hero-title">Espace Cabine</div>
+        <div class="pln-hero-sub">Connectez-vous avec votre Gmail et votre code PIN</div>
+      </div>
+
+      <div id="cab-login-denied" class="pln-denied" style="display:none;">
+        <i class="fa-solid fa-circle-xmark"></i>
+        <span>Accès refusé — ce compte n'est pas un compte partenaire.</span>
+      </div>
+
+      <div class="pln-form">
+        <div class="pln-field">
+          <label class="pln-label"><i class="fa-solid fa-envelope"></i> Adresse Gmail</label>
+          <div class="pln-input-wrap">
+            <input id="cab-login-email" type="email" inputmode="email" maxlength="60"
+                   class="pln-input" placeholder="exemple@gmail.com"
+                   onkeydown="if(event.key==='Enter')document.querySelector('#cab-login-pin-row .pln-pin-box')?.focus();" autocomplete="off">
+          </div>
+        </div>
+
+        <div class="pln-field">
+          <label class="pln-label"><i class="fa-solid fa-lock"></i> Code PIN confidentiel</label>
+          <div class="pln-pin-row" id="cab-login-pin-row">
+            <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+            <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+            <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+            <input class="pln-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
+          </div>
+        </div>
+
+        <label class="pln-remember">
+          <input type="checkbox" id="cab-login-remember">
+          <span class="pln-remember-box"><i class="fa-solid fa-check"></i></span>
+          <span class="pln-remember-txt">Rester connecté sur cet appareil</span>
+        </label>
+
+        <button class="pln-cta" onclick="submitCabineLoginGate()">
+          <div class="pln-cta-bg"></div>
+          <span class="pln-cta-label">Accéder à mon espace</span>
+          <div class="pln-cta-arrow"><i class="fa-solid fa-arrow-right"></i></div>
+        </button>
+      </div>
+
+      <div class="ag-switch-line">
+        <button type="button" onclick="window.location.href='index.html'">Retour à l'accueil</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ══ APP CABINE ══ -->
 <div class="cab-app" id="cab-app" style="display:none;">
 

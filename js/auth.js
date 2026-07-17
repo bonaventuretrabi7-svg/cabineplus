@@ -355,15 +355,26 @@ const Auth = (() => {
 
   function current() { return get(); }
 
-  function require(role) {
+  // opts.silent (cabine.js/admin.js boot()) : n'appelle jamais
+  // window.location.href quand aucune session valide n'existe pour ce rôle
+  // — l'appelant affiche alors son propre écran de connexion (voir
+  // showCabineLoginGate()/showAdminLoginGate()) plutôt que d'être bouché
+  // vers index.html sans explication (voir le diagnostic : un lien direct
+  // vers /cabine ou /admin sans session active ne faisait jamais "sortir"
+  // l'espace demandé). Une session déjà active mais évincée en cours de
+  // route (limite de 2 appareils) redirige toujours vers index.html quel
+  // que soit ce drapeau — ce n'est pas le même cas ("jamais connecté ici")
+  // et le message d'éviction affiché là-bas doit rester atteint.
+  function require(role, opts) {
+    const silent = !!(opts && opts.silent);
     let user = get();
-    if (!user) { window.location.href = 'index.html'; return null; }
+    if (!user) { if (!silent) window.location.href = 'index.html'; return null; }
     // Resynchronise toujours avec la base : une session ouverte avant un
     // changement de rôle/permissions (ex. admin_level, permissions[]) ne
     // doit pas rester figée sur l'instantané pris au moment du login.
     const fresh = DB.users.byId(user.id);
     if (fresh) { user = fresh; save(user); }
-    if (role && user.role !== role) { window.location.href = 'index.html'; return null; }
+    if (role && user.role !== role) { if (!silent) window.location.href = 'index.html'; return null; }
     // Un compte partenaire évincé (limite de 2 appareils atteinte depuis un
     // autre appareil) doit être déconnecté ici dès sa prochaine action —
     // aucun push temps réel n'existe dans cette maquette (voir cabine.js boot()).

@@ -2809,6 +2809,18 @@ body.dark .cs-page-title { color: var(--dark-text); }
 .ph5-cta-btn:hover { opacity: .88; transform: translateY(-1px); }
 .ph5-cta-btn:active { transform: translateY(0); }
 
+/* ── Écran de connexion cabine (page entière, pas une modale) — voir
+   showCabineLoginGate() dans js/cabine.js. Réutilise .pln-modal/.pln-*
+   (mêmes classes que la modale de connexion partenaire d'index.html) pour
+   un rendu identique, seul le conteneur change (plein écran plutôt que
+   superposé au tableau de bord). ── */
+.cab-login-gate {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; box-sizing: border-box;
+  background: #09090f;
+}
+
 /* ── Modal login partenaire (pln) ──────────────────────────────── */
 .pln-modal {
   position: relative; overflow: hidden;
@@ -3222,6 +3234,16 @@ body.dark .cs-page-title { color: var(--dark-text); }
 }
 
 /* ── Modal login Admin (adx) ───────────────────────────────────── */
+/* ── Écran de connexion admin (page entière, pas une modale) — voir
+   showAdminLoginGate() dans js/admin.js. Réutilise .adx-modal/.adx-*
+   (mêmes classes que la modale de connexion admin d'index.html). ── */
+.admin-login-gate {
+  position: fixed; inset: 0; z-index: 3000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px; box-sizing: border-box;
+  background: #07070f;
+}
+
 .adx-modal {
   position: relative; overflow: hidden;
   background: #07070f;

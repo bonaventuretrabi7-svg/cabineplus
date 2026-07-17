@@ -191,6 +191,88 @@ function hideLoader() {
   setTimeout(() => l.remove(), 500);
 }
 
+/* ── Écran de connexion (aucune session admin valide sur cet appareil) ──
+   Avant ce correctif, un lien direct vers /admin sans session active
+   renvoyait silencieusement vers index.html (Auth.require()) — l'espace
+   admin ne "sortait" jamais. Affiche désormais ici même un écran de
+   connexion dédié (mêmes classes .adx-* que la modale admin d'index.html,
+   voir css/style.css), sans jamais quitter cette page. Le tableau de bord
+   (.app-wrapper) n'est pas masqué par défaut dans le HTML (seul le loader
+   le recouvre pendant le boot normal) — on le masque donc explicitement
+   ici pour ne jamais laisser transparaître un tableau de bord vide/non
+   initialisé une fois le loader retiré. */
+function showAdminLoginGate() {
+  hideLoader();
+  const wrapper = document.querySelector('.app-wrapper');
+  if (wrapper) wrapper.style.display = 'none';
+  const gate = document.getElementById('admin-login-gate');
+  if (!gate) return;
+  gate.style.display = 'flex';
+
+  const useBio = BiometricAuth.isEnabled('admin');
+  document.getElementById('admin-login-slide-bio').style.display  = useBio ? 'block' : 'none';
+  document.getElementById('admin-login-slide-form').style.display = useBio ? 'none' : 'block';
+  if (useBio) BiometricAuth.resetAttempts('admin');
+
+  const boxes = document.querySelectorAll('#admin-login-pin-row .adx-pin-box');
+  boxes.forEach((box, idx) => {
+    box.oninput = () => {
+      box.value = box.value.replace(/\D/g, '').slice(0, 1);
+      if (box.value && idx < boxes.length - 1) {
+        boxes[idx + 1].focus();
+      } else if (box.value && idx === boxes.length - 1) {
+        setTimeout(submitAdminLoginGate, 120);
+      }
+    };
+    box.onkeydown = e => {
+      if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus();
+    };
+  });
+
+  setTimeout(() => {
+    (useBio ? null : document.getElementById('admin-login-email'))?.focus();
+  }, 120);
+}
+
+function adminLoginGateShowCodeForm() {
+  document.getElementById('admin-login-slide-bio').style.display  = 'none';
+  document.getElementById('admin-login-slide-form').style.display = 'block';
+  setTimeout(() => document.getElementById('admin-login-email')?.focus(), 120);
+}
+
+async function attemptAdminGateBiometricLogin() {
+  const res = await BiometricAuth.loginWithBiometric('admin');
+  if (res.ok) { window.location.reload(); return; }
+  if (res.fallback) {
+    adminLoginGateShowCodeForm();
+    Toast.warning(res.error || 'Utilisez votre code pour vous connecter.');
+  } else {
+    Toast.error(res.error || 'Empreinte non reconnue.');
+  }
+}
+
+async function submitAdminLoginGate() {
+  const email  = (document.getElementById('admin-login-email')?.value || '').trim();
+  const pin    = [...document.querySelectorAll('#admin-login-pin-row .adx-pin-box')].map(b => b.value).join('');
+  const denied = document.getElementById('admin-login-denied');
+  denied.style.display = 'none';
+
+  if (!Auth.isValidGmail(email)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
+  if (!Auth.isValidPin(pin))     { Toast.error('Saisissez votre code PIN à 4 chiffres.'); return; }
+
+  const res = await Auth.login(email, pin, false, 'admin');
+  if (!res.ok) { Toast.error(res.error); return; }
+
+  if (res.user.role !== 'admin') {
+    sessionStorage.removeItem('cbp_session');
+    denied.style.display = 'flex';
+    document.querySelectorAll('#admin-login-pin-row .adx-pin-box').forEach(b => { b.value = ''; });
+    return;
+  }
+
+  window.location.reload();
+}
+
 function boot() {
   const loaderSafety = setTimeout(hideLoader, 3000);
   try {
@@ -209,8 +291,8 @@ function boot() {
     // thème laissé actif au dernier passage.
     document.body.classList.remove('dark');
     localStorage.removeItem('cbp_dark');
-    currentUser = Auth.require('admin');
-    if (!currentUser) return;
+    currentUser = Auth.require('admin', { silent: true });
+    if (!currentUser) { showAdminLoginGate(); return; }
     applyAdminPermissionGating();
     _refreshImpersonationBanner();
     _restoreAdminSidebarCollapsed();

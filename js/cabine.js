@@ -108,6 +108,96 @@ function _tryRememberMeRestore() {
   DB.partnerDevices.touch(rec.id, true);
 }
 
+/* ── Écran de connexion (aucune session cabine valide sur cet appareil) ──
+   Avant ce correctif, un lien direct vers /cabine sans session active
+   renvoyait silencieusement vers index.html (Auth.require()) — l'espace
+   cabine ne "sortait" jamais. Affiche désormais ici même un écran de
+   connexion dédié (mêmes classes .pln-* que la modale partenaire
+   d'index.html, voir css/style.css), sans jamais quitter cette page. */
+function showCabineLoginGate() {
+  const loader = document.getElementById('page-loader');
+  const gate   = document.getElementById('cab-login-gate');
+  if (loader) loader.classList.add('pl-hide');
+  if (!gate) return;
+  gate.style.display = 'flex';
+
+  const useBio = BiometricAuth.isEnabled('cabine');
+  document.getElementById('cab-login-slide-bio').style.display  = useBio ? 'block' : 'none';
+  document.getElementById('cab-login-slide-form').style.display = useBio ? 'none' : 'block';
+  if (useBio) BiometricAuth.resetAttempts('cabine');
+
+  const boxes = document.querySelectorAll('#cab-login-pin-row .pln-pin-box');
+  boxes.forEach((box, idx) => {
+    box.oninput = () => {
+      box.value = box.value.replace(/\D/g, '').slice(0, 1);
+      if (box.value && idx < boxes.length - 1) {
+        boxes[idx + 1].focus();
+      } else if (box.value && idx === boxes.length - 1) {
+        setTimeout(submitCabineLoginGate, 120);
+      }
+    };
+    box.onkeydown = e => {
+      if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus();
+    };
+  });
+
+  setTimeout(() => {
+    (useBio ? null : document.getElementById('cab-login-email'))?.focus();
+  }, 120);
+}
+
+function cabLoginGateShowCodeForm() {
+  document.getElementById('cab-login-slide-bio').style.display  = 'none';
+  document.getElementById('cab-login-slide-form').style.display = 'block';
+  setTimeout(() => document.getElementById('cab-login-email')?.focus(), 120);
+}
+
+async function attemptCabineGateBiometricLogin() {
+  const res = await BiometricAuth.loginWithBiometric('cabine');
+  if (res.ok) {
+    if (res.rememberToken) localStorage.setItem(Auth.REMEMBER_TOKEN_KEY, res.rememberToken);
+    window.location.reload();
+    return;
+  }
+  if (res.fallback) {
+    cabLoginGateShowCodeForm();
+    Toast.warning(res.error || 'Utilisez votre code pour vous connecter.');
+  } else {
+    Toast.error(res.error || 'Empreinte non reconnue.');
+  }
+}
+
+async function submitCabineLoginGate() {
+  const email    = (document.getElementById('cab-login-email')?.value || '').trim();
+  const pin      = [...document.querySelectorAll('#cab-login-pin-row .pln-pin-box')].map(b => b.value).join('');
+  const remember = !!document.getElementById('cab-login-remember')?.checked;
+  const denied   = document.getElementById('cab-login-denied');
+  denied.style.display = 'none';
+
+  if (!Auth.isValidGmail(email)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
+  if (!Auth.isValidPin(pin))     { Toast.error('Saisissez votre code PIN à 4 chiffres.'); return; }
+
+  const res = await Auth.login(email, pin, remember, 'cabine');
+  if (!res.ok) { Toast.error(res.error); return; }
+
+  if (res.user.role !== 'cabine') {
+    sessionStorage.removeItem('cbp_session');
+    denied.style.display = 'flex';
+    document.querySelectorAll('#cab-login-pin-row .pln-pin-box').forEach(b => { b.value = ''; });
+    return;
+  }
+
+  if (res.rememberToken) localStorage.setItem(Auth.REMEMBER_TOKEN_KEY, res.rememberToken);
+
+  if (res.evictedDevice) {
+    Toast.warning(`Votre appareil le plus ancien (${res.evictedDevice}) a été déconnecté — limite de 2 appareils atteinte.`);
+    setTimeout(() => window.location.reload(), 1800);
+    return;
+  }
+
+  window.location.reload();
+}
+
 function boot() {
   DB.init();
   // Rattrape une file de synchronisation laissée en attente (voir
@@ -117,8 +207,8 @@ function boot() {
   if (DB.Net.isOnline()) DB.drainSyncQueue();
   DB.Net.onChange(() => { if (DB.Net.isOnline()) DB.drainSyncQueue(); });
   _tryRememberMeRestore();
-  currentUser = Auth.require('cabine');
-  if (!currentUser) return;
+  currentUser = Auth.require('cabine', { silent: true });
+  if (!currentUser) { showCabineLoginGate(); return; }
 
   Theme.init();
   _refreshCabDarkBtn();
