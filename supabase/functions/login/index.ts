@@ -34,24 +34,73 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: 'Méthode non autorisée.' }), { status: 405 });
   }
 
-  let body: { identifiant?: string; pin?: string; role?: string };
+  let body: { identifiant?: string; pin?: string; role?: string; silent?: boolean };
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Requête invalide.' }), { status: 400 });
   }
 
-  const { identifiant, pin, role } = body;
+  const { identifiant, pin, role, silent } = body;
   if (!identifiant || !pin || !role) {
     return new Response(JSON.stringify({ error: 'Identifiant, PIN et rôle requis.' }), { status: 400 });
   }
 
-  const { data: profile, error: verifyError } = await admin
-    .rpc('verify_login', { p_identifiant: identifiant, p_pin: pin, p_role: role })
-    .single();
+  // Mode silencieux : établit (ou rafraîchit) une session Supabase Auth en
+  // arrière-plan pour un appareil déjà connecté avec succès en LOCAL (voir
+  // Auth.login() dans js/auth.js) — nécessaire pour que les actions
+  // authentifiées côté serveur (ex. admin_create_account, RLS sur profiles)
+  // fonctionnent même quand le mot de passe local suffisait déjà, sans quoi
+  // un appareil qui ne s'est jamais trompé n'obtiendrait jamais de session
+  // serveur. AUCUN effet de bord sur le compteur de tentatives : un échec ici
+  // (ex. mot de passe changé ailleurs depuis) ne doit jamais faire progresser
+  // vers un blocage — seule une tentative de connexion explicite le peut.
+  let profile;
+  if (silent) {
+    const { data, error } = await admin
+      .rpc('verify_login', { p_identifiant: identifiant, p_pin: pin, p_role: role })
+      .single();
+    if (error || !data) {
+      return new Response(JSON.stringify({ error: 'Session non établie.' }), { status: 401 });
+    }
+    profile = data;
+  } else {
+    // Statut vérifié AVANT même la comparaison du PIN — un compte bloqué ne
+    // doit plus jamais réévaluer une tentative (même règle que l'ancienne
+    // vérification 100% locale, voir Auth.login() dans js/auth.js).
+    const { data: existing } = await admin
+      .rpc('find_profile_for_login', { p_identifiant: identifiant, p_role: role })
+      .single();
 
-  if (verifyError || !profile) {
-    return new Response(JSON.stringify({ error: 'Identifiant ou PIN incorrect.' }), { status: 401 });
+    if (!existing) {
+      return new Response(JSON.stringify({ error: 'Compte introuvable.' }), { status: 401 });
+    }
+    if (existing.statut === 'bloqué') {
+      return new Response(JSON.stringify({
+        error: "Compte bloqué après 3 tentatives incorrectes. Contactez l'administration pour le débloquer.",
+      }), { status: 403 });
+    }
+
+    const { data: verified, error: verifyError } = await admin
+      .rpc('verify_login', { p_identifiant: identifiant, p_pin: pin, p_role: role })
+      .single();
+
+    if (verifyError || !verified) {
+      const { data: updated } = await admin
+        .rpc('register_failed_login', { p_profile_id: existing.id })
+        .single();
+      const blocked = updated?.statut === 'bloqué';
+      return new Response(JSON.stringify({
+        error: blocked
+          ? "Compte bloqué après 3 tentatives incorrectes. Contactez l'administration pour le débloquer."
+          : 'Identifiant ou PIN incorrect.',
+      }), { status: 401 });
+    }
+    profile = verified;
+
+    if (profile.tentatives_echouees) {
+      await admin.rpc('reset_login_attempts', { p_profile_id: profile.id });
+    }
   }
 
   const authEmail = authEmailFor(profile.id);

@@ -507,6 +507,60 @@ const DB = (() => {
       return user.mot_de_passe === hashPwd(pwd);
     },
 
+    // Convertit une ligne `profiles` (Supabase, snake_case, mot de passe en
+    // bcrypt) vers le format local — utilisé uniquement après une
+    // vérification SERVEUR réussie (voir Auth.login() dans js/auth.js).
+    // `plainPin` : le code EN CLAIR qui vient d'être validé côté serveur ;
+    // jamais conservé tel quel, seulement son hash LOCAL (hashPwd(), le même
+    // que tous les autres comptes) pour que les connexions suivantes sur CET
+    // appareil fonctionnent hors ligne sans dépendre du bcrypt serveur
+    // (format incompatible avec checkPwd() ci-dessus).
+    fromProfileRow(row, plainPin) {
+      return {
+        id: row.id, nom: row.nom || '', prenom: row.prenom || '',
+        telephone: row.telephone || '', email: row.email || '',
+        mot_de_passe: hashPwd(plainPin),
+        role: row.role, solde: row.solde || 0, statut: row.statut,
+        admin_level: row.admin_level || undefined,
+        permissions: row.permissions || undefined,
+        zone: row.zone || undefined, cabine_nom: row.cabine_nom || undefined,
+        commissions_total: row.commissions_total || 0,
+        transferts_total: row.transferts_total || 0,
+        limite_commandes: row.limite_commandes ?? undefined,
+        tentatives_echouees: row.tentatives_echouees || 0,
+        suspendu_auto: row.suspendu_auto || false,
+        suspendu_by: row.suspendu_by || null,
+        suspendu_motif: row.suspendu_motif || null,
+        suspendu_jusqu: row.suspendu_jusqu || null,
+        abonnement: row.abonnement || undefined,
+        date_creation: row.date_creation,
+      };
+    },
+
+    // Fusionne un profil serveur fraîchement vérifié dans le cache local
+    // (voir Auth.login()). Un compte déjà connu sur CET appareil (créé avant
+    // l'activation de la synchronisation, id local "u_xxx") garde son id
+    // d'origine — le changer casserait les données déjà liées à cet id
+    // (transactions, favoris...) ; seuls les autres champs sont mis à jour.
+    // Un compte jamais vu ici est simplement ajouté, id serveur compris.
+    cacheFromServer(row, plainPin) {
+      const mapped = users.fromProfileRow(row, plainPin);
+      const list = get(KEY.users);
+      const idx = list.findIndex(u => mapped.role === u.role && (
+        (mapped.telephone && mapped.telephone === u.telephone) ||
+        (mapped.email && mapped.email === u.email)
+      ));
+      if (idx === -1) {
+        list.push(mapped);
+        set(KEY.users, list);
+        return mapped;
+      }
+      const { id, ...fieldsWithoutId } = mapped;
+      list[idx] = { ...list[idx], ...fieldsWithoutId };
+      set(KEY.users, list);
+      return list[idx];
+    },
+
     hash: hashPwd,
   };
 

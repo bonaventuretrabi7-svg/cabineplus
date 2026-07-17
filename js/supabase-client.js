@@ -36,5 +36,55 @@ const SupabaseAPI = (() => {
     await client.auth.signOut();
   }
 
-  return { client, login, logout, isConfigured };
+  /* Auto-inscription client/cabine (voir create_account() dans
+     supabase/migrations/0002_auth.sql, déjà accordée à anon) — utilisée par
+     handleAuthGateRegister()/handleCabineRegister() dans js/client.js. */
+  async function createAccount({ role, nom, prenom, telephone, pin, email, cabineNom }) {
+    const { data, error } = await client.rpc('create_account', {
+      p_role: role, p_nom: nom, p_prenom: prenom, p_telephone: telephone, p_pin: pin,
+      p_email: email || null, p_cabine_nom: cabineNom || null,
+    });
+    if (error || !data) {
+      return { ok: false, error: (error && error.message) || 'Échec de la création du compte.' };
+    }
+    return { ok: true, profile: data };
+  }
+
+  /* Établit une session Supabase Auth en arrière-plan (mode "silent" de
+     l'Edge Function login, voir supabase/functions/login) — appelée par
+     Auth.login() (js/auth.js) après une connexion réussie via le chemin
+     local rapide, pour que les actions authentifiées côté serveur (ex.
+     adminCreateAccount ci-dessous) fonctionnent même sans jamais être passé
+     par le repli serveur. Best-effort : aucun effet de bord sur le compteur
+     de tentatives, jamais présenté à l'utilisateur (voir l'appel dans
+     Auth.login(), toujours .catch()é). */
+  async function establishSession(identifiant, pin, role) {
+    const { data, error } = await client.functions.invoke('login', {
+      body: { identifiant, pin, role, silent: true },
+    });
+    if (error || !data || data.error) return { ok: false };
+    await client.auth.setSession({
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token,
+    });
+    return { ok: true };
+  }
+
+  /* Création de compte PAR L'ADMINISTRATION (cabine approuvée, admin simple
+     ajouté par le super admin — voir admin_create_account() dans
+     supabase/migrations/0006_admin_create_account.sql). Réservée à une
+     session authentifiée avec le rôle admin (voir establishSession()
+     ci-dessus) — utilisée par finishCreateUser() dans js/admin.js. */
+  async function adminCreateAccount({ role, nom, prenom, telephone, pin, email, cabineNom, adminLevel }) {
+    const { data, error } = await client.rpc('admin_create_account', {
+      p_role: role, p_nom: nom, p_prenom: prenom, p_telephone: telephone, p_pin: pin,
+      p_email: email || null, p_cabine_nom: cabineNom || null, p_admin_level: adminLevel || null,
+    });
+    if (error || !data) {
+      return { ok: false, error: (error && error.message) || 'Échec de la création du compte.' };
+    }
+    return { ok: true, profile: data };
+  }
+
+  return { client, login, logout, createAccount, establishSession, adminCreateAccount, isConfigured };
 })();

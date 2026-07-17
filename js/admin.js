@@ -2905,7 +2905,26 @@ function toggleAdminQrField() {
   document.getElementById('new-qr-field').style.display = isWave ? 'block' : 'none';
 }
 
-function finishCreateUser(data) {
+async function finishCreateUser(data) {
+  // Création côté serveur d'abord quand c'est possible (voir create_account()/
+  // admin_create_account() dans supabase/migrations/) — pour que ce compte
+  // soit utilisable sur N'IMPORTE QUEL appareil dès sa création, pas
+  // seulement celui de l'admin (voir le diagnostic du bug de connexion
+  // multi-appareil). Repli local seul si hors ligne/projet non configuré :
+  // Auth.login() resynchronisera ce compte dès sa prochaine connexion en
+  // ligne, si un projet est configuré entretemps.
+  if (SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+    const payload = {
+      role: data.role, nom: data.nom, prenom: data.prenom, telephone: data.telephone,
+      pin: data.mot_de_passe, email: data.email, cabineNom: data.cabine_nom,
+    };
+    const res = data.role === 'admin'
+      ? await SupabaseAPI.adminCreateAccount({ ...payload, adminLevel: data.admin_level })
+      : await SupabaseAPI.createAccount(payload);
+    if (!res.ok) { Toast.error(res.error || 'Échec de la création du compte.'); return; }
+    data = { ...data, id: res.profile.id };
+  }
+
   DB.users.create(data);
   closeModal('modal-create-user');
   document.getElementById('create-user-form').reset();
@@ -3650,7 +3669,7 @@ function loadPartnerRequests() {
   }).join('');
 }
 
-function validatePartnerRequest(appId) {
+async function validatePartnerRequest(appId) {
   const KEY  = 'cbp_applications';
   const list = JSON.parse(localStorage.getItem(KEY) || '[]');
   const app  = list.find(a => a.id === appId);
@@ -3677,7 +3696,25 @@ function validatePartnerRequest(appId) {
     return;
   }
 
+  let cabineId;
+  // Création côté serveur d'abord quand c'est possible (voir create_account()
+  // dans supabase/migrations/0002_auth.sql, accordée à anon) — pour que ce
+  // partenaire puisse se connecter depuis SON téléphone dès l'approbation,
+  // pas seulement depuis l'appareil de l'admin (voir le diagnostic du bug
+  // de connexion multi-appareil). Repli local seul si hors ligne/projet non
+  // configuré : Auth.login() resynchronisera ce compte dès sa prochaine
+  // connexion en ligne.
+  if (SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+    const res = await SupabaseAPI.createAccount({
+      role: 'cabine', prenom: app.prenom, nom: app.nom, telephone: app.telephone,
+      pin: app.pin, email: app.email, cabineNom: app.cabine_nom,
+    });
+    if (!res.ok) { Toast.error(res.error || 'Échec de la création du compte.'); return; }
+    cabineId = res.profile.id;
+  }
+
   DB.users.create({
+    ...(cabineId ? { id: cabineId } : {}),
     prenom: app.prenom, nom: app.nom, telephone: app.telephone, email: app.email,
     mot_de_passe: app.pin, role: 'cabine', zone: app.cabine_nom || '',
     statut: 'actif', solde: 0, abonnement: app.abonnement || 'Premium', photo: app.photo || '',

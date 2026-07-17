@@ -45,11 +45,37 @@ function makeFakeDate(initialNow) {
    create/get renvoient un objet credential-like ou rejettent comme le
    ferait navigator.credentials. Omis = biométrie indisponible sur
    l'appareil simulé (aucun des deux ponts). */
+// navigator.onLine + window.addEventListener('online'/'offline') — mêmes
+// conventions que tests/helpers/loadDb.js (Net.setOnline() y bascule l'état
+// et déclenche les listeners) : utilisé par tests/auth-remote-login.test.js
+// pour vérifier que le repli serveur de Auth.login() est bien ignoré hors
+// ligne (voir DB.Net.isOnline() dans js/db.js).
+function makeNetStubs(initialOnline) {
+  const navigatorStub = { userAgent: 'node-test', onLine: initialOnline, credentials: undefined };
+  const listeners = { online: [], offline: [] };
+  const windowStub = {
+    addEventListener(evt, cb) { if (listeners[evt]) listeners[evt].push(cb); },
+    removeEventListener(evt, cb) {
+      if (listeners[evt]) listeners[evt] = listeners[evt].filter(l => l !== cb);
+    },
+    location: { href: '' },
+  };
+  const net = {
+    setOnline(value) {
+      navigatorStub.onLine = value;
+      const evt = value ? 'online' : 'offline';
+      listeners[evt].slice().forEach(cb => cb());
+    },
+  };
+  return { navigatorStub, windowStub, net };
+}
+
 function loadApp(opts = {}) {
   const initialNow = opts.initialNow ?? Date.now();
   const localStorage = makeStorage();
   const sessionStorage = makeStorage();
   const { FakeDate, clock } = makeFakeDate(initialNow);
+  const { navigatorStub, windowStub, net } = makeNetStubs(opts.online ?? true);
 
   // window.PublicKeyCredential et le PublicKeyCredential global doivent
   // être le même objet (voir _webauthnSupported() vs checkAvailability()
@@ -71,8 +97,8 @@ function loadApp(opts = {}) {
     console,
     Date: FakeDate,
     crypto, atob, btoa, TextEncoder,
-    navigator: { userAgent: 'node-test', onLine: true, credentials: credentialsContainer },
-    window: { addEventListener() {}, removeEventListener() {}, location: { href: '' }, PublicKeyCredential: publicKeyCredential },
+    navigator: Object.assign(navigatorStub, { credentials: credentialsContainer }),
+    window: Object.assign(windowStub, { PublicKeyCredential: publicKeyCredential }),
     document: { addEventListener() {} },
     PublicKeyCredential: publicKeyCredential,
     // Pas de Fmt pré-posé ici : auth.js (chargé juste après db.js, avant
@@ -82,7 +108,21 @@ function loadApp(opts = {}) {
     // isConfigured: true par défaut, même raison que loadDb.js (voir ce
     // fichier) — un test simule un projet Supabase joignable ou non, pas
     // l'état "jamais configuré".
-    SupabaseAPI: { client: opts.supabaseClient ?? null, isConfigured: opts.supabaseConfigured ?? true },
+    // login : mock injectable (voir tests/auth-remote-login.test.js) — le
+    // repli serveur de Auth.login() (js/auth.js) l'appelle quand un compte
+    // est absent/incorrect localement ; par défaut simule "jamais vu côté
+    // serveur non plus", pour ne rien changer aux tests existants qui
+    // n'injectent pas ce mock.
+    SupabaseAPI: {
+      client: opts.supabaseClient ?? null,
+      isConfigured: opts.supabaseConfigured ?? true,
+      login: opts.supabaseLogin ?? (async () => ({ ok: false, error: 'Compte introuvable.' })),
+      // establishSession : appelé en arrière-plan par Auth.login() après une
+      // connexion admin réussie via le chemin local (voir js/auth.js) — mock
+      // injectable pour tests/auth-remote-login.test.js, no-op par défaut.
+      establishSession: opts.supabaseEstablishSession ?? (async () => ({ ok: false })),
+      adminCreateAccount: opts.supabaseAdminCreateAccount ?? (async () => ({ ok: false, error: 'not mocked' })),
+    },
     NativeBiometric: opts.nativeBiometric,
   };
   vm.createContext(sandbox);
@@ -99,7 +139,7 @@ function loadApp(opts = {}) {
   const ptrSrc = fs.readFileSync(PTR_JS_PATH, 'utf8');
   vm.runInContext(ptrSrc + '\nthis.PullToRefresh = PullToRefresh;', sandbox, { filename: PTR_JS_PATH });
 
-  return { DB: sandbox.DB, Auth: sandbox.Auth, BiometricAuth: sandbox.BiometricAuth, PullToRefresh: sandbox.PullToRefresh, localStorage, sessionStorage, clock };
+  return { DB: sandbox.DB, Auth: sandbox.Auth, BiometricAuth: sandbox.BiometricAuth, PullToRefresh: sandbox.PullToRefresh, localStorage, sessionStorage, clock, net };
 }
 
 module.exports = { loadApp };

@@ -1237,7 +1237,21 @@ async function handleAuthGateRegister(e) {
   }
   if (DB.users.byPhoneAndRole(tel, 'client')) { Toast.error('Ce numéro est déjà utilisé par un autre compte de ce type.'); return; }
 
-  DB.users.create({ prenom: tel, telephone: tel, mot_de_passe: pin, role: 'client' });
+  // Création côté serveur quand c'est possible (voir create_account() dans
+  // supabase/migrations/0002_auth.sql) pour que ce compte soit utilisable
+  // sur N'IMPORTE QUEL appareil dès sa création, pas seulement celui-ci —
+  // voir le diagnostic du bug de connexion multi-appareil (DB.users vivait
+  // auparavant 100% en local, par appareil). Repli local seul si hors
+  // ligne/projet non configuré : Auth.login() resynchronisera ce compte
+  // avec le serveur dès sa prochaine connexion en ligne depuis un autre
+  // appareil, si l'utilisateur en configure un entretemps.
+  if (SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+    const created = await SupabaseAPI.createAccount({ role: 'client', prenom: tel, telephone: tel, pin });
+    if (!created.ok) { Toast.error(created.error || 'Échec de la création du compte.'); return; }
+    DB.users.cacheFromServer(created.profile, pin);
+  } else {
+    DB.users.create({ prenom: tel, telephone: tel, mot_de_passe: pin, role: 'client' });
+  }
   const res = await Auth.login(tel, pin, false, 'client');
   if (res.ok) {
     afterLogin(res.user);

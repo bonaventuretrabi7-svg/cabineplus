@@ -169,13 +169,55 @@ const Auth = (() => {
     }
     const candidates = DB.users.all().filter(u => u.email === identifier.toLowerCase().trim() || u.telephone === identifier.trim());
     let user = (expectedRole && candidates.find(u => u.role === expectedRole)) || candidates[0];
-    if (!user) return { ok: false, error: 'Compte introuvable.' };
-    // Blocage vérifié avant même la comparaison du mot de passe : un compte
-    // bloqué ne doit plus jamais réévaluer une tentative.
-    if (user.statut === 'bloqué') {
-      return { ok: false, error: 'Compte bloqué après 3 tentatives incorrectes. Contactez l\'administration pour le débloquer.' };
+
+    // Vérification locale d'abord (rapide, fonctionne hors ligne) — un compte
+    // déjà "onboardé" sur cet appareil (voir DB.users.cacheFromServer) n'a
+    // jamais besoin du réseau pour se reconnecter.
+    let localOk = false;
+    if (user) {
+      // Blocage vérifié avant même la comparaison du mot de passe : un compte
+      // bloqué ne doit plus jamais réévaluer une tentative.
+      if (user.statut === 'bloqué') {
+        return { ok: false, error: 'Compte bloqué après 3 tentatives incorrectes. Contactez l\'administration pour le débloquer.' };
+      }
+      localOk = DB.users.checkPwd(user, password);
     }
-    if (!DB.users.checkPwd(user, password)) {
+
+    // Repli serveur : compte inconnu sur CET appareil, ou mot de passe local
+    // qui ne correspond pas (nouvel appareil jamais synchronisé, ou compte
+    // créé/modifié ailleurs — voir le diagnostic : DB.users vivait
+    // auparavant 100% en local, par appareil, d'où le blocage rapporté).
+    // Ignoré hors ligne (DB.Net.isOnline()) : le comportement local existant
+    // reste la seule source de vérité quand le réseau est indisponible.
+    if (!localOk && expectedRole && SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+      const res = await SupabaseAPI.login(identifier, password, expectedRole);
+      if (res.ok) {
+        user = DB.users.cacheFromServer(res.profile, password);
+        localOk = true;
+      } else if (!user) {
+        // Jamais vu ni localement ni côté serveur.
+        return { ok: false, error: res.error || 'Compte introuvable.' };
+      }
+      // Sinon (res.ok faux mais compte local existant) : on retombe sur le
+      // message d'erreur local ci-dessous, comportement inchangé.
+    } else if (localOk && expectedRole === 'admin' && SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+      // Un admin déjà "onboardé" localement ne passe jamais par le repli
+      // serveur ci-dessus — sans ceci, son navigateur n'obtiendrait jamais
+      // de session Supabase Auth réelle, nécessaire pour les créations de
+      // compte authentifiées côté serveur (voir adminCreateAccount() dans
+      // js/supabase-client.js et finishCreateUser() dans js/admin.js).
+      // Mode "silent" : jamais bloquant, jamais présenté à l'utilisateur,
+      // aucun effet sur le compteur de tentatives en cas d'échec.
+      SupabaseAPI.establishSession(identifier, password, 'admin').catch(() => {});
+    }
+
+    if (!user) return { ok: false, error: 'Compte introuvable.' };
+
+    if (!localOk) {
+      // Compteur d'échecs LOCAL uniquement — le serveur gère le sien
+      // séparément (voir register_failed_login dans supabase/migrations/
+      // 0005_login_attempts.sql), appliqué uniquement lors d'une tentative
+      // effectivement vérifiée côté serveur.
       const attempts = (user.tentatives_echouees || 0) + 1;
       const updates  = { tentatives_echouees: attempts };
       if (attempts >= 3) updates.statut = 'bloqué';
