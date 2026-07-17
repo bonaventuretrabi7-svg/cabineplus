@@ -4,7 +4,7 @@
    Deux "ponts" possibles vers le capteur biométrique, choisis
    automatiquement selon le contexte (voir _backend()) — jamais le code
    de l'utilisateur dans un cas comme dans l'autre, 100% local, aucun
-   appel réseau/Supabase dans ce fichier :
+   appel réseau/serveur dans ce fichier :
 
    - App Android empaquetée (Capacitor) : plugin natif
      capacitor-native-biometric (AndroidX BiometricPrompt). Un secret

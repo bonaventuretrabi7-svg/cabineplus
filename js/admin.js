@@ -2988,21 +2988,21 @@ function toggleAdminQrField() {
 }
 
 async function finishCreateUser(data) {
-  // Création côté serveur d'abord quand c'est possible (voir create_account()/
-  // admin_create_account() dans supabase/migrations/) — pour que ce compte
-  // soit utilisable sur N'IMPORTE QUEL appareil dès sa création, pas
+  // Création côté serveur d'abord quand c'est possible (voir
+  // api/create_account.php/api/admin_create_account.php) — pour que ce
+  // compte soit utilisable sur N'IMPORTE QUEL appareil dès sa création, pas
   // seulement celui de l'admin (voir le diagnostic du bug de connexion
-  // multi-appareil). Repli local seul si hors ligne/projet non configuré :
+  // multi-appareil). Repli local seul si hors ligne/serveur non configuré :
   // Auth.login() resynchronisera ce compte dès sa prochaine connexion en
-  // ligne, si un projet est configuré entretemps.
-  if (SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+  // ligne, si le serveur est configuré entretemps.
+  if (ServerAPI.isConfigured && DB.Net.isOnline()) {
     const payload = {
       role: data.role, nom: data.nom, prenom: data.prenom, telephone: data.telephone,
       pin: data.mot_de_passe, email: data.email, cabineNom: data.cabine_nom,
     };
     const res = data.role === 'admin'
-      ? await SupabaseAPI.adminCreateAccount({ ...payload, adminLevel: data.admin_level })
-      : await SupabaseAPI.createAccount(payload);
+      ? await ServerAPI.adminCreateAccount({ ...payload, adminLevel: data.admin_level })
+      : await ServerAPI.createAccount(payload);
     if (!res.ok) { Toast.error(res.error || 'Échec de la création du compte.'); return; }
     data = { ...data, id: res.profile.id };
   }
@@ -3779,15 +3779,15 @@ async function validatePartnerRequest(appId) {
   }
 
   let cabineId;
-  // Création côté serveur d'abord quand c'est possible (voir create_account()
-  // dans supabase/migrations/0002_auth.sql, accordée à anon) — pour que ce
-  // partenaire puisse se connecter depuis SON téléphone dès l'approbation,
-  // pas seulement depuis l'appareil de l'admin (voir le diagnostic du bug
-  // de connexion multi-appareil). Repli local seul si hors ligne/projet non
-  // configuré : Auth.login() resynchronisera ce compte dès sa prochaine
-  // connexion en ligne.
-  if (SupabaseAPI.isConfigured && DB.Net.isOnline()) {
-    const res = await SupabaseAPI.createAccount({
+  // Création côté serveur d'abord quand c'est possible (voir
+  // api/create_account.php, public) — pour que ce partenaire puisse se
+  // connecter depuis SON téléphone dès l'approbation, pas seulement depuis
+  // l'appareil de l'admin (voir le diagnostic du bug de connexion
+  // multi-appareil). Repli local seul si hors ligne/serveur non configuré :
+  // Auth.login() resynchronisera ce compte dès sa prochaine connexion en
+  // ligne.
+  if (ServerAPI.isConfigured && DB.Net.isOnline()) {
+    const res = await ServerAPI.createAccount({
       role: 'cabine', prenom: app.prenom, nom: app.nom, telephone: app.telephone,
       pin: app.pin, email: app.email, cabineNom: app.cabine_nom,
     });

@@ -68,8 +68,9 @@ const DB = (() => {
   function now() { return new Date().toISOString(); }
 
   /* ── Connectivité (hors-ligne d'abord — LocalStorage reste la source de
-     vérité, Supabase n'est jamais qu'une synchronisation optionnelle en
-     tâche de fond, voir DB.settings et DB.syncQueue ci-dessous). Pas de
+     vérité, le serveur (api/, PHP+MySQL) n'est jamais qu'une synchronisation
+     optionnelle en tâche de fond, voir DB.settings et DB.syncQueue
+     ci-dessous). Pas de
      plugin Capacitor natif : navigator.onLine + les événements standards
      online/offline fonctionnent déjà dans la WebView. Défense en
      profondeur : même si navigator.onLine ment (cas connu sur Android),
@@ -507,8 +508,8 @@ const DB = (() => {
       return user.mot_de_passe === hashPwd(pwd);
     },
 
-    // Convertit une ligne `profiles` (Supabase, snake_case, mot de passe en
-    // bcrypt) vers le format local — utilisé uniquement après une
+    // Convertit une ligne `profiles` (table MySQL, snake_case, mot de passe
+    // en bcrypt — voir api/) vers le format local — utilisé uniquement après une
     // vérification SERVEUR réussie (voir Auth.login() dans js/auth.js).
     // `plainPin` : le code EN CLAIR qui vient d'être validé côté serveur ;
     // jamais conservé tel quel, seulement son hash LOCAL (hashPwd(), le même
@@ -1125,8 +1126,8 @@ const DB = (() => {
 
   /* ── File d'attente de synchronisation (générique) ────────────────────
      Hors-ligne d'abord : LocalStorage est TOUJOURS la source de vérité sur
-     l'appareil, Supabase n'est qu'une synchronisation optionnelle en tâche
-     de fond, jamais bloquante. Toute écriture qui n'a pas pu être poussée
+     l'appareil, le serveur (api/, PHP+MySQL) n'est qu'une synchronisation
+     optionnelle en tâche de fond, jamais bloquante. Toute écriture qui n'a pas pu être poussée
      (hors ligne, ou en ligne mais échec réseau) atterrit ici pour être
      rejouée dès que possible — même patron que permissionLogs/
      suspensionLogs. `entity` doit avoir un handler dans SYNC_HANDLERS. */
@@ -1147,11 +1148,9 @@ const DB = (() => {
     },
   };
 
-  // Un handler par entité : sait pousser un item de la file vers Supabase.
-  // Lève une exception en cas d'échec (laisse l'item en file pour un
-  // prochain essai) — voir drainSyncQueue() ci-dessous. Le futur Lot 2
-  // (auth/DB.users/DB.business) enregistrera ses propres handlers ici
-  // plutôt que de dupliquer la boucle de drainage.
+  // Un handler par entité : sait pousser un item de la file vers le serveur
+  // (api/, PHP+MySQL). Lève une exception en cas d'échec (laisse l'item en
+  // file pour un prochain essai) — voir drainSyncQueue() ci-dessous.
   const SYNC_HANDLERS = {
     async settings(updates) {
       // Défense en profondeur : couvre aussi une entrée déjà en file
@@ -1160,14 +1159,12 @@ const DB = (() => {
       // succès silencieux (voir drainSyncQueue ci-dessus, qui retire alors
       // l'entrée de la file) plutôt qu'un échec qui la ferait rester
       // indéfiniment.
-      if (!SupabaseAPI.isConfigured) return;
+      if (!ServerAPI.isConfigured) return;
       const row = {};
       for (const [jsKey, col] of Object.entries(SETTINGS_COLUMNS)) {
         if (jsKey in updates) row[col] = updates[jsKey];
       }
-      row.updated_at = now();
-      const { error } = await SupabaseAPI.client.from('settings').update(row).eq('id', true);
-      if (error) throw error;
+      await ServerAPI.updateSettings(row);
     },
   };
 
@@ -1188,11 +1185,12 @@ const DB = (() => {
 
   /* ── Settings ─────────────────────────────────────────────────────────
      LocalStorage est la source de vérité sur l'appareil (clé KEY.settings,
-     déjà écrite une fois par seed() ci-dessus) ; Supabase (table `settings`,
-     une seule ligne) n'est qu'un miroir partagé synchronisé en best-effort
-     quand une connexion est là. Chaque section (maintenance/assistance/...)
-     reste sa propre colonne JSONB côté Supabase : update() n'écrase que les
-     colonnes présentes dans `updates`, ce qui élimine par construction
+     déjà écrite une fois par seed() ci-dessus) ; le serveur (table MySQL
+     `settings`, une seule ligne, voir api/) n'est qu'un miroir partagé
+     synchronisé en best-effort quand une connexion est là. Chaque section
+     (maintenance/assistance/...) reste sa propre colonne JSON côté serveur :
+     update() n'écrase que les colonnes présentes dans `updates`, ce qui
+     élimine par construction
      l'ancien bug de fusion superficielle sur un blob unique. get()/update()
      restent asynchrones (déjà converti tout appelant en `async`/`await`
      dans client.js/cabine.js/admin.js), mais ne dépendent plus du réseau
@@ -1213,18 +1211,18 @@ const DB = (() => {
   const settings = {
     // Cache-first (stale-while-revalidate) : ne bloque JAMAIS sur le réseau,
     // même en ligne — sur un réseau lent/instable (Côte d'Ivoire), attendre
-    // une réponse Supabase avant de répondre rendrait chaque vérification de
+    // une réponse serveur avant de répondre rendrait chaque vérification de
     // maintenance perceptiblement lente (cette méthode est appelée à chaque
     // clic sur un service, voir isServiceInMaintenance() etc. ci-dessous).
-    // Retourne le cache local instantanément et rafraîchit Supabase en tâche
-    // de fond pour la prochaine lecture — jamais plus d'un rafraîchissement
-    // à la fois (voir _refresh()).
+    // Retourne le cache local instantanément et rafraîchit depuis le serveur
+    // en tâche de fond pour la prochaine lecture — jamais plus d'un
+    // rafraîchissement à la fois (voir _refresh()).
     async get() {
       if (Net.isOnline()) settings._refresh();
       return get(KEY.settings) || {};
     },
     // Rafraîchissement en arrière-plan, dédupliqué (jamais deux requêtes
-    // Supabase en vol en même temps) — exposé séparément (plutôt que fondu
+    // serveur en vol en même temps) — exposé séparément (plutôt que fondu
     // dans get()) pour que les tests puissent l'attendre explicitement sans
     // délai arbitraire.
     _refresh() {
@@ -1232,12 +1230,12 @@ const DB = (() => {
       // toute tentative échouerait de toute façon (domaine placeholder,
       // ERR_NAME_NOT_RESOLVED) — jamais appelé dans ce cas, le cache
       // local reste directement la seule source de vérité.
-      if (!SupabaseAPI.isConfigured) return Promise.resolve();
+      if (!ServerAPI.isConfigured) return Promise.resolve();
       if (_settingsRefreshInFlight) return _settingsRefreshInFlight;
       _settingsRefreshInFlight = (async () => {
         try {
-          const { data, error } = await SupabaseAPI.client.from('settings').select('*').eq('id', true).single();
-          if (!error && data) set(KEY.settings, rowToSettings(data));
+          const data = await ServerAPI.getSettings();
+          if (data) set(KEY.settings, rowToSettings(data));
         } catch (e) { /* réseau indisponible malgré navigator.onLine — le cache local reste valable */ }
         finally { _settingsRefreshInFlight = null; }
       })();
@@ -1249,12 +1247,12 @@ const DB = (() => {
       const current = get(KEY.settings) || {};
       set(KEY.settings, { ...current, ...updates });
 
-      // Tant que Supabase n'est pas réellement configuré (voir
-      // SupabaseAPI.isConfigured, js/supabase-client.js), aucune tentative
-      // réseau n'a de sens : le domaine placeholder ne résoudra jamais,
-      // et mettre quand même en file ferait grossir syncQueue à l'infini
-      // pour une resynchronisation qui n'arrivera jamais.
-      if (!SupabaseAPI.isConfigured) return;
+      // Tant que le serveur n'est pas réellement configuré (voir
+      // ServerAPI.isConfigured, js/server-api.js), aucune tentative réseau
+      // n'a de sens : le domaine placeholder ne résoudra jamais, et mettre
+      // quand même en file ferait grossir syncQueue à l'infini pour une
+      // resynchronisation qui n'arrivera jamais.
+      if (!ServerAPI.isConfigured) return;
 
       if (Net.isOnline()) {
         try {

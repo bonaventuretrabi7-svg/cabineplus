@@ -30,3 +30,7 @@ android/keystore.properties
 
 # État/outils locaux de Claude Code — pas partie du projet
 .claude/
+
+# Identifiants MySQL réels (voir api/config.example.php) — jamais commités,
+# créé directement sur l'hébergement (Hostinger File Manager).
+api/config.php

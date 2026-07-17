@@ -106,22 +106,25 @@ function loadApp(opts = {}) {
     // niveau module — le prédéfinir sur le sandbox risquerait un conflit
     // de déclaration avec ce `const` au chargement du script.
     // isConfigured: true par défaut, même raison que loadDb.js (voir ce
-    // fichier) — un test simule un projet Supabase joignable ou non, pas
-    // l'état "jamais configuré".
+    // fichier) — un test simule un serveur (api/, PHP+MySQL) joignable ou
+    // non, pas l'état "jamais configuré".
     // login : mock injectable (voir tests/auth-remote-login.test.js) — le
     // repli serveur de Auth.login() (js/auth.js) l'appelle quand un compte
     // est absent/incorrect localement ; par défaut simule "jamais vu côté
     // serveur non plus", pour ne rien changer aux tests existants qui
     // n'injectent pas ce mock.
-    SupabaseAPI: {
-      client: opts.supabaseClient ?? null,
-      isConfigured: opts.supabaseConfigured ?? true,
-      login: opts.supabaseLogin ?? (async () => ({ ok: false, error: 'Compte introuvable.' })),
+    ServerAPI: {
+      isConfigured: opts.serverConfigured ?? true,
+      login: opts.serverLogin ?? (async () => ({ ok: false, error: 'Compte introuvable.' })),
       // establishSession : appelé en arrière-plan par Auth.login() après une
       // connexion admin réussie via le chemin local (voir js/auth.js) — mock
       // injectable pour tests/auth-remote-login.test.js, no-op par défaut.
-      establishSession: opts.supabaseEstablishSession ?? (async () => ({ ok: false })),
-      adminCreateAccount: opts.supabaseAdminCreateAccount ?? (async () => ({ ok: false, error: 'not mocked' })),
+      establishSession: opts.serverEstablishSession ?? (async () => ({ ok: false })),
+      adminCreateAccount: opts.serverAdminCreateAccount ?? (async () => ({ ok: false, error: 'not mocked' })),
+      createAccount: opts.serverCreateAccount ?? (async () => ({ ok: false, error: 'not mocked' })),
+      logout: opts.serverLogout ?? (async () => {}),
+      getSettings: opts.serverGetSettings ?? (async () => ({})),
+      updateSettings: opts.serverUpdateSettings ?? (async () => ({})),
     },
     NativeBiometric: opts.nativeBiometric,
   };

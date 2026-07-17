@@ -4,7 +4,7 @@
 // connecter avec ses identifiants (pourtant corrects) sur un second appareil,
 // parce que DB.users vivait 100% en local, par appareil (voir js/db.js). Ces
 // tests vérifient le nouveau repli serveur de Auth.login() (js/auth.js) :
-// SupabaseAPI.login() est mocké ici (pas de vrai réseau), voir
+// ServerAPI.login() est mocké ici (pas de vrai réseau), voir
 // tests/helpers/loadApp.js pour le mock injectable.
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -25,11 +25,11 @@ function serverProfile(overrides = {}) {
 
 test('nouvel appareil, compte jamais vu localement : le repli serveur ouvre la session et met le profil en cache local', async () => {
   const calls = [];
-  const supabaseLogin = async (identifiant, pin, role) => {
+  const serverLogin = async (identifiant, pin, role) => {
     calls.push({ identifiant, pin, role });
     return { ok: true, profile: serverProfile() };
   };
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
 
   const res = await Auth.login('0711223344', '1234', false, 'client');
@@ -47,8 +47,8 @@ test('nouvel appareil, compte jamais vu localement : le repli serveur ouvre la s
 });
 
 test('compte inconnu localement ET côté serveur : "Compte introuvable.", jamais de session', async () => {
-  const supabaseLogin = async () => ({ ok: false, error: 'Compte introuvable.' });
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const serverLogin = async () => ({ ok: false, error: 'Compte introuvable.' });
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
 
   const res = await Auth.login('0799999999', '1234', false, 'client');
@@ -57,8 +57,8 @@ test('compte inconnu localement ET côté serveur : "Compte introuvable.", jamai
 });
 
 test('compte déjà connu localement sous un ancien id : la fusion serveur met à jour les champs mais conserve l\'id local (ne casse pas les données déjà liées)', async () => {
-  const supabaseLogin = async () => ({ ok: true, profile: serverProfile({ solde: 12000 }) });
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const serverLogin = async () => ({ ok: true, profile: serverProfile({ solde: 12000 }) });
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
   // Simule exactement le bug rapporté : un compte créé localement (ex. par
   // l'admin sur SON appareil) avec un mot de passe local qui ne correspond
@@ -77,8 +77,8 @@ test('compte déjà connu localement sous un ancien id : la fusion serveur met �
 
 test('compte bloqué localement : refus immédiat, aucun appel au serveur', async () => {
   let called = false;
-  const supabaseLogin = async () => { called = true; return { ok: true, profile: serverProfile() }; };
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const serverLogin = async () => { called = true; return { ok: true, profile: serverProfile() }; };
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
   DB.users.create({
     prenom: 'Awa', nom: 'Traoré', telephone: '0711223344',
@@ -91,10 +91,10 @@ test('compte bloqué localement : refus immédiat, aucun appel au serveur', asyn
   assert.equal(called, false);
 });
 
-test('hors ligne : Auth.login() ne tente jamais SupabaseAPI.login, comportement local existant conservé', async () => {
+test('hors ligne : Auth.login() ne tente jamais ServerAPI.login, comportement local existant conservé', async () => {
   let called = false;
-  const supabaseLogin = async () => { called = true; return { ok: true, profile: serverProfile() }; };
-  const { DB, Auth } = loadApp({ supabaseLogin, online: false });
+  const serverLogin = async () => { called = true; return { ok: true, profile: serverProfile() }; };
+  const { DB, Auth } = loadApp({ serverLogin, online: false });
   DB.init();
 
   const res = await Auth.login('0711223344', '1234', false, 'client');
@@ -104,8 +104,8 @@ test('hors ligne : Auth.login() ne tente jamais SupabaseAPI.login, comportement 
 });
 
 test('mot de passe local ET serveur incorrects : compteur d\'échecs local incrémenté, bloqué au 3e essai', async () => {
-  const supabaseLogin = async () => ({ ok: false, error: 'Identifiant ou PIN incorrect.' });
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const serverLogin = async () => ({ ok: false, error: 'Identifiant ou PIN incorrect.' });
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
   DB.users.create({
     prenom: 'Awa', nom: 'Traoré', telephone: '0711223344',
@@ -122,10 +122,10 @@ test('mot de passe local ET serveur incorrects : compteur d\'échecs local incr�
   assert.equal(stored.statut, 'bloqué');
 });
 
-test('reconnexion suivante sur le même appareil après un repli serveur réussi : entièrement locale (SupabaseAPI.login non rappelé)', async () => {
+test('reconnexion suivante sur le même appareil après un repli serveur réussi : entièrement locale (ServerAPI.login non rappelé)', async () => {
   let calls = 0;
-  const supabaseLogin = async () => { calls++; return { ok: true, profile: serverProfile() }; };
-  const { DB, Auth } = loadApp({ supabaseLogin });
+  const serverLogin = async () => { calls++; return { ok: true, profile: serverProfile() }; };
+  const { DB, Auth } = loadApp({ serverLogin });
   DB.init();
 
   const first = await Auth.login('0711223344', '1234', false, 'client');
@@ -139,11 +139,11 @@ test('reconnexion suivante sur le même appareil après un repli serveur réussi
 
 test('connexion admin réussie via le chemin local : établit une session serveur en arrière-plan (jamais bloquant)', async () => {
   const calls = [];
-  const supabaseEstablishSession = async (identifiant, pin, role) => {
+  const serverEstablishSession = async (identifiant, pin, role) => {
     calls.push({ identifiant, pin, role });
     return { ok: true };
   };
-  const { DB, Auth } = loadApp({ supabaseEstablishSession });
+  const { DB, Auth } = loadApp({ serverEstablishSession });
   DB.init();
   DB.users.create({
     prenom: 'Admin', nom: 'Super', email: 'admin.super@gmail.com',
@@ -160,8 +160,8 @@ test('connexion admin réussie via le chemin local : établit une session serveu
 
 test('connexion client réussie via le chemin local : n\'établit jamais de session en arrière-plan (réservé aux admins)', async () => {
   let called = false;
-  const supabaseEstablishSession = async () => { called = true; return { ok: true }; };
-  const { DB, Auth } = loadApp({ supabaseEstablishSession });
+  const serverEstablishSession = async () => { called = true; return { ok: true }; };
+  const { DB, Auth } = loadApp({ serverEstablishSession });
   DB.init();
   DB.users.create({
     prenom: 'Jean', nom: 'Client', telephone: '0700000001',

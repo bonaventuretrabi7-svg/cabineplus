@@ -1,0 +1,8 @@
+# Sur certaines configurations Apache/PHP (FastCGI/PHP-FPM, courant sur
+# l'hébergement mutualisé), l'en-tête "Authorization" n'est pas transmis à
+# PHP par défaut — nécessaire pour requireAdminToken() (voir bootstrap.php).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{HTTP:Authorization} ^(.*)
+  RewriteRule .* - [E=HTTP_AUTHORIZATION:%1]
+</IfModule>

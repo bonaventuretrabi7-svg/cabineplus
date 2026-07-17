@@ -75,7 +75,8 @@ const FmtStub = {
 
 /* Charge une instance fraîche de DB dans un contexte vm isolé.
    `opts` : soit un nombre (initialNow, forme historique), soit un objet
-   { initialNow, online = true, supabaseClient = null }. */
+   { initialNow, online = true, serverGetSettings, serverUpdateSettings,
+   serverConfigured }. */
 function loadDb(opts = {}) {
   const options = typeof opts === 'number' ? { initialNow: opts } : opts;
   const initialNow = options.initialNow ?? Date.now();
@@ -95,15 +96,18 @@ function loadDb(opts = {}) {
     Fmt: FmtStub,
     navigator: navigatorStub,
     window: windowStub,
-    // DB.settings pousse ses écritures vers SupabaseAPI.client quand une
-    // connexion est là (voir SYNC_HANDLERS.settings, js/db.js) — un test
-    // hors-ligne peut laisser `null` (jamais appelé, Net.isOnline() le
-    // court-circuite), un test de synchronisation fournit un mock.
-    // isConfigured : true par défaut (un test simule un vrai projet
-    // Supabase joignable ou non, pas l'état "jamais configuré" — voir
-    // SupabaseAPI.isConfigured, js/supabase-client.js — passer
-    // supabaseConfigured:false explicitement pour tester ce cas précis).
-    SupabaseAPI: { client: options.supabaseClient || null, isConfigured: options.supabaseConfigured ?? true },
+    // DB.settings pousse ses écritures vers ServerAPI quand une connexion
+    // est là (voir SYNC_HANDLERS.settings, js/db.js) — un test hors-ligne
+    // peut laisser les mocks par défaut (jamais appelés, Net.isOnline() le
+    // court-circuite), un test de synchronisation fournit getSettings/
+    // updateSettings. isConfigured : true par défaut (un test simule un
+    // serveur joignable ou non, pas l'état "jamais configuré" — passer
+    // serverConfigured:false explicitement pour tester ce cas précis).
+    ServerAPI: {
+      isConfigured: options.serverConfigured ?? true,
+      getSettings: options.serverGetSettings || (async () => ({})),
+      updateSettings: options.serverUpdateSettings || (async () => ({})),
+    },
   };
   vm.createContext(sandbox);
   vm.runInContext(src + '\nthis.__DB__ = DB;', sandbox, { filename: DB_JS_PATH });

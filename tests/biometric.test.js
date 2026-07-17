@@ -135,22 +135,24 @@ test('changement d\'empreintes sur le téléphone : invalide le jeton et redeman
   assert.equal(BiometricAuth.isEnabled('client'), false, 'le flag local doit être effacé');
 });
 
-test('fonctionne hors ligne : aucun accès à Supabase pendant la connexion biométrique', async () => {
+test('fonctionne hors ligne : aucun accès au serveur pendant la connexion biométrique', async () => {
   const bio = makeFakeNativeBiometric();
-  // Proxy qui explose au moindre accès — prouve que ce chemin ne touche
-  // jamais Supabase pour un rôle client (contrairement à un admin simple,
+  // Explose au moindre appel — prouve que ce chemin ne touche jamais le
+  // serveur (api/) pour un rôle client (contrairement à un admin simple,
   // qui doit vérifier settings.admin_schedules — voir js/auth.js).
-  const explosiveClient = new Proxy({}, {
-    get() { throw new Error('SupabaseAPI.client ne doit jamais être touché ici'); },
+  const explosive = async () => { throw new Error('ServerAPI ne doit jamais être appelé ici'); };
+  const { DB, BiometricAuth } = loadApp({
+    nativeBiometric: bio,
+    serverLogin: explosive, serverEstablishSession: explosive,
+    serverGetSettings: explosive, serverUpdateSettings: explosive,
   });
-  const { DB, BiometricAuth } = loadApp({ nativeBiometric: bio, supabaseClient: explosiveClient });
   DB.init();
   const user = makeUser(DB, { role: 'client' });
 
   await BiometricAuth.enroll(user, 'client');
   const res = await BiometricAuth.loginWithBiometric('client');
 
-  assert.equal(res.ok, true, 'doit réussir sans jamais toucher à Supabase');
+  assert.equal(res.ok, true, 'doit réussir sans jamais toucher au serveur');
 });
 
 test('désactivation : refusée sans le bon code (vérifié par l\'appelant via DB.users.checkPwd)', async () => {

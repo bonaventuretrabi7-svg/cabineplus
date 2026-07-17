@@ -189,8 +189,8 @@ const Auth = (() => {
     // auparavant 100% en local, par appareil, d'où le blocage rapporté).
     // Ignoré hors ligne (DB.Net.isOnline()) : le comportement local existant
     // reste la seule source de vérité quand le réseau est indisponible.
-    if (!localOk && expectedRole && SupabaseAPI.isConfigured && DB.Net.isOnline()) {
-      const res = await SupabaseAPI.login(identifier, password, expectedRole);
+    if (!localOk && expectedRole && ServerAPI.isConfigured && DB.Net.isOnline()) {
+      const res = await ServerAPI.login(identifier, password, expectedRole);
       if (res.ok) {
         user = DB.users.cacheFromServer(res.profile, password);
         localOk = true;
@@ -200,24 +200,23 @@ const Auth = (() => {
       }
       // Sinon (res.ok faux mais compte local existant) : on retombe sur le
       // message d'erreur local ci-dessous, comportement inchangé.
-    } else if (localOk && expectedRole === 'admin' && SupabaseAPI.isConfigured && DB.Net.isOnline()) {
+    } else if (localOk && expectedRole === 'admin' && ServerAPI.isConfigured && DB.Net.isOnline()) {
       // Un admin déjà "onboardé" localement ne passe jamais par le repli
       // serveur ci-dessus — sans ceci, son navigateur n'obtiendrait jamais
-      // de session Supabase Auth réelle, nécessaire pour les créations de
-      // compte authentifiées côté serveur (voir adminCreateAccount() dans
-      // js/supabase-client.js et finishCreateUser() dans js/admin.js).
+      // de jeton serveur réel, nécessaire pour les créations de compte
+      // authentifiées côté serveur (voir adminCreateAccount() dans
+      // js/server-api.js et finishCreateUser() dans js/admin.js).
       // Mode "silent" : jamais bloquant, jamais présenté à l'utilisateur,
       // aucun effet sur le compteur de tentatives en cas d'échec.
-      SupabaseAPI.establishSession(identifier, password, 'admin').catch(() => {});
+      ServerAPI.establishSession(identifier, password, 'admin').catch(() => {});
     }
 
     if (!user) return { ok: false, error: 'Compte introuvable.' };
 
     if (!localOk) {
       // Compteur d'échecs LOCAL uniquement — le serveur gère le sien
-      // séparément (voir register_failed_login dans supabase/migrations/
-      // 0005_login_attempts.sql), appliqué uniquement lors d'une tentative
-      // effectivement vérifiée côté serveur.
+      // séparément (voir api/login.php), appliqué uniquement lors d'une
+      // tentative effectivement vérifiée côté serveur.
       const attempts = (user.tentatives_echouees || 0) + 1;
       const updates  = { tentatives_echouees: attempts };
       if (attempts >= 3) updates.statut = 'bloqué';
@@ -256,6 +255,10 @@ const Auth = (() => {
         localStorage.removeItem(REMEMBER_TOKEN_KEY);
       }
     }
+    // Best-effort : invalide le jeton serveur (voir api/logout.php), jamais
+    // bloquant — la déconnexion locale ci-dessous reste inconditionnelle
+    // même hors ligne ou si le serveur ne répond pas.
+    ServerAPI.logout().catch(() => {});
     clear();
     window.location.href = 'index.html';
   }
