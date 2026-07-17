@@ -6029,7 +6029,7 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 /* Labels */
 .ag-label {
   display: block; font-size: .6rem; font-weight: 800;
-  color: #000; margin-bottom: 5px;
+  color: #fff; margin-bottom: 5px;
   padding: 0 20px; text-transform: uppercase; letter-spacing: .07em;
 }
 
