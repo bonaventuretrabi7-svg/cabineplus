@@ -1473,7 +1473,7 @@ function tfRenderForfaits() {
     let groupHtml = '';
     let title = f.nom;
     if (isIntl) {
-      const group = f.nom.replace(/\s+[\d\s]+FCFA$/, '');
+      const group = f.nom.replace(/\s+[\d\s]+F$/, '');
       if (group !== lastGroup) {
         groupHtml = `<div class="forfait-group-hd"><span class="forfait-group-badge ${opClass}">${group}</span></div>`;
         lastGroup = group;
@@ -1716,7 +1716,7 @@ function tfBuildInlineRecap() {
     ['Paiement',     (pm ? pm.nom : '—'), false],
     ...(tf.paymentMethod === 'solde' ? [] : [['N° paiement', Fmt.phone(tf.payPhone), false]]),
     ['Montant',      tf.displayAmount, false],
-    ['Frais',        '15 FCFA', false],
+    ['Frais',        '15 F', false],
     ['Total débité', Fmt.money(tf.amount + 15), true],
   ];
   const el = document.getElementById('tf-recap-rows');
@@ -1875,7 +1875,7 @@ function tfSubmitConfirm() {
   document.getElementById('confirm-pay-row').innerHTML =
     `<span class=”label”>Paiement</span><span class=”value”>${pm ? pm.nom : '—'}</span>`;
   const fraisRow = document.getElementById('confirm-frais-row');
-  if (fraisRow) fraisRow.innerHTML = `<span class=”label”>Frais de service</span><span class=”value” style=”color:rgba(255,255,255,.5)”>15 FCFA</span>`;
+  if (fraisRow) fraisRow.innerHTML = `<span class=”label”>Frais de service</span><span class=”value” style=”color:rgba(255,255,255,.5)”>15 F</span>`;
 
   openModal('modal-confirm-transfer');
 
@@ -3131,7 +3131,7 @@ function _rclHubFinalize(t, key) {
   }
   const motif = RECLA_REASONS[key] || key;
   DB.reclamations.create({ transaction_id: t.id, client_id: t.client_id, cabine_id: t.cabine_id, motif });
-  DB.notifications.create(t.cabine_id, `Réclamation reçue sur votre commande ${Fmt.ref(t.id)} (${t.operateur || ''} ${t.montant.toLocaleString()} FCFA).`, 'reclamation');
+  DB.notifications.create(t.cabine_id, `Réclamation reçue sur votre commande ${Fmt.ref(t.id)} (${t.operateur || ''} ${t.montant.toLocaleString()} F).`, 'reclamation');
   _rclHubSubmitted = true;
   renderReclamationHub();
   Toast.success('Réclamation envoyée. La cabine sera notifiée.');
@@ -3907,7 +3907,7 @@ async function openRechargeModalGated() {
 
 function rchGoStep2() {
   const montant = parseInt(document.getElementById('recharge-amount').value) || 0;
-  if (montant < 1000) { Toast.error('Montant minimum : 1 000 FCFA.'); return; }
+  if (montant < 1000) { Toast.error('Montant minimum : 1 000 F.'); return; }
   document.getElementById('rch-step-1').style.display = 'none';
   const step2 = document.getElementById('rch-step-2');
   step2.style.display = 'block';
@@ -3928,7 +3928,7 @@ function handleRecharge(e) {
                   document.querySelector('input[name="recharge-method"]:checked')?.value;
   const montant = parseInt(document.getElementById('recharge-amount').value) || 0;
   if (!method)        { Toast.error('Choisissez un mode de paiement.'); return; }
-  if (montant < 1000) { Toast.error('Montant minimum : 1 000 FCFA.'); return; }
+  if (montant < 1000) { Toast.error('Montant minimum : 1 000 F.'); return; }
   const res = DB.business.recharge(currentUser.id, montant, method);
   if (res.ok) {
     closeModal('modal-recharge');
@@ -4343,7 +4343,7 @@ function downloadReceipt(txnId) {
 <div class="row"><span class="label">Destinataire</span><span class="value">${destinataire}</span></div>
 <div class="row"><span class="label">Moyen de paiement</span><span class="value">${moyenPaiement}</span></div>
 <div class="row"><span class="label">N° paiement</span><span class="value">${numeroPaiement}</span></div>
-<div class="row"><span class="label">Montant</span><span class="value">${t.montant.toLocaleString('fr-CI')} FCFA</span></div>
+<div class="row"><span class="label">Montant</span><span class="value">${t.montant.toLocaleString('fr-CI')} F</span></div>
 <div class="row"><span class="label">Statut</span><span class="value" style="color:${statutColor}">${statutLbl}</span></div>
 <div class="row"><span class="label">Date</span><span class="value">${new Date(t.date).toLocaleString('fr-CI')}</span></div>
 <div class="footer">Merci d'utiliser KBINE PLUS · Service de transfert d'unités téléphoniques<br>© ${new Date().getFullYear()} KBINE PLUS Côte d'Ivoire</div>
@@ -4374,7 +4374,7 @@ window.addEventListener('scroll', _bnHandleScroll, { passive: true });
 /* ── Masquer / afficher le solde ───────────────────────────────
    Style "points nets" (pas de flou) : le texte réel (stocké dans
    data-value) est remplacé par des points qui reprennent le même
-   gabarit ("46 470 FCFA" → "•• ••• FCFA"), avec un petit fondu/zoom
+   gabarit ("46 470 F" → "•• ••• F"), avec un petit fondu/zoom
    au basculement (voir .pgc-balance-swap). */
 function _maskMoney(text) { return text.replace(/\d/g, '•'); }
 
@@ -4508,7 +4508,7 @@ function handleClientTransfer(e) {
   const showError = (msg) => { error.textContent = msg; error.style.display = 'block'; };
 
   if (!/^[0-9]{10}$/.test(phone))    return showError('Numéro de compte invalide.');
-  if (!amount || amount < 100)        return showError('Montant minimum : 100 FCFA.');
+  if (!amount || amount < 100)        return showError('Montant minimum : 100 F.');
   if (phone === me.telephone)         return showError('Impossible de vous transférer à vous-même.');
 
   const sender    = DB.users.byId(me.id);
@@ -4587,7 +4587,7 @@ async function _svcDebitAndRecord(data) {
   const me = Auth.current();
   if (!me) return null;
   if (data.type === 'recharge_uv' && data.montant < 10000) {
-    Toast.error('Montant minimum : 10 000 FCFA.');
+    Toast.error('Montant minimum : 10 000 F.');
     return null;
   }
   if (data.type === 'facture') {
@@ -4794,7 +4794,7 @@ function _factBuildForm(service) {
         <input type="text" id="fact-ref" class="svc-input" placeholder="Ex : 01234567">
       </div>
       <div class="svc-field">
-        <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant (FCFA)</label>
+        <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant (F)</label>
         <input type="number" id="fact-amount" class="svc-input" placeholder="Montant" min="100">
       </div>
       ${netCard}
@@ -4814,10 +4814,10 @@ function _factBuildForm(service) {
       <div class="svc-field">
         <label class="svc-label"><i class="fa-solid fa-list-check"></i> Formule</label>
         <div class="svc-offers-grid">
-          <div class="svc-offer-card" onclick="factSelectOffer('Access',5000,this)"><div>Access</div><div style="font-weight:700;color:#fbbf24;">5 000 FCFA</div></div>
-          <div class="svc-offer-card" onclick="factSelectOffer('Évasion',10000,this)"><div>Évasion</div><div style="font-weight:700;color:#fbbf24;">10 000 FCFA</div></div>
-          <div class="svc-offer-card" onclick="factSelectOffer('Access+',15000,this)"><div>Access+</div><div style="font-weight:700;color:#fbbf24;">15 000 FCFA</div></div>
-          <div class="svc-offer-card" onclick="factSelectOffer('Tout Canal',25000,this)"><div>Tout Canal</div><div style="font-weight:700;color:#fbbf24;">25 000 FCFA</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Access',5000,this)"><div>Access</div><div style="font-weight:700;color:#fbbf24;">5 000 F</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Évasion',10000,this)"><div>Évasion</div><div style="font-weight:700;color:#fbbf24;">10 000 F</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Access+',15000,this)"><div>Access+</div><div style="font-weight:700;color:#fbbf24;">15 000 F</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Tout Canal',25000,this)"><div>Tout Canal</div><div style="font-weight:700;color:#fbbf24;">25 000 F</div></div>
         </div>
       </div>
       ${netCard}
@@ -4837,8 +4837,8 @@ function _factBuildForm(service) {
       <div class="svc-field">
         <label class="svc-label"><i class="fa-solid fa-list-check"></i> Offre</label>
         <div class="svc-offers-grid">
-          <div class="svc-offer-card" onclick="factSelectOffer('Start',15000,this)"><div>Start</div><div style="font-weight:700;color:#fbbf24;">15 000 FCFA/mois</div></div>
-          <div class="svc-offer-card" onclick="factSelectOffer('Premium',30000,this)"><div>Premium</div><div style="font-weight:700;color:#fbbf24;">30 000 FCFA/mois</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Start',15000,this)"><div>Start</div><div style="font-weight:700;color:#fbbf24;">15 000 F/mois</div></div>
+          <div class="svc-offer-card" onclick="factSelectOffer('Premium',30000,this)"><div>Premium</div><div style="font-weight:700;color:#fbbf24;">30 000 F/mois</div></div>
         </div>
       </div>
       <div class="svc-field">
@@ -4866,7 +4866,7 @@ function _factBuildForm(service) {
         <input type="text" id="fact-ref" class="svc-input" placeholder="Numéro de carte">
       </div>
       <div class="svc-field">
-        <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant (FCFA)</label>
+        <label class="svc-label"><i class="fa-solid fa-coins"></i> Montant (F)</label>
         <input type="number" id="fact-amount" class="svc-input" placeholder="Montant" min="500">
       </div>
       ${netCard}
@@ -4968,7 +4968,7 @@ function factShowRecap() {
     rows.push({ label: 'Durée', value: _factData.duration + ' mois' });
   } else {
     montant = parseInt(document.getElementById('fact-amount')?.value) || 0;
-    if (montant < 100) { Toast.error('Montant minimum : 100 FCFA.'); return; }
+    if (montant < 100) { Toast.error('Montant minimum : 100 F.'); return; }
   }
 
   if (!_svcCheckSolde(montant)) return;
@@ -5108,7 +5108,7 @@ function uvGoStep3() {
   const num = document.getElementById('uv-numero').value.replace(/\s/g,'');
   const mnt = parseInt(document.getElementById('uv-montant').value) || 0;
   if (!/^[0-9]{10}$/.test(num)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
-  if (mnt < 10000) { Toast.error('Montant minimum : 10 000 FCFA.'); return; }
+  if (mnt < 10000) { Toast.error('Montant minimum : 10 000 F.'); return; }
   _uvData.numero  = num;
   _uvData.montant = mnt;
   document.getElementById('uv-step-2').style.display = 'none';
@@ -5333,7 +5333,7 @@ function exchGoBackToStep2() {
 
 function exchShowRecap() {
   const mnt = parseInt(document.getElementById('exch-montant').value) || 0;
-  if (mnt < 500) { Toast.error('Montant minimum : 500 FCFA.'); return; }
+  if (mnt < 500) { Toast.error('Montant minimum : 500 F.'); return; }
   if (!_svcCheckSolde(mnt)) return;
   _exchData.montant = mnt;
   const rows = [
@@ -5398,7 +5398,7 @@ async function exchSubmit() {
    CADEAU RÉCOMPENSE — débloqué après 100 commandes terminées
 ══════════════════════════════════════════════════════════════ */
 const CADEAU_GOAL    = 100;
-const CADEAU_MONTANT = 500; // FCFA crédités sur le solde
+const CADEAU_MONTANT = 500; // F crédités sur le solde
 
 function _cadeauStats() {
   const me = Auth.current();

@@ -110,7 +110,7 @@ const DB = (() => {
 
     const settings = {
       platformName: 'KBINE PLUS',
-      currency: 'FCFA',
+      currency: 'F',
       commissionRate: 5,
       minTransfer: 500,
       maxTransfer: 100000,
@@ -299,40 +299,40 @@ const DB = (() => {
       // (une catégorie n'apparaît qu'une fois qu'elle contient un forfait).
       Orange: {
         Appels: [
-          { id:'omx1', nom:'Pass mix 200 FCFA',      detail:'17 min tous réseaux',        duree:'1 jour',  prix:200, ussdTemplate:'#161*{numero_destinataire}*2*1*1#' },
-          { id:'omx2', nom:'Pass mix 300 FCFA',      detail:'30 min tous réseaux + 100 Mo', duree:'2 jours', prix:300, ussdTemplate:'#161*{numero_destinataire}*2*1*2#' },
-          { id:'omx3', nom:'Pass mix 400 FCFA',      detail:'50 min tous réseaux + 100 Mo', duree:'2 jours', prix:400, ussdTemplate:'#161*{numero_destinataire}*2*1*3#' },
-          { id:'omx4', nom:'Pass mix Veedz 600 FCFA', detail:'50 min + 100 Mo + Veedz',    duree:'3 jours', prix:600, ussdTemplate:'#161*{numero_destinataire}*2*1*3#', verified:false },
-          { id:'omx5', nom:'Pass mix 500 FCFA',   detail:'55 min + 300 SMS + illimité numéro préféré',                 duree:'5 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*2*2*1#' },
-          { id:'omx6', nom:'Pass Mix 700 FCFA',   detail:'60 min + 1,5 Go',                                             duree:'5 jours', prix:700,  ussdTemplate:'#161*{numero_destinataire}*2*2*2#' },
-          { id:'omx7', nom:'Pass Mix 1 000 FCFA', detail:'100 min + 1 Go + illimité numéro préféré + 150 Mo Spotify',   duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*2*2*3#' },
-          { id:'omx8', nom:'Pass Mix 1 500 FCFA', detail:'200 min + 1500 Mo + illimité numéro préféré + 150 Mo Spotify', duree:'7 jours', prix:1500, ussdTemplate:'#161*{numero_destinataire}*2*2*4#' },
-          { id:'omx9',  nom:'Pass Mix 3 000 FCFA',  detail:'250 min + 2,5 Go + 500 SMS + illimité numéro préféré + 500 Mo Spotify', duree:'30 jours', prix:3000,  ussdTemplate:'#161*{numero_destinataire}*2*3*1#' },
-          { id:'omx10', nom:'Pass Mix 5 000 FCFA',  detail:'400 min + 5 Go + illimité numéro préféré + 500 Mo Spotify',              duree:'30 jours', prix:5000,  ussdTemplate:'#161*{numero_destinataire}*2*3*2#' },
-          { id:'omx11', nom:'Pass Mix 10 000 FCFA', detail:'500 min + 10 Go + illimité numéro préféré + 500 Mo Spotify',             duree:'30 jours', prix:10000, ussdTemplate:'#161*{numero_destinataire}*2*3*3#' },
-          { id:'omx12', nom:'Pass Mix 20 000 FCFA', detail:'1200 min + 20 Go + illimité numéro préféré + 500 Mo Spotify',            duree:'30 jours', prix:20000, ussdTemplate:'#161*{numero_destinataire}*2*3*4#' },
-          { id:'obf1', nom:'Pass Burkina Faso 300 FCFA',   detail:'4 min vers Orange Burkina/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*1*1#' },
-          { id:'obf2', nom:'Pass Burkina Faso 500 FCFA',   detail:'20 min vers Orange Burkina/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*1*2#' },
-          { id:'obf3', nom:'Pass Burkina Faso 1 000 FCFA', detail:'35 min vers Orange Burkina/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*1*3#' },
-          { id:'obf4', nom:'Pass Burkina Faso 2 500 FCFA', detail:'100 min vers Orange Burkina/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*1*4#' },
-          { id:'oml1', nom:'Pass Mali 300 FCFA',   detail:'4 min vers Orange Mali/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*2*1#' },
-          { id:'oml2', nom:'Pass Mali 500 FCFA',   detail:'20 min vers Orange Mali/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*2*2#' },
-          { id:'oml3', nom:'Pass Mali 1 000 FCFA', detail:'35 min vers Orange Mali/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*2*3#' },
-          { id:'oml4', nom:'Pass Mali 2 500 FCFA', detail:'100 min vers Orange Mali/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*2*4#' },
-          { id:'osn1', nom:'Pass Sénégal 300 FCFA',   detail:'4 min vers Orange Sénégal/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*3*1#' },
-          { id:'osn2', nom:'Pass Sénégal 500 FCFA',   detail:'20 min vers Orange Sénégal/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*3*2#' },
-          { id:'osn3', nom:'Pass Sénégal 1 000 FCFA', detail:'35 min vers Orange Sénégal/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*3*3#' },
-          { id:'osn4', nom:'Pass Sénégal 2 500 FCFA', detail:'100 min vers Orange Sénégal/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*3*4#' },
-          { id:'ogn1', nom:'Pass Guinée Conakry 500 FCFA',   detail:'6 min vers Orange Guinée Conakry + 3 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*4*1#' },
-          { id:'ogn2', nom:'Pass Guinée Conakry 1 000 FCFA', detail:'7 min vers Orange Guinée Conakry + 7 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*4*2#' },
-          { id:'oni1', nom:'Pass Niger 500 FCFA',   detail:'10 min vers numéros mobiles + 5 min locales',  duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*5*1#' },
-          { id:'oni2', nom:'Pass Niger 1 000 FCFA', detail:'12 min vers numéros mobiles + 12 min locales', duree:'3 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*5*2#' },
-          { id:'ong1', nom:'Pass Nigéria 500 FCFA',   detail:'3 min vers numéros mobiles + 3 min locales',   duree:'1 jour',   prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*6*1#' },
-          { id:'ong2', nom:'Pass Nigéria 1 000 FCFA', detail:'11 min vers numéros mobiles + 11 min locales', duree:'7 jours',  prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*6*2#' },
-          { id:'ong3', nom:'Pass Nigéria 3 000 FCFA', detail:'35 min vers numéros mobiles + 35 min locales', duree:'30 jours', prix:3000, ussdTemplate:'#161*{numero_destinataire}*5*6*3#' },
-          { id:'oae1', nom:'Pass Amérique/Asie/Europe 500 FCFA',   detail:'20 min vers USA, Inde, Canada, Orange France, Roumanie, Brésil, Colombie, Mexique, Singapour + 10 min locales',  duree:'1 mois', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*7*1#' },
-          { id:'oae2', nom:'Pass Amérique/Asie/Europe 1 000 FCFA', detail:'50 min vers les mêmes destinations + 20 min locales',  duree:'1 mois', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*7*2#' },
-          { id:'oae3', nom:'Pass Amérique/Asie/Europe 2 000 FCFA', detail:'110 min vers les mêmes destinations + 30 min locales', duree:'1 mois', prix:2000, ussdTemplate:'#161*{numero_destinataire}*5*7*2#', verified:false },
+          { id:'omx1', nom:'Pass mix 200 F',      detail:'17 min tous réseaux',        duree:'1 jour',  prix:200, ussdTemplate:'#161*{numero_destinataire}*2*1*1#' },
+          { id:'omx2', nom:'Pass mix 300 F',      detail:'30 min tous réseaux + 100 Mo', duree:'2 jours', prix:300, ussdTemplate:'#161*{numero_destinataire}*2*1*2#' },
+          { id:'omx3', nom:'Pass mix 400 F',      detail:'50 min tous réseaux + 100 Mo', duree:'2 jours', prix:400, ussdTemplate:'#161*{numero_destinataire}*2*1*3#' },
+          { id:'omx4', nom:'Pass mix Veedz 600 F', detail:'50 min + 100 Mo + Veedz',    duree:'3 jours', prix:600, ussdTemplate:'#161*{numero_destinataire}*2*1*3#', verified:false },
+          { id:'omx5', nom:'Pass mix 500 F',   detail:'55 min + 300 SMS + illimité numéro préféré',                 duree:'5 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*2*2*1#' },
+          { id:'omx6', nom:'Pass Mix 700 F',   detail:'60 min + 1,5 Go',                                             duree:'5 jours', prix:700,  ussdTemplate:'#161*{numero_destinataire}*2*2*2#' },
+          { id:'omx7', nom:'Pass Mix 1 000 F', detail:'100 min + 1 Go + illimité numéro préféré + 150 Mo Spotify',   duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*2*2*3#' },
+          { id:'omx8', nom:'Pass Mix 1 500 F', detail:'200 min + 1500 Mo + illimité numéro préféré + 150 Mo Spotify', duree:'7 jours', prix:1500, ussdTemplate:'#161*{numero_destinataire}*2*2*4#' },
+          { id:'omx9',  nom:'Pass Mix 3 000 F',  detail:'250 min + 2,5 Go + 500 SMS + illimité numéro préféré + 500 Mo Spotify', duree:'30 jours', prix:3000,  ussdTemplate:'#161*{numero_destinataire}*2*3*1#' },
+          { id:'omx10', nom:'Pass Mix 5 000 F',  detail:'400 min + 5 Go + illimité numéro préféré + 500 Mo Spotify',              duree:'30 jours', prix:5000,  ussdTemplate:'#161*{numero_destinataire}*2*3*2#' },
+          { id:'omx11', nom:'Pass Mix 10 000 F', detail:'500 min + 10 Go + illimité numéro préféré + 500 Mo Spotify',             duree:'30 jours', prix:10000, ussdTemplate:'#161*{numero_destinataire}*2*3*3#' },
+          { id:'omx12', nom:'Pass Mix 20 000 F', detail:'1200 min + 20 Go + illimité numéro préféré + 500 Mo Spotify',            duree:'30 jours', prix:20000, ussdTemplate:'#161*{numero_destinataire}*2*3*4#' },
+          { id:'obf1', nom:'Pass Burkina Faso 300 F',   detail:'4 min vers Orange Burkina/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*1*1#' },
+          { id:'obf2', nom:'Pass Burkina Faso 500 F',   detail:'20 min vers Orange Burkina/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*1*2#' },
+          { id:'obf3', nom:'Pass Burkina Faso 1 000 F', detail:'35 min vers Orange Burkina/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*1*3#' },
+          { id:'obf4', nom:'Pass Burkina Faso 2 500 F', detail:'100 min vers Orange Burkina/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*1*4#' },
+          { id:'oml1', nom:'Pass Mali 300 F',   detail:'4 min vers Orange Mali/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*2*1#' },
+          { id:'oml2', nom:'Pass Mali 500 F',   detail:'20 min vers Orange Mali/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*2*2#' },
+          { id:'oml3', nom:'Pass Mali 1 000 F', detail:'35 min vers Orange Mali/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*2*3#' },
+          { id:'oml4', nom:'Pass Mali 2 500 F', detail:'100 min vers Orange Mali/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*2*4#' },
+          { id:'osn1', nom:'Pass Sénégal 300 F',   detail:'4 min vers Orange Sénégal/Onatel/Telecel + 4 min locales',   duree:'1 jour',  prix:300,  ussdTemplate:'#161*{numero_destinataire}*5*3*1#' },
+          { id:'osn2', nom:'Pass Sénégal 500 F',   detail:'20 min vers Orange Sénégal/Onatel/Telecel + 15 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*3*2#' },
+          { id:'osn3', nom:'Pass Sénégal 1 000 F', detail:'35 min vers Orange Sénégal/Onatel/Telecel + 35 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*3*3#' },
+          { id:'osn4', nom:'Pass Sénégal 2 500 F', detail:'100 min vers Orange Sénégal/Onatel/Telecel + 50 min locales', duree:'7 jours', prix:2500, ussdTemplate:'#161*{numero_destinataire}*5*3*4#' },
+          { id:'ogn1', nom:'Pass Guinée Conakry 500 F',   detail:'6 min vers Orange Guinée Conakry + 3 min locales', duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*4*1#' },
+          { id:'ogn2', nom:'Pass Guinée Conakry 1 000 F', detail:'7 min vers Orange Guinée Conakry + 7 min locales', duree:'7 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*4*2#' },
+          { id:'oni1', nom:'Pass Niger 500 F',   detail:'10 min vers numéros mobiles + 5 min locales',  duree:'3 jours', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*5*1#' },
+          { id:'oni2', nom:'Pass Niger 1 000 F', detail:'12 min vers numéros mobiles + 12 min locales', duree:'3 jours', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*5*2#' },
+          { id:'ong1', nom:'Pass Nigéria 500 F',   detail:'3 min vers numéros mobiles + 3 min locales',   duree:'1 jour',   prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*6*1#' },
+          { id:'ong2', nom:'Pass Nigéria 1 000 F', detail:'11 min vers numéros mobiles + 11 min locales', duree:'7 jours',  prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*6*2#' },
+          { id:'ong3', nom:'Pass Nigéria 3 000 F', detail:'35 min vers numéros mobiles + 35 min locales', duree:'30 jours', prix:3000, ussdTemplate:'#161*{numero_destinataire}*5*6*3#' },
+          { id:'oae1', nom:'Pass Amérique/Asie/Europe 500 F',   detail:'20 min vers USA, Inde, Canada, Orange France, Roumanie, Brésil, Colombie, Mexique, Singapour + 10 min locales',  duree:'1 mois', prix:500,  ussdTemplate:'#161*{numero_destinataire}*5*7*1#' },
+          { id:'oae2', nom:'Pass Amérique/Asie/Europe 1 000 F', detail:'50 min vers les mêmes destinations + 20 min locales',  duree:'1 mois', prix:1000, ussdTemplate:'#161*{numero_destinataire}*5*7*2#' },
+          { id:'oae3', nom:'Pass Amérique/Asie/Europe 2 000 F', detail:'110 min vers les mêmes destinations + 30 min locales', duree:'1 mois', prix:2000, ussdTemplate:'#161*{numero_destinataire}*5*7*2#', verified:false },
         ],
       },
       MTN: {
@@ -1210,7 +1210,7 @@ const DB = (() => {
       const FRAIS_SERVICE = 15;
       const client = users.byId(client_id);
       const totalDebit = montant + FRAIS_SERVICE;
-      if (!client || client.solde < totalDebit) return { ok: false, error: 'Solde insuffisant (montant + 15 FCFA de frais de service).' };
+      if (!client || client.solde < totalDebit) return { ok: false, error: 'Solde insuffisant (montant + 15 F de frais de service).' };
 
       // Debit client (montant + frais)
       users.updateSolde(client_id, -totalDebit);
@@ -1224,7 +1224,7 @@ const DB = (() => {
       // Auto-assign to available cabine
       business.assignCabine(txn.id);
 
-      notifications.create(client_id, `Votre demande de ${montant.toLocaleString()} FCFA (${operateur}) est en attente de traitement.`, 'info');
+      notifications.create(client_id, `Votre demande de ${montant.toLocaleString()} F (${operateur}) est en attente de traitement.`, 'info');
 
       return { ok: true, txn };
     },
@@ -1314,7 +1314,7 @@ const DB = (() => {
       if (!cabs.length) return;
       const cab = cabs[Math.floor(Math.random() * cabs.length)];
       transactions.update(txnId, { cabine_id: cab.id, date_assignation: now() });
-      notifications.create(cab.id, `Nouvelle demande de transfert ${txn.operateur} ${txn.montant.toLocaleString()} FCFA.`, 'new_request');
+      notifications.create(cab.id, `Nouvelle demande de transfert ${txn.operateur} ${txn.montant.toLocaleString()} F.`, 'new_request');
     },
 
     /* Calcul pur, sans effet de bord — utilisé par cabine.js pour
@@ -1347,7 +1347,7 @@ const DB = (() => {
       if (cab.statut === 'suspendu') {
         return { ok: false, error: 'Votre compte est suspendu. Vous ne pouvez pas passer de commande de recharge UV.' };
       }
-      if (!montant || montant < 10000) return { ok: false, error: 'Montant minimum : 10 000 FCFA.' };
+      if (!montant || montant < 10000) return { ok: false, error: 'Montant minimum : 10 000 F.' };
       const frais = FRAIS_SERVICE_UV_CABINE;
       const total = montant + frais;
       if ((cab.solde || 0) < total) {
@@ -1367,7 +1367,7 @@ const DB = (() => {
       const target = business.findReassignmentTarget(cabineId, network, 'recharge_uv');
       if (target) {
         transactions.update(txn.id, { cabine_id: target.id, date_assignation: now() });
-        notifications.create(target.id, `Nouvelle demande de recharge UV ${network} ${montant.toLocaleString()} FCFA.`, 'new_request');
+        notifications.create(target.id, `Nouvelle demande de recharge UV ${network} ${montant.toLocaleString()} F.`, 'new_request');
       }
 
       return { ok: true, transaction: transactions.byId(txn.id), assignedTo: target ? target.id : null, frais, total };
@@ -1392,15 +1392,15 @@ const DB = (() => {
         transferts_total:  (cab.transferts_total  || 0) + 1,
       });
 
-      notifications.create(txn.client_id, `Votre transfert de ${txn.montant.toLocaleString()} FCFA (${txn.operateur} ${txn.numero_beneficiaire}) est terminé !`, 'success');
-      notifications.create(cabine_id, `Commission de ${txn.commission.toLocaleString()} FCFA créditée.`, 'commission');
+      notifications.create(txn.client_id, `Votre transfert de ${txn.montant.toLocaleString()} F (${txn.operateur} ${txn.numero_beneficiaire}) est terminé !`, 'success');
+      notifications.create(cabine_id, `Commission de ${txn.commission.toLocaleString()} F créditée.`, 'commission');
 
       // Quota de commission du forfait atteint â†’ fin anticipée de l'abonnement
       const plan  = cab.abonnement || 'Premium';
       const quota = SUBSCRIPTION_QUOTAS[plan];
       if (quota && cab.statut === 'actif' && newCommTotal >= quota) {
         users.update(cabine_id, { statut: 'inactif' });
-        notifications.create(cabine_id, `Quota de commission du forfait ${plan} atteint (${quota.toLocaleString()} FCFA). Votre abonnement a pris fin.`, 'warning');
+        notifications.create(cabine_id, `Quota de commission du forfait ${plan} atteint (${quota.toLocaleString()} F). Votre abonnement a pris fin.`, 'warning');
       }
 
       return { ok: true };
@@ -1436,7 +1436,7 @@ const DB = (() => {
       const target = business.findReassignmentTarget(cabine_id, txn.operateur, txn.type);
       if (target) {
         transactions.update(txnId, { cabine_id: target.id, date_assignation: now() });
-        notifications.create(target.id, `Nouvelle demande de transfert ${txn.operateur} ${txn.montant.toLocaleString()} FCFA (réaffectée).`, 'new_request');
+        notifications.create(target.id, `Nouvelle demande de transfert ${txn.operateur} ${txn.montant.toLocaleString()} F (réaffectée).`, 'new_request');
       } else {
         transactions.update(txnId, { cabine_id: null });
         notifications.create(cabine_id, `La commande ${Fmt.ref(txnId)} que vous avez renvoyée reste en attente côté administration — aucune autre cabine connectée disponible.`, 'info');
@@ -1466,7 +1466,7 @@ const DB = (() => {
       for (const t of pool) {
         if (business.isCabineAtLimit(cabineId)) break;
         transactions.update(t.id, { cabine_id: cabineId, date_assignation: now() });
-        notifications.create(cabineId, `Nouvelle commande assignée : ${t.operateur} ${t.montant.toLocaleString()} FCFA.`, 'new_request');
+        notifications.create(cabineId, `Nouvelle commande assignée : ${t.operateur} ${t.montant.toLocaleString()} F.`, 'new_request');
         count++;
       }
       return count;
@@ -1483,7 +1483,7 @@ const DB = (() => {
       const oldCabineId = txn.cabine_id;
       transactions.update(txnId, { cabine_id: newCabineId, date_assignation: now() });
       if (oldCabineId) notifications.create(oldCabineId, `La commande ${Fmt.ref(txnId)} a été réassignée à une autre cabine par l'administration.`, 'info');
-      notifications.create(newCabineId, `Nouvelle commande assignée par l'administration : ${txn.operateur} ${txn.montant.toLocaleString()} FCFA.`, 'new_request');
+      notifications.create(newCabineId, `Nouvelle commande assignée par l'administration : ${txn.operateur} ${txn.montant.toLocaleString()} F.`, 'new_request');
       return { ok: true };
     },
 
@@ -1517,15 +1517,15 @@ const DB = (() => {
           retraits.create({
             cabine_id: txn.cabine_id, montant: sanction, statut: 'terminé', type: 'sanction',
             methode_retrait: 'Sanction',
-            motif: `Remboursement commande ${Fmt.ref(txnId)} — montant (${txn.montant.toLocaleString()} FCFA) + pénalité (${PENALITE_REMBOURSEMENT_TERMINE} FCFA)`,
+            motif: `Remboursement commande ${Fmt.ref(txnId)} — montant (${txn.montant.toLocaleString()} F) + pénalité (${PENALITE_REMBOURSEMENT_TERMINE} F)`,
           });
-          notifications.create(txn.cabine_id, `Une commande que vous aviez marquée "Terminée" a été remboursée par l'administration : ${sanction.toLocaleString()} FCFA (montant + pénalité de ${PENALITE_REMBOURSEMENT_TERMINE} FCFA) ont été prélevés sur votre solde.`, 'warning');
+          notifications.create(txn.cabine_id, `Une commande que vous aviez marquée "Terminée" a été remboursée par l'administration : ${sanction.toLocaleString()} F (montant + pénalité de ${PENALITE_REMBOURSEMENT_TERMINE} F) ont été prélevés sur votre solde.`, 'warning');
         }
       }
 
       users.updateSolde(txn.client_id, txn.montant);
       transactions.update(txnId, { statut: 'remboursé', date_remboursement: now() });
-      notifications.create(txn.client_id, `Votre commande ${Fmt.ref(txnId)} de ${txn.montant.toLocaleString()} FCFA a été remboursée par l'administration.`, 'success');
+      notifications.create(txn.client_id, `Votre commande ${Fmt.ref(txnId)} de ${txn.montant.toLocaleString()} F a été remboursée par l'administration.`, 'success');
 
       return { ok: true };
     },
@@ -1592,12 +1592,12 @@ const DB = (() => {
        — c'est le verrou serveur, même un appel direct contournant l'UI est
        refusé pour un réseau désactivé. */
     recharge(user_id, montant, method) {
-      if (montant < 1000) return { ok: false, error: 'Montant minimum : 1 000 FCFA.' };
+      if (montant < 1000) return { ok: false, error: 'Montant minimum : 1 000 F.' };
       if (method && isNetworkInMaintenanceForService('recharge', method)) {
         return { ok: false, error: 'Ce réseau est temporairement indisponible pour la recharge.' };
       }
       users.updateSolde(user_id, montant);
-      notifications.create(user_id, `Votre portefeuille a été rechargé de ${montant.toLocaleString()} FCFA.`, 'info');
+      notifications.create(user_id, `Votre portefeuille a été rechargé de ${montant.toLocaleString()} F.`, 'info');
       return { ok: true };
     },
 
@@ -1731,8 +1731,8 @@ const DB = (() => {
       });
 
       notifications.create(cabineId, resteDu > 0
-        ? `Réabonnement ${formule} confirmé (${prix.toLocaleString()} FCFA) — il vous reste ${resteDu.toLocaleString()} FCFA à rembourser (solde négatif).`
-        : `Réabonnement ${formule} confirmé — ${prix.toLocaleString()} FCFA prélevés de votre solde.`, 'info');
+        ? `Réabonnement ${formule} confirmé (${prix.toLocaleString()} F) — il vous reste ${resteDu.toLocaleString()} F à rembourser (solde négatif).`
+        : `Réabonnement ${formule} confirmé — ${prix.toLocaleString()} F prélevés de votre solde.`, 'info');
 
       return { ok: true, resteDu, nouveauSolde, transactionId: txn.id };
     },
@@ -1772,7 +1772,7 @@ const DB = (() => {
       if (to.id === from.id) return { ok: false, error: 'Vous ne pouvez pas vous transférer de l\'argent à vous-même.' };
 
       const total = montant + TRANSFERT_CABINE_FRAIS;
-      if ((from.solde || 0) < total) return { ok: false, error: `Solde insuffisant (total requis avec frais : ${total.toLocaleString()} FCFA).` };
+      if ((from.solde || 0) < total) return { ok: false, error: `Solde insuffisant (total requis avec frais : ${total.toLocaleString()} F).` };
 
       users.updateSolde(from.id, -total);
       users.updateSolde(to.id, montant);
@@ -1780,8 +1780,8 @@ const DB = (() => {
         from_cabine_id: from.id, to_cabine_id: to.id, montant, frais: TRANSFERT_CABINE_FRAIS,
       });
 
-      notifications.create(from.id, `Vous avez transféré ${montant.toLocaleString()} FCFA à ${to.cabine_nom || (to.prenom + ' ' + to.nom)} (frais : ${TRANSFERT_CABINE_FRAIS} FCFA).`, 'transfer');
-      notifications.create(to.id, `Vous avez reçu ${montant.toLocaleString()} FCFA de la part de ${from.cabine_nom || (from.prenom + ' ' + from.nom)}.`, 'transfer');
+      notifications.create(from.id, `Vous avez transféré ${montant.toLocaleString()} F à ${to.cabine_nom || (to.prenom + ' ' + to.nom)} (frais : ${TRANSFERT_CABINE_FRAIS} F).`, 'transfer');
+      notifications.create(to.id, `Vous avez reçu ${montant.toLocaleString()} F de la part de ${from.cabine_nom || (from.prenom + ' ' + from.nom)}.`, 'transfer');
 
       return { ok: true, recipient: to, transfert };
     },
@@ -1838,7 +1838,7 @@ const DB = (() => {
           let reassignedToCabineId = null;
           if (target) {
             transactions.update(t.id, { cabine_id: target.id, date_assignation: now() });
-            notifications.create(target.id, `Nouvelle commande assignée automatiquement (réattribution pour retard) : ${t.operateur} ${t.montant.toLocaleString()} FCFA.`, 'new_request');
+            notifications.create(target.id, `Nouvelle commande assignée automatiquement (réattribution pour retard) : ${t.operateur} ${t.montant.toLocaleString()} F.`, 'new_request');
             notifications.create(cabineId, `La commande ${Fmt.ref(t.id)} a été réattribuée automatiquement suite à un retard.`, 'reassigned');
             reassignedToCabineId = target.id;
           } else {

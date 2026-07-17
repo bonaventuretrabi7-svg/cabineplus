@@ -583,7 +583,7 @@ function initCharts() {
       data: {
         labels: daily.map(d => d.label),
         datasets: [{
-          label: 'Volume (FCFA)',
+          label: 'Volume (F)',
           data: daily.map(d => d.volume),
           backgroundColor: 'rgba(255,98,0,.7)',
           borderColor: '#FF6200',
@@ -596,7 +596,7 @@ function initCharts() {
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
-          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: v => Fmt.money(v).replace(' FCFA','') } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: v => Fmt.money(v).replace(' F','') } },
         }
       }
     });
@@ -638,7 +638,7 @@ function initCharts() {
       data: {
         labels: monthly.map(d => d.label),
         datasets: [
-          { label: 'Volume (FCFA)', data: monthly.map(d => d.volume), backgroundColor: 'rgba(255,98,0,.7)', borderRadius: 6, yAxisID: 'y' },
+          { label: 'Volume (F)', data: monthly.map(d => d.volume), backgroundColor: 'rgba(255,98,0,.7)', borderRadius: 6, yAxisID: 'y' },
           { label: 'Transactions',  data: monthly.map(d => d.count),  backgroundColor: 'rgba(0,154,68,.7)', borderRadius: 6, yAxisID: 'y1' },
         ]
       },
@@ -647,7 +647,7 @@ function initCharts() {
         plugins: { legend: { labels: { color: textColor, font: { size: 11 } } } },
         scales: {
           x:  { grid: { color: gridColor }, ticks: { color: textColor } },
-          y:  { grid: { color: gridColor }, ticks: { color: textColor, callback: v => Fmt.money(v).replace(' FCFA','') }, position: 'left' },
+          y:  { grid: { color: gridColor }, ticks: { color: textColor, callback: v => Fmt.money(v).replace(' F','') }, position: 'left' },
           y1: { grid: { display: false }, ticks: { color: '#009A44' }, position: 'right' },
         }
       }
@@ -1668,7 +1668,7 @@ function loadReabonnementCabine() {
     return `<div class="rst-admin-row">
       <div class="rst-admin-info">
         <div class="rst-admin-name"><i class="fa-solid fa-store"></i> ${cab ? (cab.cabine_nom || cab.prenom + ' ' + cab.nom) : 'Cabine supprimée'}</div>
-        <div class="rst-admin-meta"><i class="fa-solid fa-rotate"></i> Formule ${r.formule} — ${r.prix.toLocaleString()} FCFA</div>
+        <div class="rst-admin-meta"><i class="fa-solid fa-rotate"></i> Formule ${r.formule} — ${r.prix.toLocaleString()} F</div>
         <div class="rst-admin-date"><i class="fa-regular fa-clock"></i> ${dateStr}</div>
       </div>
       ${cab ? `<div class="rst-admin-actions" style="flex-direction:row;gap:6px;">
@@ -1979,7 +1979,7 @@ function editUserForm(id) {
       <input class="form-control" id="edit-user-email" value="${u.email || ''}">
     </div>
     <div class="form-group">
-      <label class="form-label">Solde (FCFA)</label>
+      <label class="form-label">Solde (F)</label>
       <input class="form-control" type="number" id="edit-user-solde" value="${u.solde || 0}">
     </div>
     ${u.role === 'cabine' ? `
@@ -3282,7 +3282,7 @@ function exportCSV(type) {
     const ventesJour = DB.transactions.all().filter(t => t.statut === 'terminé' && (t.date || '').slice(0, 10) === todayStr);
     const fraisTotal = vol(txns, 'frais_service');
 
-    headers = ['Statistique', 'Détail', 'Nombre', 'Volume (FCFA)'];
+    headers = ['Statistique', 'Détail', 'Nombre', 'Volume (F)'];
     data = [
       ['Cabines inscrites', '', cabinesNouvelles.length, ''],
       ['Clients inscrits', '', clientsNouveaux.length, ''],
@@ -4053,11 +4053,11 @@ async function loadSettings() {
     <div class="form-group"><label class="form-label">Nom de la plateforme</label>
       <input type="text" class="form-control" id="s-name" value="${(d ? d.platformName : s.platformName) || 'KBINE PLUS'}" oninput="_saveSettingsDraft()" /></div>
     <div class="form-group"><label class="form-label">Devise</label>
-      <input type="text" class="form-control" id="s-currency" value="${(d ? d.currency : s.currency) || 'FCFA'}" oninput="_saveSettingsDraft()" /></div>
+      <input type="text" class="form-control" id="s-currency" value="${(d ? d.currency : s.currency) || 'F'}" oninput="_saveSettingsDraft()" /></div>
     <div class="grid-2" style="gap:12px;">
-      <div class="form-group"><label class="form-label">Transfert minimum (FCFA)</label>
+      <div class="form-group"><label class="form-label">Transfert minimum (F)</label>
         <input type="number" class="form-control" id="s-min" value="${(d ? d.minTransfer : s.minTransfer) || 500}" oninput="_saveSettingsDraft()" /></div>
-      <div class="form-group"><label class="form-label">Transfert maximum (FCFA)</label>
+      <div class="form-group"><label class="form-label">Transfert maximum (F)</label>
         <input type="number" class="form-control" id="s-max" value="${(d ? d.maxTransfer : s.maxTransfer) || 100000}" oninput="_saveSettingsDraft()" /></div>
     </div>
     <button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Enregistrer</button>`;

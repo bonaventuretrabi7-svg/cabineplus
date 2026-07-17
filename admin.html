@@ -2274,7 +2274,7 @@
               <div class="stat-mini"><span class="stat-mini-label">Version</span><span class="stat-mini-val">KBINE PLUS v1.0</span></div>
               <div class="stat-mini"><span class="stat-mini-label">Environnement</span><span class="stat-mini-val">Production</span></div>
               <div class="stat-mini"><span class="stat-mini-label">Base de données</span><span class="stat-mini-val">LocalStorage</span></div>
-              <div class="stat-mini"><span class="stat-mini-label">Monnaie</span><span class="stat-mini-val">FCFA</span></div>
+              <div class="stat-mini"><span class="stat-mini-label">Monnaie</span><span class="stat-mini-val">F</span></div>
               <div class="stat-mini"><span class="stat-mini-label">Taux commission</span><span class="stat-mini-val">5%</span></div>
               <div class="stat-mini"><span class="stat-mini-label">Pays</span><span class="stat-mini-val">🇨🇮 Côte d'Ivoire</span></div>
               <div style="margin-top:16px;padding:12px;background:rgba(255,98,0,.06);border-radius:var(--radius);border:1px solid rgba(255,98,0,.2);">
@@ -2392,7 +2392,7 @@
                 <input type="text" class="form-control" id="frf-add-duree" placeholder="Ex : 7 jours" required>
               </div>
               <div class="form-group">
-                <label class="form-label">Prix (FCFA)</label>
+                <label class="form-label">Prix (F)</label>
                 <input type="number" class="form-control" id="frf-add-prix" min="1" required>
               </div>
               <div class="form-group">
@@ -2703,9 +2703,9 @@
             <div class="form-group">
               <label class="form-label">Type d'abonnement *</label>
               <select class="form-control" id="new-abonnement">
-                <option value="Premium">Premium — 10 000 FCFA</option>
-                <option value="VIP">VIP — 20 000 FCFA</option>
-                <option value="VVIP">VVIP — 50 000 FCFA</option>
+                <option value="Premium">Premium — 10 000 F</option>
+                <option value="VIP">VIP — 20 000 F</option>
+                <option value="VVIP">VVIP — 50 000 F</option>
               </select>
             </div>
             <div class="form-group" style="grid-column:1/-1;">
@@ -3044,7 +3044,7 @@
     <div class="modal-body">
       <div class="stat-mini"><span class="stat-mini-label">Montant disponible</span><span class="stat-mini-val" id="process-retrait-dispo">—</span></div>
       <div class="form-group" style="margin-top:12px;">
-        <label class="form-label">Montant à verser (FCFA) *</label>
+        <label class="form-label">Montant à verser (F) *</label>
         <input type="number" min="1" class="form-control" id="process-retrait-montant" placeholder="0" />
       </div>
       <div class="form-group">
@@ -3072,10 +3072,10 @@
       </p>
       <div class="stat-mini"><span class="stat-mini-label">Solde actuel</span><span class="stat-mini-val" id="recharge-cabiniste-solde">—</span></div>
       <div class="form-group" style="margin-top:12px;">
-        <label class="form-label">Montant à créditer (FCFA) *</label>
+        <label class="form-label">Montant à créditer (F) *</label>
         <input type="number" min="1000" step="500" class="form-control" id="recharge-cabiniste-montant" placeholder="0"
           oninput="updateRechargeCabinistePreview()" />
-        <div class="form-hint">Montant minimum : 1 000 FCFA.</div>
+        <div class="form-hint">Montant minimum : 1 000 F.</div>
       </div>
       <div class="form-group">
         <label class="form-label">Nouveau solde</label>
@@ -3102,10 +3102,10 @@
       </p>
       <div class="stat-mini"><span class="stat-mini-label">Solde actuel</span><span class="stat-mini-val" id="recharge-client-solde">—</span></div>
       <div class="form-group" style="margin-top:12px;">
-        <label class="form-label">Montant à créditer (FCFA) *</label>
+        <label class="form-label">Montant à créditer (F) *</label>
         <input type="number" min="1000" step="500" class="form-control" id="recharge-client-montant" placeholder="0"
           oninput="updateRechargeClientPreview()" />
-        <div class="form-hint">Montant minimum : 1 000 FCFA.</div>
+        <div class="form-hint">Montant minimum : 1 000 F.</div>
       </div>
       <div class="form-group">
         <label class="form-label">Nouveau solde</label>
