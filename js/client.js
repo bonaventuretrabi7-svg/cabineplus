@@ -1126,12 +1126,40 @@ function initPinRows() {
   });
 }
 
+// Confirmation non bloquante (remplace window.confirm()) — observé en
+// conditions réelles : sur certains navigateurs mobiles, confirm() ne
+// s'affiche jamais visuellement mais reste en attente d'une réponse qui ne
+// viendra jamais, bloquant tout le reste du script (ici : toute la suite de
+// la connexion, y compris la redirection finale) pendant de longues
+// secondes avant qu'un mécanisme interne du navigateur ne l'abandonne.
+// Une modale HTML classique (déjà utilisée partout ailleurs dans l'app)
+// n'a pas ce risque : elle est toujours visible, ou reste simplement
+// fermée — jamais un blocage invisible.
+function _confirmModal(message) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay open';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:340px;padding:24px;text-align:center;">
+        <p style="margin:0 0 18px;font-size:.85rem;line-height:1.5;">${message}</p>
+        <div style="display:flex;gap:10px;justify-content:center;">
+          <button type="button" class="btn btn-outline" id="cm-no">Non merci</button>
+          <button type="button" class="btn btn-primary" id="cm-yes">Activer</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    const cleanup = (value) => { overlay.remove(); resolve(value); };
+    overlay.querySelector('#cm-yes').onclick = () => cleanup(true);
+    overlay.querySelector('#cm-no').onclick = () => cleanup(false);
+  });
+}
+
 /* Validation dynamique : appelée dès que le 4e chiffre PIN est saisi */
 /* Propose l'activation de la connexion par empreinte juste après une
    connexion normale au code réussie — jamais si déjà activée, jamais si
    aucun capteur/aucune empreinte enregistrée sur le téléphone (option
-   simplement absente). Refus possible (confirm()), réactivable plus tard
-   depuis les Paramètres. */
+   simplement absente). Refus possible (_confirmModal), réactivable plus
+   tard depuis les Paramètres. */
 async function _maybeOfferBiometricEnrollment(user, role) {
   if (BiometricAuth.isEnabled(role)) return;
   // checkAvailability() applique déjà son propre délai de sécurité (voir
@@ -1139,7 +1167,8 @@ async function _maybeOfferBiometricEnrollment(user, role) {
   // WebAuthn du navigateur reste en suspens.
   const avail = await BiometricAuth.checkAvailability();
   if (!avail.available) return;
-  if (!confirm('Activer la connexion par empreinte digitale ? Vous n\'aurez plus à saisir votre code à chaque ouverture (activable plus tard depuis les Paramètres).')) return;
+  const wants = await _confirmModal('Activer la connexion par empreinte digitale ? Vous n\'aurez plus à saisir votre code à chaque ouverture (activable plus tard depuis les Paramètres).');
+  if (!wants) return;
   const res = await BiometricAuth.enroll(user, role);
   Toast[res.ok ? 'success' : 'error'](res.ok ? 'Connexion par empreinte activée.' : (res.error || 'Activation impossible.'));
 }
