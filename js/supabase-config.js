@@ -6,6 +6,6 @@
    (elle est envoyée à chaque navigateur) — ne JAMAIS y mettre la clé
    service_role, qui doit rester uniquement côté Edge Functions. */
 const SUPABASE_CONFIG = {
-  url: 'https://VOTRE-PROJET.supabase.co',
-  anonKey: 'VOTRE-ANON-KEY',
+  url: 'https://swvilnklsfwfzmesfqng.supabase.co',
+  anonKey: 'sb_publishable_M6Q56DHkYl2nZCSUUImBAA_55ABijHs',
 };
