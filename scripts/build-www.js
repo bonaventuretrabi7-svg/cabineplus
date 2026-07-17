@@ -9,7 +9,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const wwwDir = path.join(root, 'www');
 
-const FILES = ['index.html', 'admin.html', 'cabine.html', 'client.html'];
+const FILES = ['index.html', 'admin.html', 'cabine.html', 'client.html', 'sw.js'];
 const DIRS = ['css', 'js', 'img'];
 
 function copyRecursive(src, dest) {

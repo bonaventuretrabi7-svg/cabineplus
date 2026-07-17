@@ -407,6 +407,10 @@ function boot() {
     PullToRefresh.register('partenaires',  loadPartenaires);
     PullToRefresh.init();
 
+    // Notification de nouvelle version disponible (voir sw.js +
+    // js/update-notifier.js) — n'a d'effet réel que sur le site web.
+    UpdateNotifier.init();
+
     if (currentUser) {
       loadHistory();
       loadWallet();

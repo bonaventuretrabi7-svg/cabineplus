@@ -14,9 +14,14 @@ const root = path.join(__dirname, '..');
 const outDir = path.join(root, 'dist-client');
 
 const JS_FILES = [
-  'supabase-config.js', 'supabase-client.js', 'db.js', 'auth.js', 'biometric.js', 'client.js',
+  'supabase-config.js', 'supabase-client.js', 'db.js', 'auth.js', 'biometric.js',
+  'pull-to-refresh.js', 'update-notifier.js', 'client.js',
 ];
 const DIRS = ['css', 'img'];
+// sw.js doit vivre à la racine du paquet (même niveau que index.html),
+// pas dans js/ — un service worker enregistré en '/sw.js' ne peut
+// contrôler que les pages sous son propre chemin ou en-dessous.
+const ROOT_FILES = ['sw.js'];
 const SKIP_RE = /\.bak$|~$|^\.DS_Store$|^Thumbs\.db$/i;
 
 function copyRecursive(src, dest) {
@@ -39,6 +44,11 @@ fs.mkdirSync(outDir, { recursive: true });
 // index.html EST déjà l'espace client (voir note en tête de fichier).
 fs.copyFileSync(path.join(root, 'index.html'), path.join(outDir, 'index.html'));
 
+for (const file of ROOT_FILES) {
+  const src = path.join(root, file);
+  if (fs.existsSync(src)) fs.copyFileSync(src, path.join(outDir, file));
+}
+
 for (const dir of DIRS) {
   const src = path.join(root, dir);
   if (fs.existsSync(src)) copyRecursive(src, path.join(outDir, dir));
@@ -50,4 +60,4 @@ for (const file of JS_FILES) {
   if (fs.existsSync(src)) fs.copyFileSync(src, path.join(outDir, 'js', file));
 }
 
-console.log('[build-dist-client] dist-client/ généré (index.html, ' + DIRS.concat(JS_FILES.map(f => 'js/' + f)).join(', ') + ')');
+console.log('[build-dist-client] dist-client/ généré (index.html, ' + ROOT_FILES.concat(DIRS).concat(JS_FILES.map(f => 'js/' + f)).join(', ') + ')');

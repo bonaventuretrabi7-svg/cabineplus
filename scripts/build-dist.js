@@ -9,7 +9,7 @@ const path = require('path');
 const root = path.join(__dirname, '..');
 const distDir = path.join(root, 'dist');
 
-const FILES = ['index.html', 'admin.html', 'cabine.html', 'client.html'];
+const FILES = ['index.html', 'admin.html', 'cabine.html', 'client.html', 'sw.js'];
 // downloads/ (APK Android publié) est optionnel : seulement copié s'il
 // existe déjà (voir BUILD_APK.md — jamais généré automatiquement ici).
 const DIRS = ['css', 'js', 'img', 'downloads'];

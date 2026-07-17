@@ -16,6 +16,19 @@
 <body class="on-home">
 <div id="toast-container"></div>
 
+<!-- Bannière "nouvelle version disponible" (voir js/update-notifier.js
+     + sw.js) — masquée par défaut, glisse depuis le bas au-dessus de la
+     barre de navigation dès qu'une mise à jour est détectée. -->
+<div id="update-banner">
+  <div class="upb-icon"><img src="img/logo.png" alt=""></div>
+  <div class="upb-text">
+    <div class="upb-title">Nouvelle version disponible</div>
+    <div class="upb-sub">Actualisez pour profiter des dernières améliorations.</div>
+  </div>
+  <button type="button" class="upb-btn" onclick="UpdateNotifier.applyUpdate()">Actualiser</button>
+  <button type="button" class="upb-close" onclick="UpdateNotifier.dismiss()" title="Fermer"><i class="fa-solid fa-xmark"></i></button>
+</div>
+
 <!-- -- ÉCRAN DE CHARGEMENT -------------------------------------- -->
 <div id="page-loader">
   <div class="pl-spinner-wrap">
@@ -3152,6 +3165,7 @@
 <script src="js/auth.js?v=2"></script>
 <script src="js/biometric.js?v=1"></script>
 <script src="js/pull-to-refresh.js?v=1"></script>
+<script src="js/update-notifier.js?v=1"></script>
 <script src="js/client.js"></script>
 </body>
 </html>
