@@ -6344,35 +6344,36 @@ body.dark #ptr-indicator { background: var(--dark-card); }
   flex: 0 0 40px;
 }
 .ptr-ring {
-  position: absolute; inset: 6px;
+  position: absolute; inset: 3px;
   border-radius: 50%;
   border: 3px solid rgba(255,98,0,.15);
   border-top-color: #FF6200;
   border-right-color: #009A44;
+  transition: border-color .2s ease;
 }
 #ptr-indicator.ptr-loading .ptr-ring { animation: ptrSpin .8s cubic-bezier(.5,0,.5,1) infinite; }
-#ptr-indicator.ptr-ready .ptr-ring { border-color: #009A44; }
+#ptr-indicator.ptr-ready .ptr-ring { border-top-color: #009A44; }
 @keyframes ptrSpin { to { transform: rotate(360deg); } }
 
-.ptr-check {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: .75rem; color: #009A44;
-  opacity: 0; transform: scale(.5);
-  transition: opacity .2s ease, transform .2s ease;
+/* Logo de l'app au centre de l'anneau — même repère visuel que l'écran
+   de chargement au boot (#page-loader/.pl-logo-img). */
+.ptr-logo {
+  position: absolute; inset: 0; margin: auto;
+  width: 20px; height: 20px; object-fit: contain;
+  border-radius: 50%;
 }
-#ptr-indicator.ptr-ready:not(.ptr-loading) .ptr-check { opacity: 1; transform: scale(1); }
 
-/* Texte explicite ("Tirer pour actualiser" / "Relâcher pour actualiser" /
-   "Actualisation…" / "Actualisé") — le client sait toujours ce qui se
-   passe, pas juste qu'un rond tourne. Largeur naturelle : vide quand
-   #ptr-indicator est au repos (span sans texte, aucun espace pris). */
+/* "Actualisation…" — un seul mot, visible uniquement pendant le
+   rechargement réel (pas pendant le tirage, pour rester simple) : le
+   badge s'élargit légèrement en pilule le temps de l'afficher. */
 .ptr-label {
   font-size: .72rem; font-weight: 700; letter-spacing: .01em;
   color: var(--gray-700, #2D3748);
   white-space: nowrap;
-  padding-right: 14px;
+  max-width: 0; opacity: 0; overflow: hidden;
+  transition: max-width .25s ease, opacity .2s ease, padding-right .25s ease;
 }
+#ptr-indicator.ptr-loading .ptr-label { max-width: 140px; opacity: 1; padding-right: 16px; }
 body.dark .ptr-label { color: var(--dark-text, #E6EDF3); }
 
 /* ══════════════════════════════════════════════════════════════

@@ -20,8 +20,7 @@ const PullToRefresh = (() => {
   const DEAD_ZONE = 6;   // px de mouvement brut avant d'armer le geste (évite les faux déclenchements sur un tap/petit tremblement)
 
   const _handlers = {}; // { sectionName: fn (peut être async) }
-  let _el = null, _ring = null, _label = null;
-  let _doneTimer = null;
+  let _el = null, _ring = null;
 
   let _active = false;     // un doigt est posé et le geste est armé
   let _refreshing = false; // un refresh est en cours (ignore les nouveaux gestes)
@@ -56,15 +55,24 @@ const PullToRefresh = (() => {
     return !active || active.scrollTop === 0;
   }
 
+  // Modèle volontairement simple : un seul badge rond avec le logo de
+  // l'app au centre (même repère visuel que l'écran de chargement au
+  // boot, voir #page-loader/.pl-logo-img dans index.html) entouré d'un
+  // anneau orange/vert qui suit le doigt puis tourne pendant le
+  // rechargement. Aucun texte pendant le tirage (le mouvement + la
+  // couleur suffisent) — un seul mot apparaît, seulement le temps du
+  // rechargement réel, pour que le client sache précisément ce qui se
+  // passe à ce moment précis sans surcharger le geste de messages qui
+  // changent sans arrêt.
   function _buildIndicator() {
     const el = document.createElement('div');
     el.id = 'ptr-indicator';
     el.innerHTML = `
       <div class="ptr-ring-box">
         <div class="ptr-ring"></div>
-        <i class="fa-solid fa-check ptr-check"></i>
+        <img src="img/logo.png" alt="" class="ptr-logo">
       </div>
-      <span class="ptr-label"></span>`;
+      <span class="ptr-label">Actualisation…</span>`;
     document.body.appendChild(el);
     return el;
   }
@@ -73,37 +81,27 @@ const PullToRefresh = (() => {
     _pull = px;
     const clamped = Math.min(px, MAX_PULL);
     const ratio = Math.min(1, px / THRESHOLD);
-    const ready = ratio >= 1;
     _el.style.transform = `translateX(-50%) translateY(${clamped - 46}px)`;
     _el.style.opacity = String(Math.min(1, ratio * 1.3));
     _ring.style.transform = `rotate(${clamped * 2.4}deg)`; // suit le doigt, avant le déclenchement
-    _el.classList.toggle('ptr-ready', ready);
-    // Le texte change dès que le seuil est franchi — le client sait, avant
-    // même de relâcher le doigt, ce qui va se passer s'il lâche maintenant.
-    _label.textContent = ready ? 'Relâcher pour actualiser' : 'Tirer pour actualiser';
+    _el.classList.toggle('ptr-ready', ratio >= 1); // l'anneau passe au vert dès le seuil franchi
   }
 
   function _reset(animated) {
-    if (_doneTimer) { clearTimeout(_doneTimer); _doneTimer = null; }
     _el.classList.toggle('ptr-anim', !!animated);
-    _el.classList.remove('ptr-loading', 'ptr-ready', 'ptr-done');
+    _el.classList.remove('ptr-loading', 'ptr-ready');
     _pull = 0;
     _el.style.transform = 'translateX(-50%) translateY(-46px)';
     _el.style.opacity = '0';
     _ring.style.transform = '';
-    _label.textContent = '';
   }
 
   async function _trigger() {
     _refreshing = true;
     _el.classList.add('ptr-anim', 'ptr-loading');
-    _el.classList.remove('ptr-ready');
     _el.style.transform = 'translateX(-50%) translateY(18px)';
     _el.style.opacity = '1';
     _ring.style.transform = ''; // laisse la rotation continue en CSS (.ptr-loading) prendre le relais
-    // Texte explicite pendant le rechargement : le client sait que la page
-    // est en train de s'actualiser, pas juste qu'un rond tourne dans le vide.
-    _label.textContent = 'Actualisation…';
 
     const name = _currentSectionName();
     const fn = name && _handlers[name];
@@ -113,15 +111,6 @@ const PullToRefresh = (() => {
     // Petit palier pour que le spinner reste perceptible même sur un
     // rechargement local quasi instantané (sinon l'animation clignote).
     await new Promise(r => setTimeout(r, 350));
-
-    // Confirmation brève ("Actualisé" + coche verte) avant de disparaître —
-    // sans ça, le passage direct du spinner à rien laisse le client
-    // incertain que le rechargement a bien eu lieu.
-    _el.classList.remove('ptr-loading');
-    _el.classList.add('ptr-ready', 'ptr-done');
-    _label.textContent = 'Actualisé';
-    await new Promise(r => { _doneTimer = setTimeout(r, 600); });
-
     _refreshing = false;
     _reset(true);
   }
@@ -160,7 +149,6 @@ const PullToRefresh = (() => {
     if (_el) return; // déjà initialisé
     _el = _buildIndicator();
     _ring = _el.querySelector('.ptr-ring');
-    _label = _el.querySelector('.ptr-label');
     document.addEventListener('touchstart', _onTouchStart, { passive: true });
     document.addEventListener('touchmove',  _onTouchMove,  { passive: false });
     document.addEventListener('touchend',   _onTouchEnd,   { passive: true });
