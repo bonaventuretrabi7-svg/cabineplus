@@ -1,0 +1,66 @@
+name: Build Android APK
+
+# Compile l'APK debug de KBINE PLUS sans machine locale (voir BUILD_APK.md,
+# section "Alternative : compiler via GitHub Actions") — se déclenche à
+# chaque envoi sur main, ou manuellement depuis l'onglet Actions.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Installer Java 17 (requis par Gradle/Android)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Installer le SDK Android
+        uses: android-actions/setup-android@v3
+
+      - name: Installer les dépendances npm
+        run: npm ci
+
+      - name: Générer www/ et synchroniser le projet Android
+        run: npm run cap:sync
+
+      - name: Rendre gradlew exécutable
+        run: chmod +x android/gradlew
+
+      - name: Compiler l'APK debug
+        run: |
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Copier l'APK vers downloads/kbineplus.apk
+        run: |
+          mkdir -p downloads
+          cp android/app/build/outputs/apk/debug/app-debug.apk downloads/kbineplus.apk
+
+      - name: Publier l'APK comme artefact téléchargeable
+        uses: actions/upload-artifact@v4
+        with:
+          name: kbineplus-apk
+          path: downloads/kbineplus.apk
+
+      - name: Committer l'APK dans le dépôt (downloads/kbineplus.apk)
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add downloads/kbineplus.apk
+          git diff --staged --quiet || git commit -m "Mise à jour automatique de l'APK [skip ci]"
+          git push
