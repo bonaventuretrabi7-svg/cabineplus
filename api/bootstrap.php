@@ -1,6 +1,18 @@
 <?php
 declare(strict_types=1);
 
+// DIAGNOSTIC TEMPORAIRE — à retirer dès le problème identifié (voir la
+// conversation en cours : l'API renvoie une erreur 500 vide sans ce
+// réglage, display_errors étant désactivé par défaut en production).
+error_reporting(E_ALL);
+ini_set('display_errors', '1');
+set_exception_handler(function ($e) {
+  http_response_code(500);
+  header('Content-Type: application/json; charset=utf-8');
+  echo json_encode(['error' => 'DIAG: ' . get_class($e) . ': ' . $e->getMessage()]);
+  exit;
+});
+
 // Bootstrap commun à tous les scripts de api/ — connexion MySQL (PDO),
 // en-têtes CORS/JSON, aides communes. Remplace le rôle de js/supabase-
 // client.js + supabase/functions/login (Supabase), voir README.md dans ce
