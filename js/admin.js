@@ -2273,8 +2273,15 @@ async function confirmSuspendCabine() {
   loadDashboard();
 }
 
-function deleteUser(id, name) {
-  if (!confirm(`Supprimer définitivement le compte de ${name} ?\nCette action est irréversible.`)) return;
+// Remplace le retrait purement local (DB.users.delete()), qui ne
+// supprimait jamais rien côté serveur — le compte réapparaissait au
+// prochain rafraîchissement (refreshUsersFromServer()). Réservé au super
+// admin (voir api/admin_delete_account.php).
+async function deleteUser(id, name) {
+  if (currentUser.admin_level !== 'super') { Toast.error('Seul le super administrateur peut supprimer un compte.'); return; }
+  if (!confirm(`Supprimer définitivement le compte de ${name} ?\nCette action est irréversible : toutes ses données (transactions, réclamations, etc.) seront aussi supprimées.`)) return;
+  const res = await ServerAPI.adminDeleteAccount(id);
+  if (!res.ok) { Toast.error(res.error); return; }
   DB.users.delete(id);
   Toast.success(`${name} supprimé.`);
   loadClients();

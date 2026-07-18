@@ -405,6 +405,12 @@ const ServerAPI = (() => {
     return { ok: true, count: data.count, total: data.total };
   }
 
+  async function adminDeleteAccount(id) {
+    const { res, data } = await _call('admin_delete_account.php', { auth: true, body: { id } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la suppression.' };
+    return { ok: true };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -593,6 +599,6 @@ const ServerAPI = (() => {
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
     partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse,
     devicesTouch, devicesList, devicesRemove,
-    referralsSummary,
+    referralsSummary, adminDeleteAccount,
   };
 })();

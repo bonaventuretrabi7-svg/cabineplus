@@ -120,6 +120,7 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `devices_list.php`
 - `devices_remove.php`
 - `referrals_summary.php`
+- `admin_delete_account.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`
