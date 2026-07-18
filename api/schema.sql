@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS settings (
   assistant_client  JSON         NULL,
   ussd_templates    JSON         NULL,
   admin_schedules   JSON         NULL,
+  actualites        JSON         NULL,
   updated_at        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   CONSTRAINT chk_settings_singleton CHECK (id = 1)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

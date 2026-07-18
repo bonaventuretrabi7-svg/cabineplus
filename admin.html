@@ -2363,6 +2363,21 @@
 
         <div class="card" style="margin-top:20px;">
           <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-newspaper" style="color:var(--primary)"></i> Actualités (espace client)</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:.78rem;color:var(--gray-500);margin-bottom:14px;">Annonces affichées dans le bandeau "Actualités" de l'accueil client (promotions, maintenance, nouveautés) — la plus récente en premier.</p>
+            <div class="form-group"><label class="form-label">Titre</label>
+              <input type="text" class="form-control" id="actu-new-titre" placeholder="Ex : Nouveau service disponible !" /></div>
+            <div class="form-group"><label class="form-label">Message (optionnel)</label>
+              <textarea class="form-control" id="actu-new-message" rows="2" placeholder="Détails de l'annonce"></textarea></div>
+            <button class="btn btn-primary" onclick="publishActualite()"><i class="fa-solid fa-bullhorn"></i> Publier</button>
+            <div id="actu-admin-list" style="margin-top:16px;"></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-headset" style="color:var(--primary)"></i> Assistance &amp; réseaux sociaux</span>
           </div>
           <div class="card-body" id="assistance-content">

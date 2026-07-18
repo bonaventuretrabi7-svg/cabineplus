@@ -235,27 +235,8 @@ function hideLoader() {
 }
 
 /* ================================================================
-   ACTUALITÉS — carrousel auto-défilant
+   ACTUALITÉS KBINE PLUS — voir renderActualites() plus bas
    ================================================================ */
-let _actuIdx = 0;
-let _actuTimer = null;
-
-function initActuCarousel() {
-  const slides = document.querySelectorAll('#actu-carousel .actu-slide');
-  const dots   = document.querySelectorAll('.actu-dot');
-  if (!slides.length) return;
-
-  function goTo(idx) {
-    _actuIdx = (idx + slides.length) % slides.length;
-    document.getElementById('actu-carousel').style.transform =
-      `translateX(-${_actuIdx * 100}%)`;
-    dots.forEach((d, i) => d.classList.toggle('active', i === _actuIdx));
-  }
-
-  dots.forEach((d, i) => d.addEventListener('click', () => { clearInterval(_actuTimer); goTo(i); _actuTimer = setInterval(() => goTo(_actuIdx + 1), 3500); }));
-
-  _actuTimer = setInterval(() => goTo(_actuIdx + 1), 3500);
-}
 
 let _revIdx = 0, _revTimer = null;
 function initRevCarousel() {
@@ -481,7 +462,7 @@ async function boot() {
     if (guestQrImg) guestQrImg.src = _buildQrDataUrl('KBINE-PLUS');
 
     renderFidelite();
-    initActuCarousel();
+    renderActualites();
     initRevCarousel();
     initClientCounterAnim();
 
@@ -822,7 +803,7 @@ function closeQrScanner() {
 // sans avoir à câbler chaque onglet au cas par cas.
 function _clientSectionLoader(name) {
   return ({
-    transfer:     loadRecentRecap,
+    transfer:     () => { loadRecentRecap(); renderActualites(); },
     historique:   loadHistory,
     depenses:     loadDepenses,
     portefeuille: loadWallet,
@@ -4540,11 +4521,39 @@ document.addEventListener('DOMContentLoaded', initBalanceVisibility);
 document.body.classList.remove('dark');
 localStorage.removeItem('kbine_dark');
 
-function switchActuTab(btn, tab) {
-  document.querySelectorAll('.actu-tab').forEach(t => t.classList.remove('active'));
-  btn.classList.add('active');
-  document.getElementById('actu-foot').style.display = tab === 'foot' ? 'block' : 'none';
-  document.getElementById('actu-pol').style.display  = tab === 'pol'  ? 'block' : 'none';
+// Annonces KBINE PLUS gérées par l'admin (voir loadActualitesAdmin(),
+// js/admin.js) — remplace l'ancien bandeau Football/Politique codé en dur
+// (aucun rapport avec l'app, jamais réellement "temps réel" : rendre ça
+// réel nécessiterait un abonnement à une API d'actualités externe, hors
+// scope). Lu via DB.settings.get() (déjà synchronisé, cache-first —
+// aucun nouvel endpoint nécessaire).
+async function renderActualites() {
+  const list = document.getElementById('actu-kbine-list');
+  if (!list) return;
+  const items = ((await DB.settings.get()).actualites || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!items.length) {
+    list.innerHTML = `<div style="padding:16px 4px;color:rgba(255,255,255,.45);font-size:.72rem;">Aucune actualité pour le moment.</div>`;
+    return;
+  }
+  const [featured, ...rest] = items;
+  list.innerHTML = `
+    <div class="actu-featured">
+      <div class="actu-featured-top">
+        <div class="actu-cat actu-cat--kbine">KBINE PLUS</div>
+        <div class="actu-meta"><i class="fa-solid fa-clock"></i> ${Fmt.datetime(featured.date)}</div>
+      </div>
+      <div class="actu-featured-title">${featured.titre}</div>
+      ${featured.message ? `<div style="font-size:.68rem;color:rgba(255,255,255,.6);margin-top:4px;">${featured.message}</div>` : ''}
+    </div>
+    <div class="actu-mini-list">
+      ${rest.map(a => `
+        <div class="actu-mini-item">
+          <span class="actu-mini-dot actu-mini-dot--kbine"></span>
+          <span class="actu-mini-title">${a.titre}</span>
+          <span class="actu-mini-time">${Fmt.datetime(a.date)}</span>
+        </div>`).join('')}
+    </div>
+  `;
 }
 
 

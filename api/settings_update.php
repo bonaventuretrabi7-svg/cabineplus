@@ -17,6 +17,7 @@ $columns = [
   'min_transfer' => 'n', 'max_transfer' => 'n', 'recharge_min' => 'n',
   'maintenance' => 'j', 'assistance' => 'j', 'assistant_cabine' => 'j',
   'assistant_client' => 'j', 'ussd_templates' => 'j', 'admin_schedules' => 'j',
+  'actualites' => 'j',
 ];
 
 $sets = [];
@@ -33,5 +34,5 @@ $params[] = 1;
 db()->prepare('UPDATE settings SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
 
 $stmt = db()->query('SELECT * FROM settings WHERE id = 1');
-$row = decodeJsonColumns($stmt->fetch(), ['maintenance', 'assistance', 'assistant_cabine', 'assistant_client', 'ussd_templates', 'admin_schedules']);
+$row = decodeJsonColumns($stmt->fetch(), ['maintenance', 'assistance', 'assistant_cabine', 'assistant_client', 'ussd_templates', 'admin_schedules', 'actualites']);
 echo json_encode(['settings' => $row]);

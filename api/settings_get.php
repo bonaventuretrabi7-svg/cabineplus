@@ -11,5 +11,5 @@ $stmt = db()->query('SELECT * FROM settings WHERE id = 1');
 $row = $stmt->fetch();
 if (!$row) fail('Réglages introuvables.', 500);
 
-$row = decodeJsonColumns($row, ['maintenance', 'assistance', 'assistant_cabine', 'assistant_client', 'ussd_templates', 'admin_schedules']);
+$row = decodeJsonColumns($row, ['maintenance', 'assistance', 'assistant_cabine', 'assistant_client', 'ussd_templates', 'admin_schedules', 'actualites']);
 echo json_encode(['settings' => $row]);

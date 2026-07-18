@@ -163,6 +163,10 @@ const DB = (() => {
       // mode:'auto'|'manuel', date_creation }. Un admin simple sans aucune
       // entrée ici ne peut pas se connecter (voir Auth.login()).
       admin_schedules: [],
+      // Annonces KBINE PLUS gérées par l'admin (promotions, maintenance,
+      // nouveautés) — { id, titre, message, date } — voir renderActualites()
+      // (js/client.js) et loadActualitesAdmin() (js/admin.js).
+      actualites: [],
     };
 
     localStorage.setItem(KEY.users,         JSON.stringify(users));
@@ -1689,6 +1693,7 @@ const DB = (() => {
     maintenance: 'maintenance', assistance: 'assistance',
     assistant_cabine: 'assistant_cabine', assistant_client: 'assistant_client',
     ussd_templates: 'ussd_templates', admin_schedules: 'admin_schedules',
+    actualites: 'actualites',
   };
   let _settingsRefreshInFlight = null;
   function rowToSettings(row) {

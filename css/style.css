@@ -5030,6 +5030,7 @@ body.dark .tf-order-intro-sub { color: rgba(255,255,255,.4); }
 }
 .actu-cat--foot { background: rgba(34,197,94,.15); color: #4ade80; }
 .actu-cat--pol  { background: rgba(99,102,241,.18); color: #a5b4fc; }
+.actu-cat--kbine { background: rgba(255,98,0,.18); color: #FF9A3C; }
 
 .actu-featured {
   background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
@@ -5054,6 +5055,7 @@ body.dark .tf-order-intro-sub { color: rgba(255,255,255,.4); }
 .actu-mini-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 .actu-mini-dot--foot { background: #4ade80; }
 .actu-mini-dot--pol  { background: #a5b4fc; }
+.actu-mini-dot--kbine { background: #FF6200; }
 .actu-mini-title {
   flex: 1; min-width: 0;
   font-size: .64rem; font-weight: 600; color: rgba(255,255,255,.75);

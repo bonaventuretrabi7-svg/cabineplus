@@ -79,7 +79,7 @@ function _adminViewLoader(name) {
     'maintenance-admin':     loadMaintenanceAdmin,
     'uv-cabine-admin':       loadUvCabineAdmin,
     'dispo-services-admin':  loadDispoServicesAdmin,
-    settings:                () => { loadSettings(); loadAssistanceAdmin(); loadAdminNotifSoundSettings(); },
+    settings:                () => { loadSettings(); loadAssistanceAdmin(); loadAdminNotifSoundSettings(); loadActualitesAdmin(); },
     administrateurs:         loadAdminsList,
     'permission-cabine':     loadPermissionCabine,
     'gestion-admins':        loadGestionAdminsAdmin,
@@ -4182,6 +4182,55 @@ async function loadSettings() {
         <input type="number" class="form-control" id="s-max" value="${(d ? d.maxTransfer : s.maxTransfer) || 100000}" oninput="_saveSettingsDraft()" /></div>
     </div>
     <button class="btn btn-primary" onclick="saveSettings()"><i class="fa-solid fa-save"></i> Enregistrer</button>`;
+}
+
+/* ── Actualités (bandeau accueil client) ──────────────────────────────
+   Remplace l'ancien bandeau Football/Politique codé en dur (aucun
+   rapport avec l'app) — voir renderActualites(), js/client.js. Stockée
+   dans settings.actualites (JSON), même patron que maintenance/assistance
+   déjà en place : aucun nouvel endpoint, juste DB.settings.update(). */
+async function loadActualitesAdmin() {
+  const el = document.getElementById('actu-admin-list');
+  if (!el) return;
+  const items = ((await DB.settings.get()).actualites || []).slice().sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!items.length) {
+    el.innerHTML = `<div style="padding:12px 0;color:var(--gray-400);font-size:.78rem;">Aucune actualité publiée pour le moment.</div>`;
+    return;
+  }
+  el.innerHTML = items.map(a => `
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:10px 0;border-top:1px solid var(--gray-100);">
+      <div style="min-width:0;">
+        <div style="font-weight:700;font-size:.8rem;">${a.titre}</div>
+        ${a.message ? `<div style="font-size:.74rem;color:var(--gray-500);margin-top:2px;">${a.message}</div>` : ''}
+        <div style="font-size:.66rem;color:var(--gray-400);margin-top:4px;">${Fmt.datetime(a.date)}</div>
+      </div>
+      <button class="btn btn-sm btn-danger" onclick="deleteActualite('${a.id}')" style="font-size:.6rem;padding:4px 10px;flex-shrink:0;">
+        <i class="fa-solid fa-trash"></i>
+      </button>
+    </div>`).join('');
+}
+
+async function publishActualite() {
+  const titre = document.getElementById('actu-new-titre').value.trim();
+  const message = document.getElementById('actu-new-message').value.trim();
+  if (!titre) { Toast.error('Le titre est obligatoire.'); return; }
+
+  const current = (await DB.settings.get()).actualites || [];
+  const updated = [...current, { id: 'actu_' + Date.now(), titre, message, date: new Date().toISOString() }];
+  await DB.settings.update({ actualites: updated });
+
+  document.getElementById('actu-new-titre').value = '';
+  document.getElementById('actu-new-message').value = '';
+  Toast.success('Actualité publiée.');
+  loadActualitesAdmin();
+}
+
+async function deleteActualite(id) {
+  if (!confirm('Supprimer cette actualité ?')) return;
+  const current = (await DB.settings.get()).actualites || [];
+  await DB.settings.update({ actualites: current.filter(a => a.id !== id) });
+  Toast.success('Actualité supprimée.');
+  loadActualitesAdmin();
 }
 
 function _saveSettingsDraft() {

@@ -53,6 +53,11 @@ aussi le contenu de **`api/migration_phase11_referrals.sql`** (une seule
 fois) — nouvelle table `referrals` (parrainage, jamais implémenté même
 localement jusqu'ici).
 
+**Base déjà en place (mise en conformité temps réel, phase I/9, dernière
+phase) :** colle aussi le contenu de **`api/migration_phase12_actualites.sql`**
+(une seule fois) — colonne `actualites` sur `settings` (annonces KBINE PLUS
+gérées par l'admin, remplace l'ancien bandeau Football/Politique codé en dur).
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
