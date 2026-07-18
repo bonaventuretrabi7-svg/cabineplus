@@ -259,7 +259,9 @@ async function boot() {
     _setNetStatusLabel(n, _cabNetworks[n]);
   });
 
-  // Auto-refresh pending every 30 sec
+  // Sondage automatique — voir plan "temps réel" (3s partout, resserré
+  // depuis 30s : le meilleur compromis possible sans WebSocket/SSE sur cet
+  // hébergement mutualisé, sans le saturer de requêtes).
   setInterval(async () => {
     await DB.transactions.refresh();
     await DB.business.sweepStaleOrders();
@@ -286,7 +288,13 @@ async function boot() {
     // cabiniste sa sélection avant qu'il ait pu cliquer "Terminer".
     const hasPendingProof = Object.keys(_facturePendingProofs).length > 0;
     if (!hasPendingProof && (_cabFilter === 'all' || _cabFilter === 'en_attente')) loadCabOrders(_cabFilter);
-  }, 30000);
+    // Re-rend la section ACTUELLEMENT affichée (voir _cabSectionLoader()
+    // ci-dessus) — couvre automatiquement tous les onglets (retraits,
+    // transferts, réclamations, profil...), pas seulement le tableau de
+    // bord comme avant. 'home' déjà couvert ci-dessus (loadCabBalanceCard/
+    // loadCabRealtimeStats), pas la peine de le rappeler une 2e fois.
+    if (_cabResume.section && _cabResume.section !== 'home') _cabSectionLoader(_cabResume.section)?.();
+  }, 3000);
 }
 
 /* ── Barre de navigation : masquée pendant le scroll, réapparaît à l'arrêt ── */
@@ -306,6 +314,27 @@ function _initCabNavAutoHide() {
 }
 
 /* ── Navigation ────────────────────────────────────────────────── */
+// Table "section -> fonction(s) de rechargement", même patron que
+// _adminViewLoader() (js/admin.js) — réutilisée par le sondage périodique
+// (boot(), setInterval) pour que la section ACTUELLEMENT affichée se
+// remette à jour toute seule. Chaque bouton de navigation (cabine.html)
+// appelle déjà son propre loader au clic (showCabSection('x'); loadX())
+// — cette table ne fait que centraliser cette même association.
+function _cabSectionLoader(name) {
+  return ({
+    home:         loadCabHome,
+    retraits:     loadCabRetraits,
+    transfert:    loadCabTransferHistory,
+    historique:   loadCabHistory,
+    commissions:  loadCommissions,
+    'comm-daily': loadCabCommDaily,
+    'cmd-daily':  loadCabCmdDaily,
+    reclamations: loadCabReclamations,
+    notifications: loadCabNotifications,
+    profile:      loadProfile,
+  })[name];
+}
+
 function showCabSection(name) {
   document.querySelectorAll('.cab-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.cab-bnav-tab').forEach(t => t.classList.remove('active'));

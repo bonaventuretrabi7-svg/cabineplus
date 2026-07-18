@@ -420,26 +420,18 @@ async function boot() {
     DB.presence.refresh().then(loadDashboard);
     setInterval(async () => {
       DB.presence.ping(currentUser.id);
-      DB.presence.refresh().then(loadDashboard);
+      DB.presence.refresh();
       refreshUsersFromServer();
-      DB.transactions.refresh();
-      const sweep = await DB.business.sweepStaleOrders();
-      if (sweep.staleCount > 0) {
-        loadCabines();
-        loadTransactions();
-        loadRetardsAdmin();
-      }
-      const unsuspended = await DB.business.sweepAutoUnsuspensions();
-      if (unsuspended.liftedCount > 0 || sweep.suspendedCabineIds.length > 0) {
-        loadCabinesSuspenduesAdmin();
-      }
-      // Synchronisation "temps réel" du réseau/numéro de retrait configuré
-      // par les cabines elles-mêmes (voir confirmCabRetrait(), js/cabine.js) —
-      // pas de push/WebSocket dans cette app, on réutilise ce même intervalle
-      // de présence déjà actif pour rafraîchir l'onglet s'il est ouvert.
-      if (document.querySelector('.view[data-view="retraits-admin"]')?.classList.contains('active')) {
-        loadRetraitsAdmin();
-      }
+      await DB.transactions.refresh();
+      await DB.business.sweepStaleOrders();
+      await DB.business.sweepAutoUnsuspensions();
+      updateNotifBadge();
+      // Re-rend la vue ACTUELLEMENT affichée (voir _adminViewLoader() plus
+      // haut, déjà réutilisée par le bouton "Actualiser") — couvre
+      // automatiquement TOUS les onglets admin (retraits, réclamations,
+      // comptes bloqués, zéro transaction...), remplace le repérage au cas
+      // par cas d'avant (une seule vue, retraits-admin, était couverte).
+      _adminViewLoader(_adminResume.view)?.();
     }, DB.presence.HEARTBEAT_MS);
     window.addEventListener('beforeunload', () => DB.presence.leave(currentUser.id));
 

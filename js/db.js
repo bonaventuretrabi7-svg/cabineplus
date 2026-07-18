@@ -629,7 +629,7 @@ const DB = (() => {
      restent synchrones (lisent ce même cache local fusionné) : appelées
      depuis DB.business.findReassignmentTarget, encore 100% synchrone. */
   const presence = {
-    HEARTBEAT_MS: 10000,
+    HEARTBEAT_MS: 3000,
     STALE_MS: 25000,
 
     _all() { return JSON.parse(localStorage.getItem(KEY.presence) || '{}'); },

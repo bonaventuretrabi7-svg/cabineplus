@@ -612,15 +612,18 @@ function startClientPresence() {
     await DB.users.refreshSelf();
     currentUser = Auth.refresh() || currentUser;
     refreshSoldeNumbers();
-    loadWallet();
     // Synchronise ses propres commandes (voir api/orders_list.php) — un
     // suivi de commande ouvert doit refléter une acceptation/un renvoi
     // fait côté cabine sans attendre un rechargement manuel.
-    DB.transactions.refresh().then(() => { if (typeof loadHistory === 'function') loadHistory(); });
+    await DB.transactions.refresh();
     // Élargit la couverture du balayage de commandes en retard (features
     // 4/5) — les onglets client sont typiquement les plus nombreux ouverts.
     DB.business.sweepStaleOrders();
     DB.business.sweepAutoUnsuspensions();
+    // Re-rend la section ACTUELLEMENT affichée (voir _clientSectionLoader()
+    // ci-dessus) — couvre automatiquement tous les onglets, pas seulement
+    // Historique/Portefeuille comme avant.
+    _clientSectionLoader(_clientResume.section || 'transfer')?.();
   }, DB.presence.HEARTBEAT_MS);
   window.addEventListener('beforeunload', () => DB.presence.leave(currentUser.id));
 }
@@ -798,6 +801,22 @@ function closeQrScanner() {
 }
 
 /* ── Navigation entre sections ─────────────────────────────────── */
+// Table "section -> fonction(s) de rechargement", même patron que
+// _adminViewLoader() (js/admin.js) — réutilisée à la fois par showSection()
+// ci-dessous (au clic) et par le sondage périodique de startClientPresence()
+// pour que la section ACTUELLEMENT affichée se remette à jour toute seule,
+// sans avoir à câbler chaque onglet au cas par cas.
+function _clientSectionLoader(name) {
+  return ({
+    transfer:     loadRecentRecap,
+    historique:   loadHistory,
+    depenses:     loadDepenses,
+    portefeuille: loadWallet,
+    profit:       loadProfit,
+    partenaires:  loadPartenaires,
+  })[name];
+}
+
 async function showSection(name) {
   const maintenanceKeys = { depenses: 'depenses', historique: 'historique' };
   if (maintenanceKeys[name] && await isServiceInMaintenance(maintenanceKeys[name])) {
@@ -825,9 +844,7 @@ async function showSection(name) {
   document.body.classList.toggle('on-home', onHome);
   const activeEl = document.getElementById('cs-' + name);
   if (activeEl) activeEl.scrollTop = 0;
-  if (name === 'historique') loadHistory();
-  if (name === 'profit')    loadProfit();
-  if (name === 'depenses')  loadDepenses();
+  _clientSectionLoader(name)?.();
 
   _clientResume.section = name;
   _saveClientResume();
