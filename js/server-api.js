@@ -315,6 +315,24 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function retraitsCreate(cabineId, montant) {
+    const { res, data } = await _call('retraits_create.php', { auth: true, body: { cabine_id: cabineId, montant } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du retrait.' };
+    return { ok: true };
+  }
+
+  async function retraitsList() {
+    const { res, data } = await _call('retraits_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, retraits: data.retraits };
+  }
+
+  async function cabineSetRetraitInfo({ paiementVers, numeroCompte, targetId }) {
+    const { res, data } = await _call('cabine_set_retrait_info.php', { auth: true, body: { paiement_vers: paiementVers, numero_compte: numeroCompte, target_id: targetId || null } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -499,5 +517,6 @@ const ServerAPI = (() => {
     reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,
     transfertsCabineList, resubscriptionsList,
     notificationsList, notificationsMarkRead, notificationsMarkAllRead,
+    retraitsCreate, retraitsList, cabineSetRetraitInfo,
   };
 })();

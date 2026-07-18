@@ -538,6 +538,9 @@ const DB = (() => {
         suspendu_jusqu: row.suspendu_jusqu || null,
         abonnement: row.abonnement || undefined,
         date_creation: row.date_creation,
+        paiement_vers: row.paiement_vers || undefined,
+        numero_compte: row.numero_compte || undefined,
+        retrait_derniere_maj: row.retrait_derniere_maj || undefined,
       };
       if (plainPin) out.mot_de_passe = hashPwd(plainPin);
       return out;
@@ -885,12 +888,43 @@ const DB = (() => {
     all:  ()   => get(KEY.retraits),
     byCabine: (cid) => get(KEY.retraits).filter(r => r.cabine_id === cid).sort((a,b) => new Date(b.date)-new Date(a.date)),
 
+    // Rafraîchit depuis le serveur (voir api/retraits_list.php).
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.retraitsList();
+      if (res.ok) set(KEY.retraits, res.retraits);
+    },
+
+    // Admin : traite un retrait — remplace le débit local
+    // (DB.users.updateSolde) + create() ci-dessous par un seul appel
+    // serveur atomique (voir api/retraits_create.php, corrige un bug
+    // financier réel : le débit local n'a jamais été persisté côté
+    // serveur, écrasé silencieusement par le prochain rafraîchissement de
+    // la liste des cabines).
+    async process(cabineId, montant) {
+      const res = await ServerAPI.retraitsCreate(cabineId, montant);
+      if (!res.ok) return { ok: false, error: res.error };
+      await retraits.refresh();
+      return { ok: true };
+    },
+
+    // Conservée pour compatibilité, plus appelée en pratique (voir process() ci-dessus).
     create(data) {
       const list = get(KEY.retraits);
       const ret  = { id: 'ret_' + uid(), date: now(), statut: 'en_attente', ...data };
       list.push(ret);
       set(KEY.retraits, list);
       return ret;
+    },
+
+    // Remplace confirmCabRetrait()/confirmEditPayment() (js/cabine.js/
+    // js/admin.js), jusqu'ici purement locaux (voir
+    // api/cabine_set_retrait_info.php — délai de 24h revérifié côté
+    // serveur pour la cabine elle-même, pas pour l'admin).
+    async setInfo(paiementVers, numeroCompte, targetId) {
+      const res = await ServerAPI.cabineSetRetraitInfo({ paiementVers, numeroCompte, targetId });
+      if (!res.ok) return { ok: false, error: res.error };
+      return { ok: true };
     },
   };
 

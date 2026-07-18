@@ -27,6 +27,11 @@ fois) dans le même onglet SQL.
 colonnes manquantes sur `forfaits`/`commissions`, dont le schéma exact
 n'était pas encore connu à la Phase 1.
 
+**Base déjà en place (mise en conformité temps réel, phase D/9) :** colle
+aussi le contenu de **`api/migration_phase7_retraits.sql`** (une seule
+fois) — moyen/numéro de retrait de la cabine (`paiement_vers`,
+`numero_compte`, `retrait_derniere_maj`), jusqu'ici purement locaux.
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
@@ -74,6 +79,9 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `notifications_list.php`
 - `notifications_mark_read.php`
 - `notifications_mark_all_read.php`
+- `retraits_create.php`
+- `retraits_list.php`
+- `cabine_set_retrait_info.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`

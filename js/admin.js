@@ -1039,9 +1039,10 @@ function toggleRetraitRowMenu(btn, cabineId) {
    rester fidele a "tous les retraits". */
 const RHIST_PAGE_SIZE = 20;
 
-function loadRetraitsHistorique(page = 1) {
+async function loadRetraitsHistorique(page = 1) {
   const tbody = document.getElementById('rhist-tbody');
   if (!tbody) return;
+  await DB.retraits.refresh();
 
   const query     = (document.getElementById('rhist-search')?.value || '').trim().toLowerCase();
   const dateDebut = document.getElementById('rhist-date-debut')?.value || '';
@@ -1111,11 +1112,13 @@ function openEditPaymentModal(cabineId) {
   openModal('modal-edit-payment');
 }
 
-function confirmEditPayment() {
+async function confirmEditPayment() {
   const methode = document.getElementById('edit-payment-methode').value;
   const numero  = document.getElementById('edit-payment-numero').value.trim();
   if (!numero) { Toast.error('Le numéro de paiement est obligatoire.'); return; }
-  DB.users.update(_editPaymentCabineId, { paiement_vers: methode, numero_compte: numero });
+  const res = await DB.retraits.setInfo(methode, numero, _editPaymentCabineId);
+  if (!res.ok) { Toast.error(res.error); return; }
+  await refreshUsersFromServer();
   closeModal('modal-edit-payment');
   Toast.success('Moyen de paiement mis à jour.');
   loadRetraitsAdmin();
@@ -1139,20 +1142,16 @@ function openProcessRetraitModal(cabineId) {
   openModal('modal-process-retrait');
 }
 
-function confirmProcessRetrait() {
+async function confirmProcessRetrait() {
   const c = DB.users.byId(_processRetraitCabineId);
   if (!c) return;
   const montant = parseFloat(document.getElementById('process-retrait-montant').value);
   if (isNaN(montant) || montant <= 0) { Toast.error('Montant invalide.'); return; }
   if (montant > c.solde) { Toast.error('Le montant dépasse le solde disponible.'); return; }
 
-  DB.users.updateSolde(c.id, -montant);
-  DB.retraits.create({
-    cabine_id: c.id, montant, statut: 'terminé',
-    methode_retrait: c.paiement_vers || 'Non renseigné',
-    numero_paiement: c.numero_compte || '',
-  });
-  DB.notifications.create(c.id, `Un retrait de ${Fmt.money(montant)} a été traité par l'administration.`, 'success');
+  const res = await DB.retraits.process(c.id, montant);
+  if (!res.ok) { Toast.error(res.error); return; }
+  await refreshUsersFromServer();
 
   closeModal('modal-process-retrait');
   Toast.success(`Retrait de ${Fmt.money(montant)} traité pour ${c.prenom} ${c.nom}.`);

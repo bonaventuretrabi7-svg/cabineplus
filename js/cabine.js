@@ -1719,9 +1719,10 @@ const RETRAIT_METHODE_STYLE = {
   'Compte bancaire': { color: '#64748B', gradient: 'linear-gradient(150deg,#94A3B8,#475569)', ico: 'fa-building-columns' },
 };
 
-function loadCabRetraits() {
+async function loadCabRetraits() {
   const list = document.getElementById('cab-retraits-list');
   if (!list) return;
+  await DB.retraits.refresh();
 
   const all       = DB.retraits.byCabine(currentUser.id);
   // Les sanctions (voir DB.business.refundTransaction, type: 'sanction')
@@ -2950,7 +2951,7 @@ function cabSelectRetraitReseau(card) {
   if (prefixKey) applyNetworkPrefix('cab-retrait-numero', prefixKey);
 }
 
-function confirmCabRetrait() {
+async function confirmCabRetrait() {
   const user       = DB.users.byId(currentUser.id);
   const lastMaj     = user.retrait_derniere_maj ? new Date(user.retrait_derniere_maj).getTime() : 0;
   const remainingMs = RETRAIT_COOLDOWN_MS - (Date.now() - lastMaj);
@@ -2965,11 +2966,9 @@ function confirmCabRetrait() {
   const numero = document.getElementById('cab-retrait-numero').value.trim();
   if (!numero) { Toast.error('Le numéro de réception est obligatoire.'); return; }
 
-  DB.users.update(currentUser.id, {
-    paiement_vers: _cabRetraitSelected,
-    numero_compte: numero,
-    retrait_derniere_maj: DB.now(),
-  });
+  const res = await DB.retraits.setInfo(_cabRetraitSelected, numero);
+  if (!res.ok) { Toast.error(res.error); return; }
+  await DB.users.refreshSelf();
   currentUser = Auth.refresh();
 
   Toast.success('Réseau et numéro de retrait mis à jour.');

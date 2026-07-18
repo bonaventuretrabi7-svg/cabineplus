@@ -172,6 +172,10 @@ function loadDb(opts = {}) {
       notificationsList: options.serverNotificationsList || (async () => ({ ok: true, notifications: [] })),
       notificationsMarkRead: options.serverNotificationsMarkRead || (async () => ({ ok: true })),
       notificationsMarkAllRead: options.serverNotificationsMarkAllRead || (async () => ({ ok: true })),
+      // Retraits reels (Phase D, mise en conformite temps reel).
+      retraitsCreate: options.serverRetraitsCreate || (async () => ({ ok: false, error: 'not mocked' })),
+      retraitsList: options.serverRetraitsList || (async () => ({ ok: true, retraits: [] })),
+      cabineSetRetraitInfo: options.serverCabineSetRetraitInfo || (async () => ({ ok: false, error: 'not mocked' })),
     },
   };
   vm.createContext(sandbox);

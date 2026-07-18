@@ -40,6 +40,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   services_actifs      JSON         NULL,
   commandes_renvoyees  INT          NOT NULL DEFAULT 0,
   remboursements_recus INT          NOT NULL DEFAULT 0,
+  paiement_vers         VARCHAR(64)  NULL,
+  numero_compte         VARCHAR(64)  NULL,
+  retrait_derniere_maj  DATETIME     NULL,
   UNIQUE KEY uniq_telephone_role (telephone, role),
   UNIQUE KEY uniq_email_role (email, role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
