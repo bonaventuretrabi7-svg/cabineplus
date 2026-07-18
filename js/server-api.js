@@ -32,7 +32,8 @@ const ServerAPI = (() => {
   // l'app Android empaquetée (mensonge connu de cette WebView) et tente
   // toujours l'appel réel, un appareil VRAIMENT hors ligne doit échouer
   // vite plutôt que de laisser fetch() (sans délai natif) pendre
-  // indéfiniment — un sondage toutes les 3s empilerait sinon des requêtes
+  // indéfiniment — un sondage toutes les 2s (DB.presence.HEARTBEAT_MS)
+  // empilerait sinon des requêtes
   // bloquées à l'infini. AbortController : compatible avec le "vraiment
   // hors ligne -> networkError" déjà géré ci-dessous, aucun appelant à
   // changer.

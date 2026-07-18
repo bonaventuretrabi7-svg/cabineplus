@@ -261,8 +261,9 @@ async function boot() {
     _setNetStatusLabel(n, _cabNetworks[n]);
   });
 
-  // Sondage automatique — voir plan "temps réel" (3s partout, resserré
-  // depuis 30s : le meilleur compromis possible sans WebSocket/SSE sur cet
+  // Sondage automatique — voir plan "temps réel" (DB.presence.HEARTBEAT_MS,
+  // même constante partagée que client.js/admin.js, resserrée depuis 30s
+  // puis 3s : le meilleur compromis possible sans WebSocket/SSE sur cet
   // hébergement mutualisé, sans le saturer de requêtes).
   setInterval(async () => {
     await DB.transactions.refresh();
@@ -300,7 +301,7 @@ async function boot() {
     // bord comme avant. 'home' déjà couvert ci-dessus (loadCabBalanceCard/
     // loadCabRealtimeStats), pas la peine de le rappeler une 2e fois.
     if (_cabResume.section && _cabResume.section !== 'home') _cabSectionLoader(_cabResume.section)?.();
-  }, 3000);
+  }, DB.presence.HEARTBEAT_MS);
 }
 
 /* ── Barre de navigation : masquée pendant le scroll, réapparaît à l'arrêt ── */

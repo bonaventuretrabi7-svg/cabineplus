@@ -694,7 +694,12 @@ const DB = (() => {
      restent synchrones (lisent ce même cache local fusionné) : appelées
      depuis DB.business.findReassignmentTarget, encore 100% synchrone. */
   const presence = {
-    HEARTBEAT_MS: 3000,
+    // Cadence du sondage périodique (présence + resynchronisation générale)
+    // des 3 espaces (voir startClientPresence()/js/client.js, le
+    // setInterval de boot()/js/cabine.js, et celui de js/admin.js — tous
+    // partagent cette même constante). Resserré à 2s (depuis 3s) sur
+    // demande explicite pour l'espace client/cabine.
+    HEARTBEAT_MS: 2000,
     STALE_MS: 25000,
 
     _all() { return JSON.parse(localStorage.getItem(KEY.presence) || '{}'); },
