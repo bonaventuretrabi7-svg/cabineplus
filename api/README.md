@@ -48,6 +48,11 @@ aussi le contenu de **`api/migration_phase10_devices.sql`** (une seule
 fois) — nouvelle table `devices` (appareils connectés, avec vraie
 révocation à distance).
 
+**Base déjà en place (mise en conformité temps réel, phase H/9) :** colle
+aussi le contenu de **`api/migration_phase11_referrals.sql`** (une seule
+fois) — nouvelle table `referrals` (parrainage, jamais implémenté même
+localement jusqu'ici).
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
@@ -109,6 +114,7 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `devices_touch.php`
 - `devices_list.php`
 - `devices_remove.php`
+- `referrals_summary.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`

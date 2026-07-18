@@ -424,6 +424,13 @@ async function boot() {
 
   try {
     DB.init();
+    // Capture le code de parrainage (?ref=<téléphone du parrain>, voir
+    // renderParrainage() plus bas) s'il est présent dans l'URL — conservé
+    // en localStorage (pas sessionStorage : un invité peut revenir
+    // plusieurs jours plus tard avant de s'inscrire) jusqu'à l'inscription,
+    // voir handleAuthGateRegister().
+    const refParam = new URLSearchParams(window.location.search).get('ref');
+    if (refParam && /^[0-9]{10}$/.test(refParam)) localStorage.setItem('cbp_referral_code', refParam);
     // Rattrape une file de synchronisation laissée en attente (voir
     // DB.syncQueue) si la connexion est déjà là au lancement, et
     // resynchronise automatiquement dès qu'elle revient — jamais bloquant,
@@ -1338,9 +1345,14 @@ async function handleAuthGateRegister(e) {
   // connexion en ligne depuis un autre appareil, si l'utilisateur en
   // configure un entretemps.
   if (ServerAPI.isConfigured && DB.Net.isOnline()) {
-    const created = await ServerAPI.createAccount({ role: 'client', prenom: tel, telephone: tel, pin });
+    const parrainTelephone = localStorage.getItem('cbp_referral_code') || null;
+    const created = await ServerAPI.createAccount({ role: 'client', prenom: tel, telephone: tel, pin, parrainTelephone });
     if (!created.ok) { Toast.error(created.error || 'Échec de la création du compte.'); return; }
     DB.users.cacheFromServer(created.profile, pin);
+    // Consommé une seule fois — un client qui recrée un autre compte plus
+    // tard (rare, mais possible) ne doit pas re-déclencher le même
+    // parrainage indéfiniment.
+    localStorage.removeItem('cbp_referral_code');
   } else {
     DB.users.create({ prenom: tel, telephone: tel, mot_de_passe: pin, role: 'client' });
   }
@@ -4158,13 +4170,18 @@ function loadProfit() {
 
 function renderParrainage(u) {
   const linkEl = document.getElementById('parrain-link');
-  if (linkEl) linkEl.textContent = 'kbineplus.app/ref/' + u.telephone;
+  if (linkEl) linkEl.textContent = 'kbineplus.com/?ref=' + u.telephone;
 
-  const stored = JSON.parse(localStorage.getItem('cbp_parrain_' + u.id) || '{"count":0,"total":0}');
   const countEl = document.getElementById('parrain-count');
   const totalEl = document.getElementById('parrain-total');
-  if (countEl) countEl.textContent = stored.count;
-  if (totalEl) totalEl.textContent = Fmt.money(stored.total);
+  if (countEl) countEl.textContent = DB.referrals.count();
+  if (totalEl) totalEl.textContent = Fmt.money(DB.referrals.total());
+  // Chiffres à jour dès l'ouverture (cache-first, comme DB.settings.get())
+  // — voir api/referrals_summary.php.
+  DB.referrals.refresh().then(() => {
+    if (countEl) countEl.textContent = DB.referrals.count();
+    if (totalEl) totalEl.textContent = Fmt.money(DB.referrals.total());
+  });
 }
 
 // Section Partenaires (cs-partenaires) : pas de rendu de liste complexe

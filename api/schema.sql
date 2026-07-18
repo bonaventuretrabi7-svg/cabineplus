@@ -415,6 +415,21 @@ CREATE TABLE IF NOT EXISTS devices (
   KEY idx_devices_profile (profile_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Parrainage (client -> client) ────────────────────────────────────
+-- reward_montant figé à l'inscription (pas de dérive si le taux change
+-- plus tard) ; reward_verse=0 jusqu'à la 1re commande terminée du
+-- filleul (voir creditReferralRewardIfFirstOrder(), orders_common.php).
+CREATE TABLE IF NOT EXISTS referrals (
+  id              CHAR(36)   NOT NULL PRIMARY KEY,
+  referrer_id     CHAR(36)   NOT NULL,
+  referred_id     CHAR(36)   NOT NULL,
+  reward_montant  BIGINT     NOT NULL DEFAULT 50,
+  reward_verse    TINYINT(1) NOT NULL DEFAULT 0,
+  date            DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_referred (referred_id),
+  KEY idx_referrer (referrer_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Compte super admin (seul moyen de démarrer — mot de passe haché à
 -- l'insertion via PASSWORD('1973') n'existe pas en MySQL pour bcrypt ; le
 -- hash est déjà calculé ci-dessous avec password_hash('1973', PASSWORD_BCRYPT)

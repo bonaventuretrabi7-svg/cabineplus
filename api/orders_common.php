@@ -197,3 +197,30 @@ function refundTransactionEffect(PDO $pdo, string $txnId): array {
 
   return $txn;
 }
+
+// Parrainage (voir create_account.php pour l'enregistrement de la
+// relation, referrals.reward_verse=0 au départ) : crédite le parrain dès
+// que son filleul termine sa TOUTE PREMIÈRE commande — appelée après
+// qu'une commande vient de passer à 'terminé' (orders_accept.php).
+// CAS sur reward_verse=0 : ne crédite jamais deux fois, même appelée en
+// concurrence. Best-effort intentionnel (jamais dans la même transaction
+// PDO que l'acceptation elle-même, voir createNotification() plus haut
+// pour le même principe) : un échec ici ne doit jamais faire annuler
+// l'acceptation déjà validée.
+function creditReferralRewardIfFirstOrder(PDO $pdo, string $clientId): void {
+  $countStmt = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE client_id = ? AND statut = 'terminé'");
+  $countStmt->execute([$clientId]);
+  if ((int)$countStmt->fetchColumn() !== 1) return; // pas sa première commande terminée
+
+  $refStmt = $pdo->prepare("SELECT * FROM referrals WHERE referred_id = ? AND reward_verse = 0");
+  $refStmt->execute([$clientId]);
+  $ref = $refStmt->fetch();
+  if (!$ref) return;
+
+  $claim = $pdo->prepare('UPDATE referrals SET reward_verse = 1 WHERE id = ? AND reward_verse = 0');
+  $claim->execute([$ref['id']]);
+  if ($claim->rowCount() === 0) return; // déjà versé entre-temps (concurrence)
+
+  $pdo->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([(int)$ref['reward_montant'], $ref['referrer_id']]);
+  createNotification($ref['referrer_id'], 'Votre filleul a effectué sa première transaction — ' . number_format((float)$ref['reward_montant'], 0, ',', ' ') . ' F ont été crédités sur votre solde. Merci d\'avoir parrainé KBINE PLUS !', 'success');
+}

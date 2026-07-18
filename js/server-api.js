@@ -102,9 +102,9 @@ const ServerAPI = (() => {
 
   /* Auto-inscription client/cabine (voir api/create_account.php, public) —
      utilisée par handleAuthGateRegister() dans js/client.js. */
-  async function createAccount({ role, nom, prenom, telephone, pin, email, cabineNom }) {
+  async function createAccount({ role, nom, prenom, telephone, pin, email, cabineNom, parrainTelephone }) {
     const { res, data } = await _call('create_account.php', {
-      body: { role, nom, prenom, telephone, pin, email: email || null, cabine_nom: cabineNom || null },
+      body: { role, nom, prenom, telephone, pin, email: email || null, cabine_nom: cabineNom || null, parrain_telephone: parrainTelephone || null },
     });
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || 'Échec de la création du compte.' };
@@ -399,6 +399,12 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function referralsSummary() {
+    const { res, data } = await _call('referrals_summary.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, count: data.count, total: data.total };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -587,5 +593,6 @@ const ServerAPI = (() => {
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
     partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse,
     devicesTouch, devicesList, devicesRemove,
+    referralsSummary,
   };
 })();

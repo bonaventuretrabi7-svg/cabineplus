@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require __DIR__ . '/bootstrap.php';
+require __DIR__ . '/orders_common.php';
 
 // Acceptation d'une commande par la cabine — remplace DB.business.acceptRequest()
 // (js/db.js). Corrige la faille de concurrence historique : l'ancienne
@@ -69,5 +70,6 @@ createNotification($me['id'], 'Commission de ' . number_format((float)$commissio
 if ($quotaReached) {
   createNotification($me['id'], 'Quota de commission du forfait ' . $plan . ' atteint (' . number_format((float)$quota, 0, ',', ' ') . ' F). Votre abonnement a pris fin.', 'warning');
 }
+if ($txn['client_id']) creditReferralRewardIfFirstOrder($pdo, $txn['client_id']);
 
 echo json_encode(['ok' => true]);

@@ -32,6 +32,7 @@ const DB = (() => {
     resetRequests:    PREFIX + 'reset_requests',
     partnerApplications: PREFIX + 'partner_applications',
     partnerDevicesServer: PREFIX + 'partner_devices_server',
+    referrals: PREFIX + 'referrals',
   };
 
   /* Les 6 méthodes de retrait disponibles pour verser sa commission
@@ -1288,6 +1289,23 @@ const DB = (() => {
     },
   };
 
+  /* ── Parrainage ────────────────────────────────────────────────────────
+     Remplace le compteur figé lu depuis localStorage cbp_parrain_* (jamais
+     incrémenté, la fonctionnalité n'était même pas implémentée en local)
+     — voir api/referrals_summary.php et creditReferralRewardIfFirstOrder()
+     (api/orders_common.php) pour la règle de versement (50 F à la 1re
+     commande terminée du filleul, montant déjà annoncé dans l'UI). */
+  const referrals = {
+    count: () => (get(KEY.referrals) || {}).count || 0,
+    total: () => (get(KEY.referrals) || {}).total || 0,
+
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.referralsSummary();
+      if (res.ok) set(KEY.referrals, { count: res.count, total: res.total });
+    },
+  };
+
   /* ── Candidatures partenaires ─────────────────────────────────────────
      Remplace Applications (IIFE 100% localStorage, js/client.js) et la
      lecture localStorage directe côté admin.js — voir
@@ -2168,7 +2186,7 @@ const DB = (() => {
   };
 
   /* â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, partnerApplications, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
+  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, partnerApplications, referrals, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
 })();
 
 /* ── Maintenance (service/réseau) — fonctions globales (non namespacées
