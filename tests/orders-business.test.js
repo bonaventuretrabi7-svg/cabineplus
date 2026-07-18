@@ -189,6 +189,35 @@ test('DB.transactions.refresh() : upsert par id (met à jour une entrée existan
   assert.equal(DB.transactions.byId('txn2').montant, 800, 'nouvelle entrée ajoutée');
 });
 
+test('DB.transactions.refresh() : purge une commande supprimée côté serveur (orders_delete.php)', async () => {
+  const { DB } = loadDb({
+    online: true,
+    serverOrdersList: async () => ({ ok: true, transactions: [
+      { id: 'txn2', statut: 'en_attente', montant: 800 },
+    ] }),
+  });
+  DB.init();
+  DB.transactions.create({ id: 'txn1', client_id: 'cli1', statut: 'en_attente', montant: 500 });
+  DB.transactions.create({ id: 'txn2', client_id: 'cli1', statut: 'en_attente', montant: 800 });
+
+  await DB.transactions.refresh();
+  assert.equal(DB.transactions.byId('txn1'), undefined, 'commande absente de la réponse serveur retirée du cache local');
+  assert.equal(DB.transactions.byId('txn2').montant, 800, 'commande toujours présente côté serveur conservée');
+});
+
+test('DB.transactions.refresh() : ne purge jamais une commande créée hors ligne, pas encore synchronisée', async () => {
+  const { DB } = loadDb({
+    online: true,
+    serverOrdersList: async () => ({ ok: true, transactions: [] }),
+  });
+  DB.init();
+  const localOnly = DB.transactions.create({ client_id: 'cli1', statut: 'en_attente', montant: 300 });
+  assert.match(localOnly.id, /^txn_/);
+
+  await DB.transactions.refresh();
+  assert.ok(DB.transactions.byId(localOnly.id), 'commande locale non synchronisée conservée malgré une liste serveur vide');
+});
+
 test('DB.retards.refresh() : remplace le cache local par la liste serveur', async () => {
   const { DB } = loadDb({
     online: true,

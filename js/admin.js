@@ -313,9 +313,9 @@ async function refreshUsersFromServer() {
     ServerAPI.listProfiles('cabine'),
     ServerAPI.listProfiles('admin'),
   ]);
-  if (clientsRes.ok) DB.users.mergeProfileList(clientsRes.profiles);
-  if (cabinesRes.ok) DB.users.mergeProfileList(cabinesRes.profiles);
-  if (adminsRes.ok) DB.users.mergeProfileList(adminsRes.profiles);
+  if (clientsRes.ok) DB.users.mergeProfileList(clientsRes.profiles, 'client');
+  if (cabinesRes.ok) DB.users.mergeProfileList(cabinesRes.profiles, 'cabine');
+  if (adminsRes.ok) DB.users.mergeProfileList(adminsRes.profiles, 'admin');
   if (!clientsRes.ok && !cabinesRes.ok && !adminsRes.ok) return; // rien de nouveau, pas la peine de re-rendre
   loadClients(_adminResume.filters.clients || '');
   loadCabines(_adminResume.filters.cabines || '');

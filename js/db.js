@@ -612,8 +612,22 @@ const DB = (() => {
     // (fromProfileRow(row) sans 2e argument) : mot_de_passe n'est jamais
     // touché, contrairement à cacheFromServer() (appelé au login avec le
     // PIN qui vient d'être vérifié).
-    mergeProfileList(rows) {
-      const list = get(KEY.users);
+    // `rows` est la liste COMPLÈTE de ce rôle côté serveur (list_profiles.php
+    // ne filtre que par rôle, jamais paginé) : purge donc aussi, avant de
+    // fusionner, toute entrée locale de ce même rôle absente de cette liste
+    // — sans ça, un compte supprimé via admin_delete_account.php restait
+    // affiché indéfiniment (jamais retiré, seulement jamais mis à jour).
+    // Un compte créé hors ligne (id encore préfixé 'u_', voir users.create())
+    // n'est jamais purgé ici : il n'a pas encore de contrepartie serveur à
+    // comparer, ce n'est pas un compte supprimé.
+    mergeProfileList(rows, role) {
+      const serverKeys = new Set(rows.map(row => {
+        const m = users.fromProfileRow(row);
+        return (m.telephone || '') + '|' + (m.email || '');
+      }));
+      const list = get(KEY.users).filter(u => (
+        u.role !== role || u.id.startsWith('u_') || serverKeys.has((u.telephone || '') + '|' + (u.email || ''))
+      ));
       rows.forEach(row => {
         const mapped = users.fromProfileRow(row);
         const idx = list.findIndex(u => mapped.role === u.role && (
@@ -837,15 +851,23 @@ const DB = (() => {
 
     // Rafraîchit depuis le serveur (voir api/orders_list.php, portée par
     // rôle — un client ne reçoit que les siennes, une cabine celles qui
-    // lui sont assignées, un admin tout) — sans ceci, un appareil ne
-    // verrait jamais une commande créée/traitée ailleurs malgré les
-    // endpoints d'écriture. Upsert par id plutôt qu'un remplacement total
-    // : une commande est très rarement supprimée, jamais par ce chemin.
+    // lui sont assignées, un admin tout, toujours la liste COMPLÈTE, jamais
+    // paginée) — sans ceci, un appareil ne verrait jamais une commande
+    // créée/traitée ailleurs malgré les endpoints d'écriture. Upsert par id,
+    // mais purge aussi toute commande locale déjà synchronisée (id qui n'est
+    // PAS préfixé 'txn_', voir transactions.create() plus bas) absente de
+    // cette réponse : depuis api/orders_delete.php (suppression réelle par
+    // le super admin), une commande supprimée restait sinon affichée
+    // indéfiniment (jamais retirée, seulement jamais mise à jour). Une
+    // commande créée hors ligne (id encore 'txn_...', pas encore synchronisée)
+    // n'est elle jamais purgée ici : le serveur ne la connaît pas encore, ce
+    // n'est pas une commande supprimée.
     async refresh() {
       if (!ServerAPI.isConfigured || !Net.isOnline()) return;
       const res = await ServerAPI.ordersList();
       if (!res.ok) return;
-      const list = get(KEY.transactions);
+      const serverIds = new Set(res.transactions.map(t => t.id));
+      const list = get(KEY.transactions).filter(t => t.id.startsWith('txn_') || serverIds.has(t.id));
       res.transactions.forEach(row => {
         const idx = list.findIndex(t => t.id === row.id);
         if (idx !== -1) list[idx] = row; else list.push(row);
