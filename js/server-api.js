@@ -381,6 +381,24 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function devicesTouch({ deviceId, label, remember }) {
+    const { res, data } = await _call('devices_touch.php', { auth: true, body: { device_id: deviceId, label, remember: !!remember } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true, id: data.id };
+  }
+
+  async function devicesList() {
+    const { res, data } = await _call('devices_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, devices: data.devices };
+  }
+
+  async function devicesRemove(id) {
+    const { res, data } = await _call('devices_remove.php', { auth: true, body: { id } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -568,5 +586,6 @@ const ServerAPI = (() => {
     retraitsCreate, retraitsList, cabineSetRetraitInfo,
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
     partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse,
+    devicesTouch, devicesList, devicesRemove,
   };
 })();

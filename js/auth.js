@@ -135,7 +135,7 @@ const Auth = (() => {
   // après un login() réussi) plutôt qu'une valeur locale — une reprise de
   // session doit pouvoir être revérifiée par le serveur (voir
   // resumeSession() plus bas).
-  function _applyDeviceBookkeeping(user, remember) {
+  async function _applyDeviceBookkeeping(user, remember) {
     const result = {};
     if (_hasDeviceLimit(user)) {
       const deviceId = getDeviceId();
@@ -148,6 +148,12 @@ const Auth = (() => {
         const rec = DB.partnerDevices.register(user.id, deviceId, _deviceLabel(), !!remember, serverToken);
         if (rec.remember_token) result.rememberToken = rec.remember_token;
       }
+      // Miroir serveur (voir api/devices_touch.php, Phase G) — sans ça,
+      // "Mes appareils connectés" ne reflète jamais que le navigateur
+      // courant, ni révocable depuis un AUTRE appareil/l'administration.
+      // Best-effort (ne renvoie jamais d'erreur bloquante) : jamais
+      // d'impact sur la connexion elle-même.
+      await DB.partnerDevices.syncSelf(deviceId, _deviceLabel(), !!remember);
     }
     return result;
   }
@@ -195,7 +201,8 @@ const Auth = (() => {
     _backupClientSessionIfSwitching(user);
     save(user);
 
-    const result = { ok: true, user, ..._applyDeviceBookkeeping(user, remember) };
+    const bookkeeping = await _applyDeviceBookkeeping(user, remember);
+    const result = { ok: true, user, ...bookkeeping };
     return result;
   }
 

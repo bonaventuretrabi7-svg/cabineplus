@@ -289,6 +289,7 @@ async function _tryRememberMeAdminRestore() {
     return;
   }
   DB.partnerDevices.touch(rec.id, true, token);
+  await DB.partnerDevices.syncSelf(rec.device_id, rec.label, true);
 }
 
 // Synchronise le cache local des comptes (client/cabine) avec le serveur
@@ -3686,12 +3687,13 @@ function loadCabinesSuspenduesAdmin() {
    gestion en libre-service (toggleCabDevicesSection(), js/cabine.js),
    pas dupliquée ici. Réutilise DB.partnerDevices tel quel (déjà générique
    par user_id, voir js/db.js) — voir aussi Auth._hasDeviceLimit (js/auth.js). */
-function loadAppareilsAdmin() {
+async function loadAppareilsAdmin() {
   const el = document.getElementById('appareils-admin-list');
   if (!el) return;
+  await DB.partnerDevices.refresh();
 
-  const devices = DB.partnerDevices.all().filter(d => {
-    const u = DB.users.byId(d.user_id);
+  const devices = DB.partnerDevices.allFromServer().filter(d => {
+    const u = DB.users.byId(d.profile_id);
     return u && (u.role === 'client' || (u.role === 'admin' && u.admin_level === 'simple'));
   });
 
@@ -3705,16 +3707,16 @@ function loadAppareilsAdmin() {
 
   // Regroupé par compte, trié par appareil le plus récent en premier.
   const byUser = {};
-  devices.forEach(d => { (byUser[d.user_id] = byUser[d.user_id] || []).push(d); });
+  devices.forEach(d => { (byUser[d.profile_id] = byUser[d.profile_id] || []).push(d); });
 
   el.innerHTML = Object.entries(byUser).map(([userId, list]) => {
     const u = DB.users.byId(userId);
     const name = `${u.prenom || ''} ${u.nom || ''}`.trim() || Fmt.phone(u.telephone);
-    const rows = list.sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen)).map(d => `
+    const rows = list.sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at)).map(d => `
       <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--gray-100);">
         <div style="font-size:.75rem;">
           <div style="font-weight:700;">${d.label || 'Appareil'}</div>
-          <div style="color:var(--gray-400);font-size:.68rem;">Vu le ${Fmt.datetime(d.last_seen)}${d.remember_token ? ' · Mémorisé' : ''}</div>
+          <div style="color:var(--gray-400);font-size:.68rem;">Vu le ${Fmt.datetime(d.last_seen_at)}${d.remembered ? ' · Mémorisé' : ''}</div>
         </div>
         <button class="btn btn-sm btn-danger" onclick="deconnecterAppareil('${d.id}')" style="font-size:.6rem;padding:4px 10px;">
           <i class="fa-solid fa-power-off"></i> Déconnecter
@@ -3727,9 +3729,10 @@ function loadAppareilsAdmin() {
   }).join('');
 }
 
-function deconnecterAppareil(deviceRecordId) {
+async function deconnecterAppareil(deviceRecordId) {
   if (!confirm('Déconnecter cet appareil ? Le compte devra se reconnecter depuis celui-ci.')) return;
-  DB.partnerDevices.remove(deviceRecordId);
+  const res = await DB.partnerDevices.revoke(deviceRecordId);
+  if (!res.ok) { Toast.error(res.error); return; }
   Toast.success('Appareil déconnecté.');
   loadAppareilsAdmin();
 }

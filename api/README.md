@@ -43,6 +43,11 @@ aussi le contenu de **`api/migration_phase9_partner_applications.sql`**
 manquantes sur `profiles` (`whatsapp`, `photo`, `code_qr`, `motivation`,
 `experience`, `puces`, `paiement_abo`).
 
+**Base déjà en place (mise en conformité temps réel, phase G/9) :** colle
+aussi le contenu de **`api/migration_phase10_devices.sql`** (une seule
+fois) — nouvelle table `devices` (appareils connectés, avec vraie
+révocation à distance).
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
@@ -101,6 +106,9 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `partner_applications_list.php`
 - `partner_applications_validate.php`
 - `partner_applications_refuse.php`
+- `devices_touch.php`
+- `devices_list.php`
+- `devices_remove.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`

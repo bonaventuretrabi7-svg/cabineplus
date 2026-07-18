@@ -31,6 +31,7 @@ const DB = (() => {
     syncQueue:        PREFIX + 'sync_queue',
     resetRequests:    PREFIX + 'reset_requests',
     partnerApplications: PREFIX + 'partner_applications',
+    partnerDevicesServer: PREFIX + 'partner_devices_server',
   };
 
   /* Les 6 méthodes de retrait disponibles pour verser sa commission
@@ -784,6 +785,39 @@ const DB = (() => {
       if (!rec) return null;
       if (rec.expires_at && new Date(rec.expires_at).getTime() <= Date.now()) return null;
       return rec;
+    },
+
+    // Miroir serveur (voir api/devices_touch.php, Phase G) — appelé
+    // uniquement aux évènements d'authentification réels (login, reprise
+    // "rester connecté"), jamais depuis le heartbeat local très fréquent
+    // (_touchCurrentCabDevice() etc., js/cabine.js) pour ne pas multiplier
+    // les appels serveur inutilement. Best-effort, jamais bloquant.
+    async syncSelf(deviceId, label, remember) {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      await ServerAPI.devicesTouch({ deviceId, label, remember });
+    },
+
+    // Rafraîchit depuis le serveur (voir api/devices_list.php) — un client/
+    // une cabine ne reçoit que ses propres appareils, un admin les reçoit
+    // tous (déjà filtré côté serveur par rôle).
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.devicesList();
+      if (res.ok) set(KEY.partnerDevicesServer, res.devices);
+    },
+
+    allFromServer: () => get(KEY.partnerDevicesServer) || [],
+
+    // Déconnecte réellement un appareil (voir api/devices_remove.php) —
+    // supprime aussi la session serveur correspondante, contrairement à
+    // remove()/removeByDeviceId() ci-dessus qui ne retirent que l'entrée
+    // LOCALE (utilisées pour SA PROPRE déconnexion, où la session courante
+    // est de toute façon invalidée séparément par ServerAPI.logout()).
+    async revoke(deviceRecordId) {
+      const res = await ServerAPI.devicesRemove(deviceRecordId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await partnerDevices.refresh();
+      return { ok: true };
     },
   };
 

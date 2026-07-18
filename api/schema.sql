@@ -397,6 +397,24 @@ CREATE TABLE IF NOT EXISTS partner_applications (
   processed_by      CHAR(36)     NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Appareils connectés (client/cabine/admin simple) ────────────────────
+-- token_hash (jamais le jeton en clair, même schéma que `sessions`) permet
+-- de vraiment révoquer un appareil : supprimer ce jeton de `sessions`
+-- déconnecte réellement la session, pas seulement un retrait cosmétique
+-- de la liste.
+CREATE TABLE IF NOT EXISTS devices (
+  id           CHAR(36)     NOT NULL PRIMARY KEY,
+  profile_id   CHAR(36)     NOT NULL,
+  device_id    CHAR(36)     NOT NULL,
+  label        VARCHAR(190) NULL,
+  token_hash   CHAR(64)     NULL,
+  remembered   TINYINT(1)   NOT NULL DEFAULT 0,
+  created_at   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  last_seen_at DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_profile_device (profile_id, device_id),
+  KEY idx_devices_profile (profile_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Compte super admin (seul moyen de démarrer — mot de passe haché à
 -- l'insertion via PASSWORD('1973') n'existe pas en MySQL pour bcrypt ; le
 -- hash est déjà calculé ci-dessous avec password_hash('1973', PASSWORD_BCRYPT)

@@ -176,6 +176,9 @@ function loadDb(opts = {}) {
       partnerApplicationsList: options.serverPartnerApplicationsList || (async () => ({ ok: true, applications: [] })),
       partnerApplicationsValidate: options.serverPartnerApplicationsValidate || (async () => ({ ok: false, error: 'not mocked' })),
       partnerApplicationsRefuse: options.serverPartnerApplicationsRefuse || (async () => ({ ok: false, error: 'not mocked' })),
+      devicesTouch: options.serverDevicesTouch || (async () => ({ ok: true, id: 'dev-row-1' })),
+      devicesList: options.serverDevicesList || (async () => ({ ok: true, devices: [] })),
+      devicesRemove: options.serverDevicesRemove || (async () => ({ ok: false, error: 'not mocked' })),
       // Notifications réelles (Phase C, mise en conformité temps réel).
       notificationsList: options.serverNotificationsList || (async () => ({ ok: true, notifications: [] })),
       notificationsMarkRead: options.serverNotificationsMarkRead || (async () => ({ ok: true })),

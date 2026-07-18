@@ -127,6 +127,7 @@ async function _tryRememberMeRestore() {
     return;
   }
   DB.partnerDevices.touch(rec.id, true, token);
+  await DB.partnerDevices.syncSelf(rec.device_id, rec.label, true);
 }
 
 /* ── Écran de connexion (aucune session cabine valide sur cet appareil) ──
@@ -3124,27 +3125,34 @@ function _cabDeviceRelativeTime(iso) {
   return `il y a ${Math.round(diffH / 24)} j`;
 }
 
-function loadCabDevices() {
+// Remplace la lecture 100% locale (DB.partnerDevices.forUser()) par la
+// vraie liste serveur (voir api/devices_list.php, Phase G) — sans ça,
+// "Mes appareils connectés" ne montrait jamais que le navigateur courant,
+// et "Déconnecter" ne faisait rien côté serveur (la session restait
+// valide malgré le retrait visuel).
+async function loadCabDevices() {
   const list = document.getElementById('cab-devices-list');
   if (!list) return;
+  await DB.partnerDevices.refresh();
   const myDeviceId = Auth.getDeviceId();
-  const devices = DB.partnerDevices.forUser(currentUser.id).sort((a, b) => new Date(b.last_seen) - new Date(a.last_seen));
+  const devices = DB.partnerDevices.allFromServer().sort((a, b) => new Date(b.last_seen_at) - new Date(a.last_seen_at));
   list.innerHTML = devices.map(d => `
     <div class="cab-device-row">
       <div class="cab-device-ico"><i class="fa-solid fa-mobile-screen-button"></i></div>
       <div class="cab-device-info">
-        <div class="cab-device-label">${d.label}${d.device_id === myDeviceId ? ' <span class="cab-device-here">Cet appareil</span>' : ''}</div>
-        <div class="cab-device-sub">${d.remember_token ? 'Mémorisé — ' : ''}Actif ${_cabDeviceRelativeTime(d.last_seen)}</div>
+        <div class="cab-device-label">${d.label || 'Appareil'}${d.device_id === myDeviceId ? ' <span class="cab-device-here">Cet appareil</span>' : ''}</div>
+        <div class="cab-device-sub">${d.remembered ? 'Mémorisé — ' : ''}Actif ${_cabDeviceRelativeTime(d.last_seen_at)}</div>
       </div>
       ${d.device_id === myDeviceId
         ? ''
-        : `<button type="button" class="cab-device-disconnect" onclick="cabDisconnectDevice('${d.device_id}')" title="Déconnecter cet appareil"><i class="fa-solid fa-xmark"></i></button>`}
+        : `<button type="button" class="cab-device-disconnect" onclick="cabDisconnectDevice('${d.id}')" title="Déconnecter cet appareil"><i class="fa-solid fa-xmark"></i></button>`}
     </div>
   `).join('') || '<div class="cab-devices-empty">Aucun autre appareil connecté.</div>';
 }
 
-function cabDisconnectDevice(deviceId) {
-  DB.partnerDevices.removeByDeviceId(currentUser.id, deviceId);
+async function cabDisconnectDevice(deviceRecordId) {
+  const res = await DB.partnerDevices.revoke(deviceRecordId);
+  if (!res.ok) { Toast.error(res.error); return; }
   loadCabDevices();
   Toast.success('Appareil déconnecté.');
 }

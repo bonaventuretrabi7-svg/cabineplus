@@ -68,6 +68,7 @@ async function _tryRememberMeClientRestore() {
     return null;
   }
   DB.partnerDevices.touch(rec.id, true, token);
+  await DB.partnerDevices.syncSelf(rec.device_id, rec.label, true);
   return res.user;
 }
 

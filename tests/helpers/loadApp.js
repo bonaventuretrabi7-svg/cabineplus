@@ -104,6 +104,13 @@ function loadApp(opts = {}) {
       logout: opts.serverLogout ?? (async () => {}),
       getSettings: opts.serverGetSettings ?? (async () => ({})),
       updateSettings: opts.serverUpdateSettings ?? (async () => ({})),
+      // Miroir serveur "appareils connectés" (Phase G) — appelé en
+      // best-effort par Auth.login() via DB.partnerDevices.syncSelf(),
+      // voir js/auth.js/_applyDeviceBookkeeping(). No-op par défaut pour
+      // ne rien changer aux tests existants qui ne le fournissent pas.
+      devicesTouch: opts.serverDevicesTouch ?? (async () => ({ ok: true, id: 'dev-row-1' })),
+      devicesList: opts.serverDevicesList ?? (async () => ({ ok: true, devices: [] })),
+      devicesRemove: opts.serverDevicesRemove ?? (async () => ({ ok: false, error: 'not mocked' })),
     },
   };
   vm.createContext(sandbox);
