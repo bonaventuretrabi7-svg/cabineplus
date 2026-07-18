@@ -231,6 +231,12 @@ async function boot() {
   // obsolète (une commande traitée sur un autre appareil pendant que
   // celui-ci était fermé).
   await DB.transactions.refresh();
+  // Reprend aussi son propre profil (solde compris) dès l'ouverture — une
+  // recharge/un changement de formule fait par l'administration pendant que
+  // l'app était fermée doit apparaître dès la réouverture, sans attendre le
+  // premier cycle de sondage (voir plus bas, toutes les 30s).
+  await DB.users.refreshSelf();
+  currentUser = Auth.refresh() || currentUser;
   // Reprend les commandes en attente non assignées (pool "administration")
   // — voir DB.business.assignPendingToCabine().
   await DB.business.assignPendingToCabine(currentUser.id);
@@ -258,6 +264,11 @@ async function boot() {
     await DB.transactions.refresh();
     await DB.business.sweepStaleOrders();
     await DB.business.sweepAutoUnsuspensions();
+    // Reprend son propre profil (solde compris) — une recharge/un
+    // changement de formule fait par l'administration doit apparaître ici
+    // sans que le partenaire ait besoin de se déconnecter/reconnecter (voir
+    // DB.users.refreshSelf(), js/db.js).
+    await DB.users.refreshSelf();
     currentUser = Auth.refresh();
     // Compte supprimé entre-temps : déconnexion. Une suspension (auto ou
     // manuelle) ne déconnecte plus le partenaire — il doit rester connecté
@@ -266,6 +277,7 @@ async function boot() {
     // nouvelles commandes reste bloquée côté serveur simulé (js/db.js).
     if (!currentUser) { Auth.logout(); return; }
     updateNotifBadge();
+    loadCabBalanceCard();
     loadCabRealtimeStats();
     _refreshSuspensionBanner(currentUser);
     // Ne pas re-rendre la liste tant qu'une preuve de paiement (facture)

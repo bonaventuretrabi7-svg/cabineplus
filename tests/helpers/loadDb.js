@@ -107,6 +107,10 @@ function loadDb(opts = {}) {
       isConfigured: options.serverConfigured ?? true,
       getSettings: options.serverGetSettings || (async () => ({})),
       updateSettings: options.serverUpdateSettings || (async () => ({})),
+      // Reprise du profil connecté (voir DB.users.refreshSelf(), js/db.js,
+      // et tests/users-refresh-self.test.js) — même endpoint que la reprise
+      // "rester connecté" (api/session_whoami.php), no-op par défaut.
+      whoami: options.serverWhoami || (async () => ({ ok: false, error: 'not mocked' })),
       // Favoris / journaux d'audit (voir tests/favoris-sync.test.js) — mocks
       // injectables, no-op par défaut pour ne rien changer aux tests
       // existants qui ne les fournissent pas.

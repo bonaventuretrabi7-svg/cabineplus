@@ -567,6 +567,24 @@ const DB = (() => {
       return list[idx];
     },
 
+    // Reprend le profil du compte CONNECTÉ depuis le serveur (solde compris)
+    // — sans ça, une modification faite ailleurs (recharge par
+    // l'administration, transfert accepté par une cabine, etc.) restait
+    // invisible sur cet appareil jusqu'à la prochaine déconnexion/
+    // reconnexion : cacheFromServer() n'était jusqu'ici appelé qu'au login
+    // (voir Auth.login()). Auth.refresh() (js/auth.js) reste purement local
+    // (relit DB.users, ne contacte jamais le serveur) : il fallait ce point
+    // d'entrée en amont pour qu'il ait quelque chose de neuf à relire.
+    // Appelé depuis le même cycle de sondage périodique que
+    // DB.transactions.refresh() (voir startClientPresence()/js/client.js et
+    // le setInterval de js/cabine.js).
+    async refreshSelf() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return null;
+      const res = await ServerAPI.whoami();
+      if (!res.ok) return null;
+      return users.cacheFromServer(res.profile);
+    },
+
     // Fusionne la liste complète des comptes d'un rôle (voir
     // api/list_profiles.php) — utilisé par le tableau de bord admin
     // (refreshUsersFromServer(), js/admin.js) pour refléter TOUS les

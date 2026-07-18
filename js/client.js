@@ -459,6 +459,16 @@ function boot() {
       // js/db.js — le moteur de commandes, Phase 4, écrit désormais côté
       // serveur) et rafraîchit ces mêmes vues une fois reçu.
       DB.transactions.refresh().then(() => { loadHistory(); loadWallet(); loadRecentRecap(); });
+      // Reprend aussi son propre profil (solde compris) dès l'ouverture —
+      // une recharge faite par l'administration pendant que cet onglet
+      // était fermé/en arrière-plan doit apparaître dès la réouverture,
+      // sans attendre le premier cycle de sondage (voir startClientPresence()
+      // ci-dessus pour la suite, toutes les 10s).
+      DB.users.refreshSelf().then(() => {
+        currentUser = Auth.refresh() || currentUser;
+        refreshSoldeNumbers();
+        loadWallet();
+      });
     } else {
       renderLockedSections(true);
       // Un client mémorisé sur cet appareil (jeton "rester connecté")
@@ -546,9 +556,17 @@ function renderAndroidProfileButton() {
 function startClientPresence() {
   DB.presence.ping(currentUser.id);
   DB.presence.refresh();
-  setInterval(() => {
+  setInterval(async () => {
     DB.presence.ping(currentUser.id);
     DB.presence.refresh();
+    // Reprend son propre profil (solde compris) — une recharge faite par
+    // l'administration (ou tout autre changement fait ailleurs) doit
+    // apparaître ici sans que le client ait besoin de se déconnecter/
+    // reconnecter (voir DB.users.refreshSelf(), js/db.js).
+    await DB.users.refreshSelf();
+    currentUser = Auth.refresh() || currentUser;
+    refreshSoldeNumbers();
+    loadWallet();
     // Synchronise ses propres commandes (voir api/orders_list.php) — un
     // suivi de commande ouvert doit refléter une acceptation/un renvoi
     // fait côté cabine sans attendre un rechargement manuel.
