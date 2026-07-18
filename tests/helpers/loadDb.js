@@ -107,6 +107,12 @@ function loadDb(opts = {}) {
       isConfigured: options.serverConfigured ?? true,
       getSettings: options.serverGetSettings || (async () => ({})),
       updateSettings: options.serverUpdateSettings || (async () => ({})),
+      // Favoris / journaux d'audit (voir tests/favoris-sync.test.js) — mocks
+      // injectables, no-op par défaut pour ne rien changer aux tests
+      // existants qui ne les fournissent pas.
+      favorisList: options.serverFavorisList || (async () => ({ ok: true, favoris: [] })),
+      favorisCreate: options.serverFavorisCreate || (async () => ({ ok: false, error: 'not mocked' })),
+      favorisRemove: options.serverFavorisRemove || (async () => ({ ok: false, error: 'not mocked' })),
     },
   };
   vm.createContext(sandbox);

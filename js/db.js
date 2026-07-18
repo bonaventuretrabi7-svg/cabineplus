@@ -1022,11 +1022,28 @@ const DB = (() => {
   const accessLogs = {
     all: () => get(KEY.accessLogs) || [],
 
+    // Rafraîchit depuis le serveur (voir loadAccessLogs(), js/admin.js) —
+    // remplace tout le cache local par le journal serveur : contrairement à
+    // favoris, ce journal n'est pas scopé par utilisateur, tous les
+    // administrateurs doivent voir le même quel que soit l'appareil.
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.accessLogsList();
+      if (res.ok) set(KEY.accessLogs, res.logs);
+    },
+
     create({ admin_id, admin_name, target_user_id, target_role, target_name }) {
       const list = get(KEY.accessLogs) || [];
       const l = { id: 'log_' + uid(), admin_id, admin_name, target_user_id, target_role, target_name, date: now() };
       list.push(l);
       set(KEY.accessLogs, list);
+      // Écriture serveur best-effort, jamais bloquante ni mise en file en
+      // cas d'échec — un accès délégué ne doit jamais être ralenti par sa
+      // propre traçabilité (l'auteur réel est de toute façon réaffirmé
+      // côté serveur depuis le jeton, voir api/access_logs_create.php).
+      if (ServerAPI.isConfigured && Net.isOnline()) {
+        ServerAPI.accessLogsCreate({ admin_name, target_user_id, target_role, target_name }).catch(() => {});
+      }
       return l;
     },
   };
@@ -1041,11 +1058,20 @@ const DB = (() => {
     all:       ()        => get(KEY.permissionLogs) || [],
     byCabine:  (cabineId) => (get(KEY.permissionLogs) || []).filter(l => l.cabine_id === cabineId).sort((a,b) => new Date(b.date) - new Date(a.date)),
 
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.permissionLogsList();
+      if (res.ok) set(KEY.permissionLogs, res.logs);
+    },
+
     create({ admin_id, admin_name, cabine_id, cabine_name, service, active }) {
       const list = get(KEY.permissionLogs) || [];
       const l = { id: 'plog_' + uid(), admin_id, admin_name, cabine_id, cabine_name, service, active, date: now() };
       list.push(l);
       set(KEY.permissionLogs, list);
+      if (ServerAPI.isConfigured && Net.isOnline()) {
+        ServerAPI.permissionLogsCreate({ admin_name, cabine_id, cabine_name, service, active }).catch(() => {});
+      }
       return l;
     },
   };
@@ -1059,6 +1085,12 @@ const DB = (() => {
   const maintenanceLogs = {
     all: () => get(KEY.maintenanceLogs) || [],
 
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.maintenanceLogsList();
+      if (res.ok) set(KEY.maintenanceLogs, res.logs);
+    },
+
     // `service`/`message` optionnels — ajoutés pour les nouveaux types
     // d'entrées (réseaux par service, messages Facture) sans rien changer
     // pour les entrées existantes (onglet UV Cabine), qui n'en ont pas besoin.
@@ -1067,6 +1099,9 @@ const DB = (() => {
       const l = { id: 'mlog_' + uid(), admin_id, admin_name, action, key, active, service: service || null, message: message ?? null, date: now() };
       list.push(l);
       set(KEY.maintenanceLogs, list);
+      if (ServerAPI.isConfigured && Net.isOnline()) {
+        ServerAPI.maintenanceLogsCreate({ admin_name, action, key, active, service, message }).catch(() => {});
+      }
       return l;
     },
   };
@@ -1117,26 +1152,70 @@ const DB = (() => {
   /* ── Numéros favoris (client) ─────────────────────────────────────
      Liste gérée par le client lui-même depuis son profil (nom optionnel
      + numéro), proposée en sélection rapide à l'étape "Numéro du
-     destinataire" du Transfert direct (voir openContactsPicker() dans
-     js/client.js). Store séparé keyé par client_id, même patron que
-     partnerDevices ci-dessus plutôt qu'un tableau embarqué sur users. */
+     destinataire" du Transfert direct. 100% privé (jamais lu par
+     cabine.js/admin.js) — premier module métier synchronisé de bout en
+     bout (voir api/favoris_list.php/favoris_create.php/favoris_remove.php),
+     sert de preuve du patron avant le reste de la Phase 2. LocalStorage
+     reste le cache affiché instantanément (all()/forUser() restent
+     synchrones) ; create()/remove() écrivent en local IMMÉDIATEMENT puis
+     synchronisent en tâche de fond (même patron que DB.settings.update()
+     ci-dessus), refresh() tire depuis le serveur pour qu'un nouvel
+     appareil retrouve ses favoris. */
   const favoris = {
     all: () => get(KEY.favoris) || [],
     forUser: (clientId) => (get(KEY.favoris) || [])
       .filter(f => f.client_id === clientId)
       .sort((a, b) => new Date(b.date_creation) - new Date(a.date_creation)),
 
-    create({ client_id, nom, numero }) {
+    // Rafraîchissement en arrière-plan (voir loadFavoris(), js/client.js,
+    // qui affiche le cache immédiatement puis rappelle ceci) — remplace la
+    // part locale de CE client par la liste serveur, source de vérité.
+    async refresh(clientId) {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.favorisList();
+      if (!res.ok) return;
+      const others = (get(KEY.favoris) || []).filter(f => f.client_id !== clientId);
+      set(KEY.favoris, [...others, ...res.favoris]);
+    },
+
+    async create({ client_id, nom, numero }) {
       const list = get(KEY.favoris) || [];
       const f = { id: 'fav_' + uid(), client_id, nom: nom || '', numero, date_creation: now() };
       list.push(f);
       set(KEY.favoris, list);
+
+      if (!ServerAPI.isConfigured) return f;
+      if (Net.isOnline()) {
+        try {
+          // synced : l'enregistrement final, id serveur compris (voir
+          // SYNC_HANDLERS.favorisCreate) — jamais l'objet `f` d'origine,
+          // dont l'id local devient obsolète dès l'échange réussi (un
+          // appelant qui garderait `f.id` pour un remove() ultérieur
+          // viserait sinon une ligne qui n'existe plus sous cet id).
+          const synced = await SYNC_HANDLERS.favorisCreate({ localId: f.id, nom: f.nom, numero: f.numero });
+          return synced || f;
+        }
+        catch (e) { /* tombe dans la mise en file ci-dessous */ }
+      }
+      syncQueue.enqueue({ entity: 'favorisCreate', op: 'create', payload: { localId: f.id, nom: f.nom, numero: f.numero } });
       return f;
     },
 
-    remove(id) {
-      const list = (get(KEY.favoris) || []).filter(f => f.id !== id);
-      set(KEY.favoris, list);
+    async remove(id) {
+      set(KEY.favoris, (get(KEY.favoris) || []).filter(f => f.id !== id));
+
+      // Une création pour cet id est encore en file (jamais synchronisée) :
+      // rien n'existe côté serveur, on l'annule directement plutôt que de
+      // mettre une suppression en file pour une ligne qui ne sera jamais créée.
+      const pendingCreate = syncQueue.all().find(i => i.entity === 'favorisCreate' && i.payload.localId === id);
+      if (pendingCreate) { syncQueue.remove(pendingCreate.id); return; }
+
+      if (!ServerAPI.isConfigured) return;
+      if (Net.isOnline()) {
+        try { await SYNC_HANDLERS.favorisRemove({ id }); return; }
+        catch (e) { /* tombe dans la mise en file ci-dessous */ }
+      }
+      syncQueue.enqueue({ entity: 'favorisRemove', op: 'remove', payload: { id } });
     },
   };
 
@@ -1199,6 +1278,27 @@ const DB = (() => {
         if (jsKey in updates) row[col] = updates[jsKey];
       }
       await ServerAPI.updateSettings(row);
+    },
+
+    // Remplace l'id local temporaire (généré hors ligne) par l'id réel
+    // renvoyé par le serveur, pour qu'un remove() ultérieur cible la bonne
+    // ligne côté serveur — voir favoris.create() ci-dessous.
+    async favorisCreate(payload) {
+      if (!ServerAPI.isConfigured) return null;
+      const res = await ServerAPI.favorisCreate({ nom: payload.nom, numero: payload.numero });
+      if (!res.ok) throw new Error(res.error || 'Échec de l\'ajout du favori.');
+      const list = get(KEY.favoris) || [];
+      const idx = list.findIndex(f => f.id === payload.localId);
+      if (idx === -1) return null;
+      list[idx] = { ...list[idx], id: res.favori.id };
+      set(KEY.favoris, list);
+      return list[idx];
+    },
+
+    async favorisRemove(payload) {
+      if (!ServerAPI.isConfigured) return;
+      const res = await ServerAPI.favorisRemove(payload.id);
+      if (!res.ok) throw new Error(res.error || 'Échec de la suppression du favori.');
     },
   };
 

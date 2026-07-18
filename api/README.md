@@ -38,6 +38,15 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `settings_get.php`
 - `settings_update.php`
 - `list_profiles.php`
+- `favoris_list.php`
+- `favoris_create.php`
+- `favoris_remove.php`
+- `access_logs_list.php`
+- `access_logs_create.php`
+- `permission_logs_list.php`
+- `permission_logs_create.php`
+- `maintenance_logs_list.php`
+- `maintenance_logs_create.php`
 - `config.example.php`
 - `.htaccess`
 

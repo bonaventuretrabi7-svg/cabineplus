@@ -4062,8 +4062,20 @@ function loadPartenaires() {
    section "Récents" déjà existante. */
 function loadFavoris() {
   if (!currentUser) return;
+  if (!document.getElementById('favoris-list')) return;
+
+  _renderFavorisList();
+
+  // Rafraîchit depuis le serveur en tâche de fond (voir DB.favoris.refresh,
+  // js/db.js) — un nouvel appareil retrouve ainsi ses favoris sans jamais
+  // bloquer l'affichage sur le réseau (cache local affiché immédiatement
+  // ci-dessus).
+  DB.favoris.refresh(currentUser.id).then(_renderFavorisList);
+}
+
+function _renderFavorisList() {
   const list = document.getElementById('favoris-list');
-  if (!list) return;
+  if (!list || !currentUser) return;
 
   const favoris = DB.favoris.forUser(currentUser.id);
   if (!favoris.length) {
@@ -4084,22 +4096,22 @@ function loadFavoris() {
     </div>`).join('');
 }
 
-function addFavori() {
+async function addFavori() {
   if (!currentUser) return;
   const nom    = document.getElementById('fav-new-nom').value.trim();
   const numero = document.getElementById('fav-new-numero').value.replace(/\s/g, '');
   if (!/^0[0-9]{9}$/.test(numero)) { Toast.error('Numéro invalide — 10 chiffres commençant par 0.'); return; }
 
-  DB.favoris.create({ client_id: currentUser.id, nom, numero });
+  await DB.favoris.create({ client_id: currentUser.id, nom, numero });
   document.getElementById('fav-new-nom').value = '';
   document.getElementById('fav-new-numero').value = '';
   Toast.success('Favori ajouté.');
   loadFavoris();
 }
 
-function removeFavori(id) {
+async function removeFavori(id) {
   if (!confirm('Supprimer ce favori ?')) return;
-  DB.favoris.remove(id);
+  await DB.favoris.remove(id);
   Toast.info('Favori supprimé.');
   loadFavoris();
 }

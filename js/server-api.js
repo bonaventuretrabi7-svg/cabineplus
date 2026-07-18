@@ -160,5 +160,69 @@ const ServerAPI = (() => {
     return { ok: true, profiles: data.profiles };
   }
 
-  return { login, logout, createAccount, adminCreateAccount, getSettings, updateSettings, listProfiles, isConfigured, getToken, setToken, whoami };
+  /* Favoris (numéros de destinataires du client) — voir DB.favoris
+     (js/db.js) et api/favoris_list.php/favoris_create.php/favoris_remove.php.
+     Réservées au rôle client, jamais lues par cabine/admin. */
+  async function favorisList() {
+    const { res, data } = await _call('favoris_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, favoris: data.favoris };
+  }
+
+  async function favorisCreate({ nom, numero }) {
+    const { res, data } = await _call('favoris_create.php', { auth: true, body: { nom, numero } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de l\'ajout du favori.' };
+    return { ok: true, favori: data.favori };
+  }
+
+  async function favorisRemove(id) {
+    const { res, data } = await _call('favoris_remove.php', { auth: true, body: { id } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la suppression.' };
+    return { ok: true };
+  }
+
+  /* Journaux d'audit admin (accès/permissions cabine/maintenance) — voir
+     DB.accessLogs/permissionLogs/maintenanceLogs (js/db.js) et
+     api/access_logs_*.php, permission_logs_*.php, maintenance_logs_*.php.
+     Écriture best-effort (jamais mise en file en cas d'échec — un accès
+     manqué dans le journal n'est pas assez critique pour justifier une
+     resynchronisation garantie, contrairement à favoris/settings) ;
+     lecture réservée à un jeton admin, partagée entre tous les
+     administrateurs quel que soit l'appareil. */
+  async function accessLogsList() {
+    const { res, data } = await _call('access_logs_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, logs: data.logs };
+  }
+  async function accessLogsCreate(payload) {
+    const { res, data } = await _call('access_logs_create.php', { auth: true, body: payload });
+    return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
+  }
+
+  async function permissionLogsList() {
+    const { res, data } = await _call('permission_logs_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, logs: data.logs };
+  }
+  async function permissionLogsCreate(payload) {
+    const { res, data } = await _call('permission_logs_create.php', { auth: true, body: payload });
+    return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
+  }
+
+  async function maintenanceLogsList() {
+    const { res, data } = await _call('maintenance_logs_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, logs: data.logs };
+  }
+  async function maintenanceLogsCreate(payload) {
+    const { res, data } = await _call('maintenance_logs_create.php', { auth: true, body: payload });
+    return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
+  }
+
+  return {
+    login, logout, createAccount, adminCreateAccount, getSettings, updateSettings, listProfiles,
+    isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
+    accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
+    maintenanceLogsList, maintenanceLogsCreate,
+  };
 })();

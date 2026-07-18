@@ -1704,8 +1704,16 @@ function openAdminReclaThread(id) {
 
 /* ── Journal des accès (impersonation admin) ─────────────────────────
    Lecture seule — voir Auth.startImpersonation() dans js/auth.js et
-   DB.accessLogs dans js/db.js. */
+   DB.accessLogs dans js/db.js. Cache local affiché immédiatement, puis
+   resynchronisé depuis le serveur (partagé entre tous les
+   administrateurs, pas seulement celui qui a effectué l'accès sur cet
+   appareil). */
 function loadAccessLogs() {
+  _renderAccessLogs();
+  DB.accessLogs.refresh().then(_renderAccessLogs);
+}
+
+function _renderAccessLogs() {
   const list = DB.accessLogs.all();
   const el   = document.getElementById('access-logs-list');
   if (!el) return;
@@ -4288,6 +4296,11 @@ async function toggleUvCabineNetwork(net, checkboxEl) {
 }
 
 function loadUvCabineLogs() {
+  _renderUvCabineLogs();
+  DB.maintenanceLogs.refresh().then(_renderUvCabineLogs);
+}
+
+function _renderUvCabineLogs() {
   const el = document.getElementById('uvcab-logs-list');
   if (!el) return;
   // Exclut les entrées des nouveaux réseaux par service / messages Facture
@@ -4383,6 +4396,11 @@ async function saveDispoFactureMessages() {
 }
 
 function loadDispoLogs() {
+  _renderDispoLogs();
+  DB.maintenanceLogs.refresh().then(_renderDispoLogs);
+}
+
+function _renderDispoLogs() {
   const el = document.getElementById('dispo-logs-list');
   if (!el) return;
   const list = DB.maintenanceLogs.all()
