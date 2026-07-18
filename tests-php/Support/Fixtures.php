@@ -33,7 +33,7 @@ final class Fixtures
         'access_logs', 'cabine_refusals', 'commissions', 'favoris', 'forfaits',
         'maintenance_logs', 'notifications', 'permission_logs', 'presence',
         'profiles', 'reclamation_messages', 'reclamations', 'refund_requests',
-        'resubscriptions', 'retards', 'retraits', 'reset_requests', 'sessions', 'settings',
+        'resubscriptions', 'retards', 'retraits', 'reset_requests', 'partner_applications', 'sessions', 'settings',
         'suspension_logs', 'transactions', 'transferts_cabine',
     ];
 

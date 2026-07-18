@@ -357,6 +357,30 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function partnerApplicationsCreate(payload) {
+    const { res, data } = await _call('partner_applications_create.php', { body: payload });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la candidature.' };
+    return { ok: true };
+  }
+
+  async function partnerApplicationsList() {
+    const { res, data } = await _call('partner_applications_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, applications: data.applications };
+  }
+
+  async function partnerApplicationsValidate(applicationId) {
+    const { res, data } = await _call('partner_applications_validate.php', { auth: true, body: { application_id: applicationId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true, cabineId: data.cabineId };
+  }
+
+  async function partnerApplicationsRefuse(applicationId) {
+    const { res, data } = await _call('partner_applications_refuse.php', { auth: true, body: { application_id: applicationId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -543,5 +567,6 @@ const ServerAPI = (() => {
     notificationsList, notificationsMarkRead, notificationsMarkAllRead,
     retraitsCreate, retraitsList, cabineSetRetraitInfo,
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
+    partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse,
   };
 })();

@@ -43,6 +43,13 @@ CREATE TABLE IF NOT EXISTS profiles (
   paiement_vers         VARCHAR(64)  NULL,
   numero_compte         VARCHAR(64)  NULL,
   retrait_derniere_maj  DATETIME     NULL,
+  whatsapp              VARCHAR(32)  NULL,
+  photo                 LONGTEXT     NULL,
+  code_qr               LONGTEXT     NULL,
+  motivation            TEXT         NULL,
+  experience            VARCHAR(64)  NULL,
+  puces                 JSON         NULL,
+  paiement_abo          VARCHAR(64)  NULL,
   UNIQUE KEY uniq_telephone_role (telephone, role),
   UNIQUE KEY uniq_email_role (email, role)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -363,6 +370,31 @@ CREATE TABLE IF NOT EXISTS reset_requests (
   date_traitement           DATETIME     NULL,
   processed_by              CHAR(36)     NULL,
   KEY idx_reset_profile (profile_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- ── Candidatures partenaires (auto-inscription cabine, en attente) ──────
+CREATE TABLE IF NOT EXISTS partner_applications (
+  id                CHAR(36)     NOT NULL PRIMARY KEY,
+  prenom            VARCHAR(190) NULL,
+  nom               VARCHAR(190) NULL,
+  email             VARCHAR(190) NULL,
+  telephone         VARCHAR(32)  NULL,
+  whatsapp          VARCHAR(32)  NULL,
+  cabine_nom        VARCHAR(190) NULL,
+  mot_de_passe_hash VARCHAR(255) NOT NULL,
+  photo             LONGTEXT     NULL,
+  code_qr           LONGTEXT     NULL,
+  motivation        TEXT         NULL,
+  abonnement        VARCHAR(32)  NULL,
+  paiement_abo      VARCHAR(64)  NULL,
+  paiement_vers     VARCHAR(64)  NULL,
+  numero_compte     VARCHAR(64)  NULL,
+  experience        VARCHAR(64)  NULL,
+  puces             JSON         NULL,
+  statut            VARCHAR(32)  NOT NULL DEFAULT 'en_attente',
+  date_created      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_traitement   DATETIME     NULL,
+  processed_by      CHAR(36)     NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Compte super admin (seul moyen de démarrer — mot de passe haché à

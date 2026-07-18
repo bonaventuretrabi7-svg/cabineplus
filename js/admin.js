@@ -3735,17 +3735,15 @@ function deconnecterAppareil(deviceRecordId) {
 }
 
 /* ── Demandes de partenariat ─────────────────────────────────────
-   Écrites par le module `Applications` de js/client.js (formulaire
-   d'inscription partenaire) sous la clé localStorage brute
-   'cbp_applications'. admin.html est une page séparée qui ne charge
-   pas client.js : on relit donc directement cette clé, comme le fait
-   déjà loadResetRequests() ci-dessus pour 'cbp_reset_requests'. */
-function loadPartnerRequests() {
-  const KEY   = 'cbp_applications';
-  const list  = JSON.parse(localStorage.getItem(KEY) || '[]');
+   Remplace la lecture localStorage directe (clé 'cbp_applications',
+   écrite par prgSubmit() dans js/client.js) — voir
+   api/partner_applications_*.php. */
+async function loadPartnerRequests() {
   const el    = document.getElementById('partner-admin-list');
   const badge = document.getElementById('partner-badge');
   if (!el) return;
+  await DB.partnerApplications.refresh();
+  const list = DB.partnerApplications.all();
 
   const pending = list.filter(a => a.statut === 'en_attente').length;
   if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
@@ -3758,10 +3756,10 @@ function loadPartnerRequests() {
     return;
   }
 
-  const sorted = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...list].sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
   el.innerHTML = sorted.map(a => {
     const isPending = a.statut === 'en_attente';
-    const dateStr   = new Date(a.date).toLocaleString('fr-CI', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    const dateStr   = new Date(a.date_created).toLocaleString('fr-CI', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
     const badgeHtml = isPending
       ? `<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> En attente</span>`
       : a.statut === 'validée'
@@ -3800,61 +3798,17 @@ function loadPartnerRequests() {
 }
 
 async function validatePartnerRequest(appId) {
-  const KEY  = 'cbp_applications';
-  const list = JSON.parse(localStorage.getItem(KEY) || '[]');
-  const app  = list.find(a => a.id === appId);
+  const app = DB.partnerApplications.all().find(a => a.id === appId);
   if (!app) { Toast.error('Candidature introuvable.'); return; }
-
-  // Défense en profondeur : la candidature a normalement déjà été validée
-  // à la soumission (voir prgValidate, js/client.js), mais elle peut être
-  // ancienne ou avoir été altérée — on ne crée jamais de compte sans ces
-  // deux garanties, plutôt que de se rabattre silencieusement sur un PIN
-  // par défaut.
-  if (!Auth.isValidGmail(app.email)) {
-    Toast.error('Cette candidature a une adresse email invalide (non Gmail) — impossible de créer le compte tel quel.');
-    return;
-  }
-  if (!Auth.isValidPin(app.pin)) {
-    Toast.error('Cette candidature a un code PIN invalide ou manquant — impossible de créer le compte tel quel.');
-    return;
-  }
-
   if (!confirm(`Valider la candidature de ${app.prenom} ${app.nom} et créer son compte cabine ?`)) return;
 
-  if (DB.users.byPhoneAndRole(app.telephone, 'cabine')) {
-    Toast.error('Ce numéro est déjà utilisé par un autre compte de ce type.');
-    return;
-  }
-
-  let cabineId;
-  // Création côté serveur d'abord quand c'est possible (voir
-  // api/create_account.php, public) — pour que ce partenaire puisse se
-  // connecter depuis SON téléphone dès l'approbation, pas seulement depuis
-  // l'appareil de l'admin (voir le diagnostic du bug de connexion
-  // multi-appareil). Repli local seul si hors ligne/serveur non configuré :
-  // Auth.login() resynchronisera ce compte dès sa prochaine connexion en
-  // ligne.
-  if (ServerAPI.isConfigured && DB.Net.isOnline()) {
-    const res = await ServerAPI.createAccount({
-      role: 'cabine', prenom: app.prenom, nom: app.nom, telephone: app.telephone,
-      pin: app.pin, email: app.email, cabineNom: app.cabine_nom,
-    });
-    if (!res.ok) { Toast.error(res.error || 'Échec de la création du compte.'); return; }
-    cabineId = res.profile.id;
-  }
-
-  DB.users.create({
-    ...(cabineId ? { id: cabineId } : {}),
-    prenom: app.prenom, nom: app.nom, telephone: app.telephone, email: app.email,
-    mot_de_passe: app.pin, role: 'cabine', zone: app.cabine_nom || '',
-    statut: 'actif', solde: 0, abonnement: app.abonnement || 'Premium', photo: app.photo || '',
-    whatsapp: app.whatsapp || '', motivation: app.motivation || '', experience: app.experience || '',
-    puces: app.puces || {}, paiement_abo: app.paiement_abo || '', paiement_vers: app.paiement_vers || '',
-    numero_compte: app.numero_compte || '', code_qr: app.code_qr || '',
-  });
-
-  const updated = list.map(a => a.id === appId ? { ...a, statut: 'validée', date_traitement: new Date().toISOString() } : a);
-  localStorage.setItem(KEY, JSON.stringify(updated));
+  // Le hash du PIN a déjà été calculé et l'email déjà validé (Gmail) à la
+  // création de la candidature (api/partner_applications_create.php) — le
+  // compte cabine est créé atomiquement côté serveur avec ce hash, jamais
+  // de PIN en clair à aucun moment de ce flux.
+  const res = await DB.partnerApplications.validate(appId);
+  if (!res.ok) { Toast.error(res.error); return; }
+  await refreshUsersFromServer();
 
   Toast.success(`Compte cabine créé pour ${app.prenom} ${app.nom}.`);
   loadPartnerRequests();
@@ -3862,13 +3816,10 @@ async function validatePartnerRequest(appId) {
   loadDashboard();
 }
 
-function refusePartnerRequest(appId) {
+async function refusePartnerRequest(appId) {
   if (!confirm('Refuser cette demande de partenariat ?')) return;
-  const KEY  = 'cbp_applications';
-  const list = JSON.parse(localStorage.getItem(KEY) || '[]').map(a =>
-    a.id === appId ? { ...a, statut: 'refusée', date_traitement: new Date().toISOString() } : a
-  );
-  localStorage.setItem(KEY, JSON.stringify(list));
+  const res = await DB.partnerApplications.refuse(appId);
+  if (!res.ok) { Toast.error(res.error); return; }
   Toast.info('Demande de partenariat refusée.');
   loadPartnerRequests();
 }

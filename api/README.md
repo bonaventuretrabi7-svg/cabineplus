@@ -37,6 +37,12 @@ aussi le contenu de **`api/migration_phase8_reset_requests.sql`** (une
 seule fois) — nouvelle table `reset_requests` (demandes de réinitialisation
 de mot de passe, jusqu'ici 100% locales).
 
+**Base déjà en place (mise en conformité temps réel, phase F/9) :** colle
+aussi le contenu de **`api/migration_phase9_partner_applications.sql`**
+(une seule fois) — nouvelle table `partner_applications` + colonnes
+manquantes sur `profiles` (`whatsapp`, `photo`, `code_qr`, `motivation`,
+`experience`, `puces`, `paiement_abo`).
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
@@ -91,6 +97,10 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `reset_requests_list.php`
 - `reset_requests_apply.php`
 - `reset_requests_refuse.php`
+- `partner_applications_create.php`
+- `partner_applications_list.php`
+- `partner_applications_validate.php`
+- `partner_applications_refuse.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`

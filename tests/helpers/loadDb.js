@@ -172,6 +172,10 @@ function loadDb(opts = {}) {
       resetRequestsList: options.serverResetRequestsList || (async () => ({ ok: true, resetRequests: [] })),
       resetRequestsApply: options.serverResetRequestsApply || (async () => ({ ok: false, error: 'not mocked' })),
       resetRequestsRefuse: options.serverResetRequestsRefuse || (async () => ({ ok: false, error: 'not mocked' })),
+      partnerApplicationsCreate: options.serverPartnerApplicationsCreate || (async () => ({ ok: false, error: 'not mocked' })),
+      partnerApplicationsList: options.serverPartnerApplicationsList || (async () => ({ ok: true, applications: [] })),
+      partnerApplicationsValidate: options.serverPartnerApplicationsValidate || (async () => ({ ok: false, error: 'not mocked' })),
+      partnerApplicationsRefuse: options.serverPartnerApplicationsRefuse || (async () => ({ ok: false, error: 'not mocked' })),
       // Notifications réelles (Phase C, mise en conformité temps réel).
       notificationsList: options.serverNotificationsList || (async () => ({ ok: true, notifications: [] })),
       notificationsMarkRead: options.serverNotificationsMarkRead || (async () => ({ ok: true })),

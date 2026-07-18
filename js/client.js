@@ -2608,23 +2608,6 @@ function goPartenairesSection() {
   showSection('partenaires');
 }
 
-/* ── Candidatures partenaires (stockage local) ─────────────────── */
-const Applications = (() => {
-  const KEY = 'cbp_applications';
-  const all    = () => JSON.parse(localStorage.getItem(KEY) || '[]');
-  const save   = (a) => localStorage.setItem(KEY, JSON.stringify(a));
-  const create = (data) => {
-    const list = all();
-    const app = { id: 'app_' + Date.now(), ...data, statut: 'en_attente', date: new Date().toISOString() };
-    list.push(app);
-    save(list);
-    return app;
-  };
-  const update = (id, changes) => save(all().map(a => a.id === id ? { ...a, ...changes } : a));
-  const byId   = (id) => all().find(a => a.id === id) || null;
-  return { all, create, update, byId };
-})();
-
 /* ── Inscription partenaire multi-étapes ───────────────────────── */
 let prgStep = 1;
 const PRG_TOTAL = 3;
@@ -2779,20 +2762,14 @@ function prgSubmit() {
   const photoFile = document.getElementById('prg-file-photo').files[0];
   const qrFile    = document.getElementById('prg-file-qr')?.files[0];
 
-  Promise.all([prgReadFileAsDataUrl(photoFile), prgReadFileAsDataUrl(qrFile)]).then(([photoDataUrl, qrDataUrl]) => {
-    const app = Applications.create({
+  Promise.all([prgReadFileAsDataUrl(photoFile), prgReadFileAsDataUrl(qrFile)]).then(async ([photoDataUrl, qrDataUrl]) => {
+    const res = await DB.partnerApplications.create({
       prenom     : document.getElementById('prg-prenom').value.trim(),
       nom        : document.getElementById('prg-nom').value.trim(),
       email      : document.getElementById('prg-email').value.trim().toLowerCase(),
       telephone  : document.getElementById('prg-tel').value.replace(/\s/g,''),
       whatsapp   : document.getElementById('prg-wa').value.replace(/\s/g,''),
       cabine_nom : document.getElementById('prg-cabine-nom')?.value.trim() || '',
-      docs: {
-        cni_recto: document.getElementById('prg-file-recto').files[0]?.name || '',
-        cni_verso: document.getElementById('prg-file-verso').files[0]?.name || '',
-        photo    : document.getElementById('prg-file-photo').files[0]?.name || '',
-        qr       : qrFile?.name || '',
-      },
       // Photo d'identité et code QR — images réelles (data URL), utilisées
       // notamment pour l'affichage dans l'espace cabine une fois le compte créé.
       photo       : photoDataUrl,
@@ -2812,6 +2789,11 @@ function prgSubmit() {
     });
 
     btn.disabled = false;
+    if (!res.ok) {
+      btn.innerHTML = 'Envoyer ma candidature';
+      Toast.error(res.error);
+      return;
+    }
     for (let i = 1; i <= PRG_TOTAL; i++) document.getElementById(`prg-step-${i}`).style.display = 'none';
     document.getElementById('prg-footer').style.display = 'none';
     document.getElementById('prg-confirm').style.display = 'block';

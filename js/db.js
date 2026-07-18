@@ -30,6 +30,7 @@ const DB = (() => {
     suspensionLogs:   PREFIX + 'suspension_logs',
     syncQueue:        PREFIX + 'sync_queue',
     resetRequests:    PREFIX + 'reset_requests',
+    partnerApplications: PREFIX + 'partner_applications',
   };
 
   /* Les 6 méthodes de retrait disponibles pour verser sa commission
@@ -542,6 +543,13 @@ const DB = (() => {
         paiement_vers: row.paiement_vers || undefined,
         numero_compte: row.numero_compte || undefined,
         retrait_derniere_maj: row.retrait_derniere_maj || undefined,
+        whatsapp: row.whatsapp || undefined,
+        photo: row.photo || undefined,
+        code_qr: row.code_qr || undefined,
+        motivation: row.motivation || undefined,
+        experience: row.experience || undefined,
+        puces: row.puces || undefined,
+        paiement_abo: row.paiement_abo || undefined,
       };
       if (plainPin) out.mot_de_passe = hashPwd(plainPin);
       return out;
@@ -1242,6 +1250,42 @@ const DB = (() => {
       const res = await ServerAPI.resetRequestsRefuse(requestId);
       if (!res.ok) return { ok: false, error: res.error };
       await resetRequests.refresh();
+      return { ok: true };
+    },
+  };
+
+  /* ── Candidatures partenaires ─────────────────────────────────────────
+     Remplace Applications (IIFE 100% localStorage, js/client.js) et la
+     lecture localStorage directe côté admin.js — voir
+     api/partner_applications_*.php. Le PIN choisi est haché côté serveur
+     DÈS la création (jamais transmis ni stocké en clair) ; la validation
+     crée le compte cabine directement avec ce hash. */
+  const partnerApplications = {
+    all: () => get(KEY.partnerApplications) || [],
+
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.partnerApplicationsList();
+      if (res.ok) set(KEY.partnerApplications, res.applications);
+    },
+
+    async create(payload) {
+      const res = await ServerAPI.partnerApplicationsCreate(payload);
+      if (!res.ok) return { ok: false, error: res.error };
+      return { ok: true };
+    },
+
+    async validate(applicationId) {
+      const res = await ServerAPI.partnerApplicationsValidate(applicationId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await partnerApplications.refresh();
+      return { ok: true, cabineId: res.cabineId };
+    },
+
+    async refuse(applicationId) {
+      const res = await ServerAPI.partnerApplicationsRefuse(applicationId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await partnerApplications.refresh();
       return { ok: true };
     },
   };
@@ -2090,7 +2134,7 @@ const DB = (() => {
   };
 
   /* â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
+  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, partnerApplications, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
 })();
 
 /* ── Maintenance (service/réseau) — fonctions globales (non namespacées
