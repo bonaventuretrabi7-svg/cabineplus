@@ -17,7 +17,7 @@ $in      = body();
 $network = (string)($in['network'] ?? '');
 $numero  = (string)($in['numero'] ?? '');
 $montant = (int)($in['montant'] ?? 0);
-if ($montant < 10000) fail('Montant minimum : 10 000 F.');
+if ($montant < 10000) fail('Montant minimum : 10 000 FCFA.');
 
 $FRAIS_SERVICE_UV_CABINE = 200;
 $total = $montant + $FRAIS_SERVICE_UV_CABINE;

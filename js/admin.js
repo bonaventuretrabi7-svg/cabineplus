@@ -744,7 +744,7 @@ function initCharts() {
         plugins: { legend: { display: false } },
         scales: {
           x: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 } } },
-          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: v => Fmt.money(v).replace(' F','') } },
+          y: { grid: { color: gridColor }, ticks: { color: textColor, font: { size: 11 }, callback: v => Fmt.money(v).replace(' FCFA','') } },
         }
       }
     });
@@ -795,7 +795,7 @@ function initCharts() {
         plugins: { legend: { labels: { color: textColor, font: { size: 11 } } } },
         scales: {
           x:  { grid: { color: gridColor }, ticks: { color: textColor } },
-          y:  { grid: { color: gridColor }, ticks: { color: textColor, callback: v => Fmt.money(v).replace(' F','') }, position: 'left' },
+          y:  { grid: { color: gridColor }, ticks: { color: textColor, callback: v => Fmt.money(v).replace(' FCFA','') }, position: 'left' },
           y1: { grid: { display: false }, ticks: { color: '#009A44' }, position: 'right' },
         }
       }
@@ -1839,7 +1839,7 @@ async function loadReabonnementCabine() {
     return `<div class="rst-admin-row">
       <div class="rst-admin-info">
         <div class="rst-admin-name"><i class="fa-solid fa-store"></i> ${cab ? (cab.cabine_nom || cab.prenom + ' ' + cab.nom) : 'Cabine supprimée'}</div>
-        <div class="rst-admin-meta"><i class="fa-solid fa-rotate"></i> Formule ${r.formule} — ${r.prix.toLocaleString()} F</div>
+        <div class="rst-admin-meta"><i class="fa-solid fa-rotate"></i> Formule ${r.formule} — ${r.prix.toLocaleString()} FCFA</div>
         <div class="rst-admin-date"><i class="fa-regular fa-clock"></i> ${dateStr}</div>
       </div>
       ${cab ? `<div class="rst-admin-actions" style="flex-direction:row;gap:6px;">

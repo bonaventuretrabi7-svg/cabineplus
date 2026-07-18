@@ -13,7 +13,7 @@ $me = requireAuth();
 $in = body();
 $montant = (int)($in['montant'] ?? 0);
 $method  = isset($in['method']) && $in['method'] !== '' ? (string)$in['method'] : null;
-if ($montant < 1000) fail('Montant minimum : 1 000 F.');
+if ($montant < 1000) fail('Montant minimum : 1 000 FCFA.');
 
 // Réseau en maintenance pour la recharge — même verrou que
 // isNetworkInMaintenanceForService('recharge', method) côté client

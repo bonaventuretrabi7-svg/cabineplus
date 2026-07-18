@@ -30,7 +30,7 @@ try {
   $debit->execute([$totalDebit, $me['id'], $totalDebit]);
   if ($debit->rowCount() === 0) {
     $pdo->rollBack();
-    fail('Solde insuffisant (montant + 15 F de frais de service).', 400);
+    fail('Solde insuffisant (montant + 15 FCFA de frais de service).', 400);
   }
 
   $commission = calcCommission($pdo, $montant);

@@ -486,14 +486,8 @@ const STATUS_COLORS = {
   'suspendue':  { line: '#7C3AED', bg: 'rgba(124,58,237,.12)', text: '#5B21B6' },
 };
 
-// L'espace cabine garde "FCFA" en toutes lettres (demande explicite) —
-// client/admin passent à "F" seul. auth.js étant partagé par les 3 pages,
-// on distingue via le nom du fichier HTML courant plutôt que de dupliquer
-// Fmt.money() dans chaque page.
-const _isCabineSpace = /cabine\.html/i.test(window.location.pathname);
-
 const Fmt = {
-  money: (n) => Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + (_isCabineSpace ? ' FCFA' : ' F'),
+  money: (n) => Math.round(n || 0).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ') + ' FCFA',
   // Référence affichée d'une commande : "KBINE" + chiffres, dérivés de
   // façon déterministe de son id réel (même commande → toujours la même
   // référence). Remplace l'ancien "#" + 8 derniers caractères (lettres et
