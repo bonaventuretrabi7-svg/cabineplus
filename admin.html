@@ -653,6 +653,7 @@
     .lo-opt .lo-chev { color: var(--gray-300); flex-shrink: 0; }
     .lo-opt.green  { --c: var(--secondary); --cbg: rgba(0,154,68,.1); }
     .lo-opt.orange { --c: var(--primary);   --cbg: rgba(255,98,0,.1); }
+    .lo-opt.red    { --c: #DC2626;          --cbg: rgba(220,38,38,.1); }
 
     /* ── Bilan (super admin) — cartes cliquables + détail par service ── */
     .stat-card.clickable { cursor: pointer; }
@@ -742,6 +743,12 @@
               <input class="adx-pin-box" type="password" inputmode="numeric" maxlength="1" autocomplete="off">
             </div>
           </div>
+
+          <label class="adx-remember">
+            <input type="checkbox" id="admin-login-remember">
+            <span class="adx-remember-box"><i class="fa-solid fa-check"></i></span>
+            <span class="adx-remember-txt">Rester connecté sur cet appareil</span>
+          </label>
 
           <button class="adx-cta" onclick="submitAdminLoginGate()">
             <span class="adx-cta-label">Accéder au tableau de bord</span>
@@ -3244,6 +3251,14 @@
         <span class="lo-tx">
           <span class="lo-lbl">Mon espace client</span>
           <span class="lo-sub">Retourner à votre compte client</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+      <button type="button" class="lo-opt red" onclick="Auth.logout()">
+        <span class="lo-ic"><i class="fa-solid fa-right-from-bracket"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Se déconnecter</span>
+          <span class="lo-sub">Oublie cet appareil — le code PIN sera redemandé la prochaine fois</span>
         </span>
         <i class="fa-solid fa-chevron-right lo-chev"></i>
       </button>

@@ -3328,6 +3328,23 @@ body.dark .cs-page-title { color: var(--dark-text); }
 }
 .adx-pin-box:focus { border-color: #7c3aed; background: rgba(109,40,217,.1); box-shadow: 0 0 0 3px rgba(109,40,217,.15); }
 .adx-pin-box::-ms-reveal, .adx-pin-box::-ms-clear { display: none !important; }
+/* "Rester connecté" — même structure que .pln-remember (modale cabine),
+   accent violet plutôt qu'orange pour rester cohérent avec la palette de
+   la modale admin (.adx-cta, .adx-pin-box). */
+.adx-remember { display: flex; align-items: center; gap: 9px; cursor: pointer; user-select: none; margin-top: -4px; }
+.adx-remember input[type="checkbox"] { display: none; }
+.adx-remember-box {
+  flex-shrink: 0; width: 18px; height: 18px; border-radius: 6px;
+  background: rgba(255,255,255,.04); border: 1.5px solid rgba(139,92,246,.2);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .2s, border-color .2s;
+}
+.adx-remember-box i { font-size: .5rem; color: #fff; opacity: 0; transform: scale(.6); transition: opacity .15s, transform .15s; }
+.adx-remember input[type="checkbox"]:checked + .adx-remember-box {
+  background: linear-gradient(135deg,#5b21b6,#7c3aed); border-color: transparent;
+}
+.adx-remember input[type="checkbox"]:checked + .adx-remember-box i { opacity: 1; transform: scale(1); }
+.adx-remember-txt { font-size: .6rem; color: rgba(255,255,255,.55); }
 .adx-cta {
   position: relative; overflow: hidden; width: 100%;
   display: flex; align-items: center; justify-content: space-between;

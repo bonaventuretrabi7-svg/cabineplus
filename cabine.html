@@ -38,6 +38,7 @@
     .lo-opt .lo-chev { color: rgba(255,255,255,.8); flex-shrink: 0; }
     .lo-opt.green  { background: linear-gradient(135deg, #00B84F, #007A36); --shadow-c: rgba(0,154,68,.35); }
     .lo-opt.orange { background: linear-gradient(135deg, #FF7A29, #E85200); --shadow-c: rgba(255,98,0,.35); }
+    .lo-opt.red    { background: linear-gradient(135deg, #EF4444, #B91C1C); --shadow-c: rgba(220,38,38,.35); }
 
     /* ── Modal "Couleur de la carte" (tableau de solde) — modèle B :
        aperçu en direct (vraie mini-carte, réutilise .cbc-card/.cbc-card--c-*
@@ -1396,6 +1397,14 @@
         <span class="lo-tx">
           <span class="lo-lbl">Mon espace client</span>
           <span class="lo-sub">Retourner à votre compte client</span>
+        </span>
+        <i class="fa-solid fa-chevron-right lo-chev"></i>
+      </button>
+      <button type="button" class="lo-opt red" onclick="Auth.logout()">
+        <span class="lo-ic"><i class="fa-solid fa-right-from-bracket"></i></span>
+        <span class="lo-tx">
+          <span class="lo-lbl">Se déconnecter</span>
+          <span class="lo-sub">Oublie cet appareil — le code PIN sera redemandé la prochaine fois</span>
         </span>
         <i class="fa-solid fa-chevron-right lo-chev"></i>
       </button>

@@ -230,15 +230,16 @@ function showAdminLoginGate() {
 }
 
 async function submitAdminLoginGate() {
-  const email  = (document.getElementById('admin-login-email')?.value || '').trim();
-  const pin    = [...document.querySelectorAll('#admin-login-pin-row .adx-pin-box')].map(b => b.value).join('');
-  const denied = document.getElementById('admin-login-denied');
+  const email    = (document.getElementById('admin-login-email')?.value || '').trim();
+  const pin      = [...document.querySelectorAll('#admin-login-pin-row .adx-pin-box')].map(b => b.value).join('');
+  const remember = !!document.getElementById('admin-login-remember')?.checked;
+  const denied   = document.getElementById('admin-login-denied');
   denied.style.display = 'none';
 
   if (!Auth.isValidGmail(email)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
   if (!Auth.isValidPin(pin))     { Toast.error('Saisissez votre code PIN à 4 chiffres.'); return; }
 
-  const res = await Auth.login(email, pin, false, 'admin');
+  const res = await Auth.login(email, pin, remember, 'admin');
   if (!res.ok) { Toast.error(res.error); return; }
 
   if (res.user.role !== 'admin') {
@@ -248,7 +249,46 @@ async function submitAdminLoginGate() {
     return;
   }
 
+  // Le super admin n'est jamais éligible (voir Auth._hasDeviceLimit(),
+  // js/auth.js) : rememberToken reste alors simplement absent, la case
+  // cochée n'a aucun effet pour ce compte — cohérent avec le reste de
+  // l'app, aucun cas particulier à gérer ici.
+  if (res.rememberToken) localStorage.setItem(Auth.REMEMBER_TOKEN_KEY, res.rememberToken);
+
   window.location.reload();
+}
+
+/* Reprise "rester connecté" SANS redemander le PIN — même patron que
+   _tryRememberMeRestore() côté cabine (js/cabine.js) et
+   _tryRememberMeClientRestore() côté client (js/client.js), étendu ici à
+   l'administrateur simple (le super admin n'a jamais de jeton à reprendre,
+   voir Auth._hasDeviceLimit()). Toujours revérifié par le serveur
+   (api/session_whoami.php) avant d'ouvrir quoi que ce soit. */
+async function _tryRememberMeAdminRestore() {
+  const token = localStorage.getItem(Auth.REMEMBER_TOKEN_KEY);
+  if (!token) return;
+  const rec = DB.partnerDevices.findByToken(Auth.getDeviceId(), token);
+  if (!rec) { localStorage.removeItem(Auth.REMEMBER_TOKEN_KEY); return; }
+
+  const res = await Auth.resumeSession(token);
+  if (!res.ok) {
+    // Hors ligne : on retente au prochain démarrage, le jeton reste
+    // valable. Jeton réellement invalide/expiré ou compte suspendu/bloqué :
+    // on l'oublie pour ne plus jamais réessayer avec un jeton mort.
+    if (!res.networkError) {
+      DB.partnerDevices.remove(rec.id);
+      localStorage.removeItem(Auth.REMEMBER_TOKEN_KEY);
+    }
+    return;
+  }
+  if (res.user.role !== 'admin') {
+    // Jeton valide mais lié à un autre rôle (ex. appareil partagé).
+    sessionStorage.removeItem('cbp_session');
+    DB.partnerDevices.remove(rec.id);
+    localStorage.removeItem(Auth.REMEMBER_TOKEN_KEY);
+    return;
+  }
+  DB.partnerDevices.touch(rec.id, true, token);
 }
 
 // Synchronise le cache local des comptes (client/cabine) avec le serveur
@@ -275,7 +315,7 @@ async function refreshUsersFromServer() {
   loadDashboard();
 }
 
-function boot() {
+async function boot() {
   const loaderSafety = setTimeout(hideLoader, 3000);
   try {
     DB.init();
@@ -293,6 +333,10 @@ function boot() {
     // thème laissé actif au dernier passage.
     document.body.classList.remove('dark');
     localStorage.removeItem('cbp_dark');
+    // Aucune session active sur cet onglet, mais un jeton "rester connecté"
+    // existe peut-être pour cet appareil (voir _tryRememberMeAdminRestore()
+    // ci-dessus) — tenté AVANT d'afficher l'écran de connexion.
+    if (!Auth.current()) await _tryRememberMeAdminRestore();
     currentUser = Auth.require('admin', { silent: true });
     if (!currentUser) { showAdminLoginGate(); return; }
     applyAdminPermissionGating();
