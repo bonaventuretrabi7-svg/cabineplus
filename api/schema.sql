@@ -350,6 +350,21 @@ CREATE TABLE IF NOT EXISTS resubscriptions (
   KEY idx_resub_cabine (cabine_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Demandes de réinitialisation de mot de passe ────────────────────────
+CREATE TABLE IF NOT EXISTS reset_requests (
+  id                        CHAR(36)     NOT NULL PRIMARY KEY,
+  profile_id                CHAR(36)     NOT NULL,
+  role                      VARCHAR(16)  NOT NULL,
+  telephone                 VARCHAR(32)  NULL,
+  nom                       VARCHAR(190) NULL,
+  nouveau_mot_de_passe_hash VARCHAR(255) NOT NULL,
+  statut                    VARCHAR(32)  NOT NULL DEFAULT 'en_attente',
+  date_created              DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_traitement           DATETIME     NULL,
+  processed_by              CHAR(36)     NULL,
+  KEY idx_reset_profile (profile_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Compte super admin (seul moyen de démarrer — mot de passe haché à
 -- l'insertion via PASSWORD('1973') n'existe pas en MySQL pour bcrypt ; le
 -- hash est déjà calculé ci-dessous avec password_hash('1973', PASSWORD_BCRYPT)

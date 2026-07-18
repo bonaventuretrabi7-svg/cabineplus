@@ -168,6 +168,10 @@ function loadDb(opts = {}) {
       // conformité temps réel) — lecture seule, no-op par défaut.
       transfertsCabineList: options.serverTransfertsCabineList || (async () => ({ ok: true, transferts: [] })),
       resubscriptionsList: options.serverResubscriptionsList || (async () => ({ ok: true, resubscriptions: [] })),
+      resetRequestsCreate: options.serverResetRequestsCreate || (async () => ({ ok: false, error: 'not mocked' })),
+      resetRequestsList: options.serverResetRequestsList || (async () => ({ ok: true, resetRequests: [] })),
+      resetRequestsApply: options.serverResetRequestsApply || (async () => ({ ok: false, error: 'not mocked' })),
+      resetRequestsRefuse: options.serverResetRequestsRefuse || (async () => ({ ok: false, error: 'not mocked' })),
       // Notifications réelles (Phase C, mise en conformité temps réel).
       notificationsList: options.serverNotificationsList || (async () => ({ ok: true, notifications: [] })),
       notificationsMarkRead: options.serverNotificationsMarkRead || (async () => ({ ok: true })),

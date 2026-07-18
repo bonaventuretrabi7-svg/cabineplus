@@ -32,6 +32,11 @@ aussi le contenu de **`api/migration_phase7_retraits.sql`** (une seule
 fois) — moyen/numéro de retrait de la cabine (`paiement_vers`,
 `numero_compte`, `retrait_derniere_maj`), jusqu'ici purement locaux.
 
+**Base déjà en place (mise en conformité temps réel, phase E/9) :** colle
+aussi le contenu de **`api/migration_phase8_reset_requests.sql`** (une
+seule fois) — nouvelle table `reset_requests` (demandes de réinitialisation
+de mot de passe, jusqu'ici 100% locales).
+
 ## 3. Déposer les fichiers PHP sur l'hébergement
 
 hPanel → Sites web → ton domaine → **Gestionnaire de fichiers** → ouvre le
@@ -82,6 +87,10 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `retraits_create.php`
 - `retraits_list.php`
 - `cabine_set_retrait_info.php`
+- `reset_requests_create.php`
+- `reset_requests_list.php`
+- `reset_requests_apply.php`
+- `reset_requests_refuse.php`
 - `cabine_suspend_manual.php`
 - `cabine_self_recharge.php`
 - `cabine_resubscribe.php`

@@ -2520,22 +2520,6 @@ function toggleWhySection() {
   if (!isOpen) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-/* ── Demandes de réinitialisation de mot de passe ─────────────── */
-const ResetRequests = (() => {
-  const KEY  = 'cbp_reset_requests';
-  const all  = () => JSON.parse(localStorage.getItem(KEY) || '[]');
-  const save = (list) => localStorage.setItem(KEY, JSON.stringify(list));
-  const create = (data) => {
-    const list = all();
-    const req = { id: 'rst_' + Date.now(), ...data, statut: 'en_attente', date: new Date().toISOString() };
-    list.push(req);
-    save(list);
-    return req;
-  };
-  const update = (id, changes) => save(all().map(r => r.id === id ? { ...r, ...changes } : r));
-  return { all, create, update };
-})();
-
 // Rôle attendu du compte à réinitialiser (le formulaire est partagé par
 // les 3 modales de connexion, voir client.html) — détermine le compte
 // visé en cas de numéro partagé entre plusieurs rôles (feature 5,
@@ -2561,24 +2545,15 @@ function openResetModal(context) {
   setTimeout(() => document.getElementById(isEmailRole ? 'rst-email' : 'rst-tel')?.focus(), 100);
 }
 
-function submitResetRequest() {
+async function submitResetRequest() {
   const isEmailRole = _resetModalRole === 'cabine' || _resetModalRole === 'admin';
-  let user;
-
+  let identifiant;
   if (isEmailRole) {
-    const email = (document.getElementById('rst-email').value || '').trim();
-    if (!Auth.isValidGmail(email)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
-    user = DB.users.byEmail(email);
-    if (!user || user.role !== _resetModalRole) { Toast.error('Aucun compte trouvé pour cette adresse.'); return; }
+    identifiant = (document.getElementById('rst-email').value || '').trim();
+    if (!Auth.isValidGmail(identifiant)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
   } else {
-    const tel = document.getElementById('rst-tel').value.replace(/\s/g, '');
-    if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro WhatsApp invalide — 10 chiffres requis.'); return; }
-    // Repli rétrocompatible : préfère un compte du rôle attendu, sinon le
-    // premier trouvé tous rôles confondus (voir Auth.login() pour le même
-    // principe côté connexion).
-    const candidates = DB.users.all().filter(u => u.telephone === tel);
-    user = candidates.find(u => u.role === _resetModalRole) || DB.users.byPhone(tel);
-    if (!user) { Toast.error('Aucun compte trouvé pour ce numéro.'); return; }
+    identifiant = document.getElementById('rst-tel').value.replace(/\s/g, '');
+    if (!/^[0-9]{10}$/.test(identifiant)) { Toast.error('Numéro WhatsApp invalide — 10 chiffres requis.'); return; }
   }
 
   // Code obligatoirement un PIN de 4 chiffres, chiffres uniquement — le
@@ -2590,25 +2565,27 @@ function submitResetRequest() {
   if (!Auth.isValidPin(pin))     { Toast.error('Le nouveau code doit contenir exactement 4 chiffres.'); return; }
   if (!Auth.isValidPin(pinConf)) { Toast.error('Confirmez votre nouveau code à 4 chiffres.'); return; }
   if (pin !== pinConf)          { Toast.error('Les codes ne correspondent pas.'); return; }
-  const nouveauMotDePasse = pin;
 
-  if (user.role === 'admin' && user.admin_level === 'super') { Toast.error('Contactez directement le support pour ce type de compte.'); return; }
-
-  // Vérifier si demande déjà en attente pour ce compte précis (identique
-  // quel que soit l'identifiant utilisé pour le retrouver).
-  const existing = ResetRequests.all().find(r => r.user_id === user.id && r.statut === 'en_attente');
-  if (existing) { Toast.warning('Une demande est déjà en cours pour ce compte.'); return; }
-
-  ResetRequests.create({
-    telephone: user.telephone,
-    nom: `${user.prenom || ''} ${user.nom || ''}`.trim(),
-    role: user.role,
-    user_id: user.id,
-    nouveau_mot_de_passe: nouveauMotDePasse,
-  });
+  // La recherche du compte, l'exclusion du super admin et le contrôle
+  // "une seule demande en attente à la fois" sont désormais entièrement
+  // revérifiés côté serveur (api/reset_requests_create.php), jamais
+  // depuis le cache local (potentiellement incomplet sur cet appareil).
+  submitResetRequestBtnLoading(true);
+  const res = await DB.resetRequests.create(_resetModalRole, identifiant, pin);
+  submitResetRequestBtnLoading(false);
+  if (!res.ok) { Toast.error(res.error); return; }
 
   document.getElementById('rst-form').style.display = 'none';
   document.getElementById('rst-sent').style.display = 'flex';
+}
+
+// Filet de sécurité minimal : évite un double envoi si le bouton est
+// cliqué plusieurs fois pendant l'appel réseau (aucun spinner dédié
+// n'existait dans la version 100% locale, ce bouton pouvait déjà être
+// recliqué à volonté puisque rien n'attendait un serveur).
+function submitResetRequestBtnLoading(loading) {
+  const btn = document.querySelector('#rst-form button[onclick="submitResetRequest()"]');
+  if (btn) btn.disabled = loading;
 }
 
 function openPartnerAuthModal() {

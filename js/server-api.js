@@ -333,6 +333,30 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function resetRequestsCreate({ role, identifiant, nouveauMotDePasse }) {
+    const { res, data } = await _call('reset_requests_create.php', { body: { role, identifiant, nouveau_mot_de_passe: nouveauMotDePasse } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la demande.' };
+    return { ok: true };
+  }
+
+  async function resetRequestsList() {
+    const { res, data } = await _call('reset_requests_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, resetRequests: data.resetRequests };
+  }
+
+  async function resetRequestsApply(requestId) {
+    const { res, data } = await _call('reset_requests_apply.php', { auth: true, body: { request_id: requestId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true };
+  }
+
+  async function resetRequestsRefuse(requestId) {
+    const { res, data } = await _call('reset_requests_refuse.php', { auth: true, body: { request_id: requestId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
+    return { ok: true };
+  }
+
   async function transfertsCabineList() {
     const { res, data } = await _call('transferts_cabine_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -518,5 +542,6 @@ const ServerAPI = (() => {
     transfertsCabineList, resubscriptionsList,
     notificationsList, notificationsMarkRead, notificationsMarkAllRead,
     retraitsCreate, retraitsList, cabineSetRetraitInfo,
+    resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
   };
 })();

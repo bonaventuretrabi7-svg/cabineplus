@@ -3512,19 +3512,18 @@ async function markAdminNotifRead(id, el) {
 
 /* ── Réinitialisations mot de passe ───────────────────────────────
    Le nouveau mot de passe est désormais choisi par le demandeur lui-même
-   (voir submitResetRequest() dans js/client.js, r.nouveau_mot_de_passe)
-   — l'admin n'a plus qu'à vérifier l'identité via WhatsApp puis appliquer
-   la demande, plus besoin de ressaisir un PIN ici. */
-function loadResetRequests() {
-  const KEY   = 'cbp_reset_requests';
-  const all   = JSON.parse(localStorage.getItem(KEY) || '[]');
-  // Une demande venant d'un compte admin simple n'est visible que du
-  // super administrateur — les demandes client/cabine restent visibles à
-  // tout admin disposant de la permission (comme aujourd'hui).
-  const list  = currentUser.admin_level === 'super' ? all : all.filter(r => r.role !== 'admin');
+   (voir submitResetRequest() dans js/client.js) et haché côté serveur DÈS
+   la création (voir api/reset_requests_create.php) — l'admin n'a plus qu'à
+   vérifier l'identité via WhatsApp puis appliquer la demande, jamais
+   accès au PIN en clair. Le filtrage "demande admin visible seulement du
+   super admin" est déjà fait côté serveur (reset_requests_list.php) — la
+   liste reçue ici est déjà la bonne portée. */
+async function loadResetRequests() {
   const el    = document.getElementById('rst-admin-list');
   const badge = document.getElementById('reset-badge');
   if (!el) return;
+  await DB.resetRequests.refresh();
+  const list = DB.resetRequests.all();
 
   const pending = list.filter(r => r.statut === 'en_attente').length;
   if (badge) { badge.textContent = pending; badge.style.display = pending > 0 ? 'inline-flex' : 'none'; }
@@ -3537,10 +3536,10 @@ function loadResetRequests() {
     return;
   }
 
-  const sorted = [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+  const sorted = [...list].sort((a, b) => new Date(b.date_created) - new Date(a.date_created));
   el.innerHTML = sorted.map(r => {
     const isPending = r.statut === 'en_attente';
-    const dateStr   = new Date(r.date).toLocaleString('fr-CI', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
+    const dateStr   = new Date(r.date_created).toLocaleString('fr-CI', { day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit' });
     const badge     = isPending
       ? `<span class="badge badge-pending"><i class="fa-solid fa-clock"></i> En attente</span>`
       : r.statut === 'traité'
@@ -3575,38 +3574,25 @@ function loadResetRequests() {
   }).join('');
 }
 
-function adminTraiterReset(reqId) {
-  const KEY  = 'cbp_reset_requests';
-  const list = JSON.parse(localStorage.getItem(KEY) || '[]');
-  const r    = list.find(x => x.id === reqId);
+async function adminTraiterReset(reqId) {
+  const r = DB.resetRequests.all().find(x => x.id === reqId);
   if (!r) return;
-  const user = DB.users.byId(r.user_id);
-  if (!user) { Toast.error('Utilisateur introuvable.'); return; }
-  // Contrôle "serveur" — ne jamais se fier uniquement à la validation
-  // déjà faite côté formulaire (submitResetRequest(), js/client.js) : la
-  // donnée soumise est revérifiée ici, au point où elle est réellement
-  // appliquée au compte.
-  if (!/^\d{4}$/.test(r.nouveau_mot_de_passe || '')) {
-    Toast.error('Code invalide — un PIN de 4 chiffres est requis. Demande rejetée.');
-    return;
-  }
-  if (!confirm(`Appliquer le nouveau mot de passe soumis par ${user.prenom || Fmt.phone(user.telephone)} ?`)) return;
+  if (!confirm(`Appliquer le nouveau mot de passe soumis par ${r.nom || Fmt.phone(r.telephone)} ?`)) return;
 
-  DB.users.update(r.user_id, { mot_de_passe: r.nouveau_mot_de_passe });
-  const updated = list.map(x => x.id === reqId ? { ...x, statut: 'traité', date_traitement: new Date().toISOString() } : x);
-  localStorage.setItem(KEY, JSON.stringify(updated));
+  // Le hash a déjà été calculé et validé à la création de la demande
+  // (api/reset_requests_create.php) — appliqué atomiquement ici, jamais
+  // de PIN en clair à voir ni à revalider côté admin.
+  const res = await DB.resetRequests.apply(reqId);
+  if (!res.ok) { Toast.error(res.error); return; }
 
-  Toast.success(`Mot de passe réinitialisé pour ${user.prenom || Fmt.phone(user.telephone)}.`);
+  Toast.success(`Mot de passe réinitialisé pour ${r.nom || Fmt.phone(r.telephone)}.`);
   loadResetRequests();
 }
 
-function refuseReset(reqId) {
+async function refuseReset(reqId) {
   if (!confirm('Refuser cette demande de réinitialisation ?')) return;
-  const KEY  = 'cbp_reset_requests';
-  const list = JSON.parse(localStorage.getItem(KEY) || '[]').map(r =>
-    r.id === reqId ? { ...r, statut: 'refusé', date_traitement: new Date().toISOString() } : r
-  );
-  localStorage.setItem(KEY, JSON.stringify(list));
+  const res = await DB.resetRequests.refuse(reqId);
+  if (!res.ok) { Toast.error(res.error); return; }
   Toast.info('Demande refusée.');
   loadResetRequests();
 }

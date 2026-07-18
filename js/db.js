@@ -29,6 +29,7 @@ const DB = (() => {
     forfaits:         PREFIX + 'forfaits',
     suspensionLogs:   PREFIX + 'suspension_logs',
     syncQueue:        PREFIX + 'sync_queue',
+    resetRequests:    PREFIX + 'reset_requests',
   };
 
   /* Les 6 méthodes de retrait disponibles pour verser sa commission
@@ -1210,6 +1211,41 @@ const DB = (() => {
     },
   };
 
+  /* ── Demandes de réinitialisation de mot de passe ────────────────────
+     Remplace ResetRequests (IIFE 100% localStorage, js/client.js) et la
+     lecture localStorage directe côté admin.js — voir api/reset_requests_*.php.
+     Le nouveau PIN est haché côté serveur DÈS la création (jamais transmis
+     ni stocké en clair, contrairement à l'ancienne version locale). */
+  const resetRequests = {
+    all: () => get(KEY.resetRequests) || [],
+
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.resetRequestsList();
+      if (res.ok) set(KEY.resetRequests, res.resetRequests);
+    },
+
+    async create(role, identifiant, nouveauMotDePasse) {
+      const res = await ServerAPI.resetRequestsCreate({ role, identifiant, nouveauMotDePasse });
+      if (!res.ok) return { ok: false, error: res.error };
+      return { ok: true };
+    },
+
+    async apply(requestId) {
+      const res = await ServerAPI.resetRequestsApply(requestId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await resetRequests.refresh();
+      return { ok: true };
+    },
+
+    async refuse(requestId) {
+      const res = await ServerAPI.resetRequestsRefuse(requestId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await resetRequests.refresh();
+      return { ok: true };
+    },
+  };
+
   /* ── Journal des accès admin (impersonation) ─────────────────────
      Traçabilité des accès directs de l'administration à l'espace
      partenaire/client sans mot de passe — voir Auth.startImpersonation()
@@ -2054,7 +2090,7 @@ const DB = (() => {
   };
 
   /* â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
+  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue };
 })();
 
 /* ── Maintenance (service/réseau) — fonctions globales (non namespacées
