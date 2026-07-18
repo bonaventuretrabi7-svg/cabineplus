@@ -8676,55 +8676,47 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
 /* ═══════/* ══════════════════════════════════════════════════════════════
    PREMIUM WALLET CARD
 ══════════════════════════════════════════════════════════════ */
-/* Fixe en haut de l'écran (left/right:0 + max-width + margin:auto) pour
-   que le bandeau ET la carte QR (chevauchant son bord bas via sa propre
-   marge négative, voir .pgc-qr-card) restent tous les deux immobiles à
-   l'écran pendant le défilement, aussi bien pour un invité que pour un
-   client connecté (demande explicite — auparavant seul le bandeau était
-   fixe, la carte QR défilait avec le contenu). Comme .pgc-hero-card et
-   .pgc-qr-card restent en flux normal L'UN PAR RAPPORT À L'AUTRE à
-   l'intérieur de ce conteneur désormais fixe, ils se déplacent toujours
-   ensemble sans JS supplémentaire, y compris quand le bandeau se
-   compacte au défilement (voir .pgc-hero-card--compact plus bas). */
 .pgc-sticky-wrap {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 150;
   width: 100%; max-width: 720px; margin: 0 auto; min-width: 0;
-  box-sizing: border-box;
-  /* Voir la note sur translateZ(0)/backface-visibility plus bas
-     (.pgc-hero-card--compact) : même correctif anti-glitch WebView,
-     appliqué ici puisque c'est cet élément qui est réellement fixed. */
+  padding: 0 20px 0; box-sizing: border-box;
+}
+@media (max-width: 600px) { .pgc-sticky-wrap { padding: 0 12px 0; } }
+
+/* ── En-tête bleu uni, coins bas arrondis, plein largeur ──────
+   Fixe en haut de l'écran (left/right:0 + max-width + margin:auto)
+   pour que le bandeau (solde/cadenas) reste toujours visible, même
+   quand la page défile. .pgc-qr-card (en flux normal) chevauche son
+   bord bas grâce à sa propre marge négative, et défile normalement
+   avec le contenu — jamais fixe, côté client comme invité. */
+.pgc-hero-card {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 150;
+  width: 100%; max-width: 720px; margin: 0 auto; box-sizing: border-box;
+  padding: 26px 20px 66px;
+  border-radius: 0 0 28px 28px;
+  background: #0F0A2E;
+  transition: padding .28s cubic-bezier(.4,0,.2,1), border-radius .28s ease;
+  /* Corrige un bug rapporté : après un défilement bas puis retour en
+     haut, le bandeau (solde) et la carte QR juste en dessous restaient
+     parfois invisibles/mal rendus. Cas connu des WebView Android/iOS :
+     un élément position:fixed dont on anime padding/border-radius (des
+     propriétés qui déclenchent un nouveau calcul de mise en page, pas
+     seulement un repaint) perd parfois son rendu après un défilement,
+     tant qu'aucun autre événement ne force un repaint. Le forcer sur sa
+     propre couche de composition (transform + backface-visibility)
+     évite ce problème sans changer l'animation elle-même. */
   transform: translateZ(0);
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
-
-/* ── En-tête bleu uni, coins bas arrondis, plein largeur — simple bloc en
-   flux normal à l'intérieur de .pgc-sticky-wrap (fixe, voir ci-dessus). */
-.pgc-hero-card {
-  padding: 26px 20px 66px;
-  border-radius: 0 0 28px 28px;
-  background: #0F0A2E;
-  box-sizing: border-box;
-  /* Corrige un bug rapporté : après un défilement bas puis retour en
-     haut, le bandeau (solde) et la carte QR juste en dessous restaient
-     parfois invisibles/mal rendus. Cas connu des WebView Android/iOS :
-     animer padding/border-radius (des propriétés qui déclenchent un
-     nouveau calcul de mise en page, pas seulement un repaint) sur un
-     élément fixed perd parfois son rendu après un défilement, tant
-     qu'aucun autre événement ne force un repaint. */
-  transition: padding .28s cubic-bezier(.4,0,.2,1), border-radius .28s ease;
-}
 @media (max-width: 600px) { .pgc-hero-card { padding: 22px 16px 60px; } }
 
 /* En-tête qui se compacte au défilement : dès que la page a scrollé,
-   .pgc-hero-card--compact réduit le bandeau à une fine bande (le montant
-   rétrécit avec lui) ; en revenant tout en haut, il se redéploie. Comme
-   .pgc-sticky-wrap (fixe) englobe désormais aussi la carte QR, celle-ci
-   remonte automatiquement avec le bandeau compacté (flux normal, aucun
-   JS de repositionnement séparé) — seule la réserve d'espace
-   (#cs-transfer padding-top, voir _syncFixedHeaderSpacing()/
-   js/client.js) doit être recalculée à chaque bascule compact/déployé,
-   puisque la hauteur totale fixe change avec elle. */
+   .pgc-hero-card--compact réduit le bandeau à une fine bande (le
+   montant rétrécit avec lui) ; en revenant tout en haut, il se
+   redéploie. La réserve d'espace (#cs-transfer padding-top) est
+   calculée une fois sur la hauteur pleine, donc rien ne bouge dans le
+   flux du document pendant l'animation — seul le bandeau fixe change
+   d'aspect, sans à-coup ni saut de la carte QR en dessous. */
 .pgc-hero-card--compact {
   padding: 14px 20px 18px;
   border-radius: 0 0 18px 18px;
