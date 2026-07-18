@@ -68,6 +68,14 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `cabine_resubscribe.php`
 - `admin_set_abonnement.php`
 - `cabine_transfer.php`
+- `reclamations_create.php`
+- `reclamations_list.php`
+- `reclamations_resolve.php`
+- `reclamations_confirm_received.php`
+- `reclamations_relance.php`
+- `reclamations_request_refund.php`
+- `orders_process_refund.php`
+- `refund_requests_list.php`
 - `config.example.php`
 - `.htaccess`
 

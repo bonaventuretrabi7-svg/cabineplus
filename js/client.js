@@ -3095,6 +3095,10 @@ function openReclamationHub() {
   _rclHubSubmitted     = false;
   renderReclamationHub();
   openModal('modal-reclamation-hub');
+  // Cache local affiché immédiatement ci-dessus ; resynchronise en tâche
+  // de fond (voir DB.reclamations.refresh(), js/db.js) puis rafraîchit —
+  // une réponse de la cabine doit apparaître sans rechargement manuel.
+  DB.reclamations.refresh().then(renderReclamationHub);
 }
 
 function _saveRclHubState() {
@@ -3136,7 +3140,7 @@ function rclHubPickOrderForReason(id) {
   _rclHubFinalize(t, _rclHubPendingReason);
 }
 
-function _rclHubFinalize(t, key) {
+async function _rclHubFinalize(t, key) {
   if (DB.reclamations.byTransaction(t.id)) {
     Toast.warning('Une réclamation existe déjà pour cette commande.');
     _rclHubSelectedTxn = null; _rclHubStep = 'menu'; _rclHubPendingReason = null;
@@ -3150,8 +3154,10 @@ function _rclHubFinalize(t, key) {
     return;
   }
   const motif = RECLA_REASONS[key] || key;
-  DB.reclamations.create({ transaction_id: t.id, client_id: t.client_id, cabine_id: t.cabine_id, motif });
-  DB.notifications.create(t.cabine_id, `Réclamation reçue sur votre commande ${Fmt.ref(t.id)} (${t.operateur || ''} ${t.montant.toLocaleString()} F).`, 'reclamation');
+  // Notification à la cabine envoyée côté serveur (voir
+  // api/reclamations_create.php), plus de doublon local ici.
+  const res = await DB.reclamations.create({ transaction_id: t.id, motif });
+  if (!res.ok) { Toast.error(res.error); return; }
   _rclHubSubmitted = true;
   renderReclamationHub();
   Toast.success('Réclamation envoyée. La cabine sera notifiée.');
@@ -3336,35 +3342,29 @@ function renderRclHubThread(r) {
   return `<button class="rh-thread-back" onclick="rclHubCloseThread()"><i class="fa-solid fa-arrow-left"></i> Retour</button>${bubbles}${footer}`;
 }
 
+// Statut/messages/notifications/plafond de relances entièrement gérés
+// côté serveur désormais (voir api/reclamations_confirm_received.php et
+// api/reclamations_relance.php) — la vérification défensive locale
+// (r.confirmed_by_client, statut déjà clos) reste utile pour éviter un
+// appel réseau inutile, mais le serveur la refait de toute façon (CAS).
 async function rclHubQuickReply(reclaId, kind) {
   const r = DB.reclamations.all().find(x => x.id === reclaId);
   if (!r) return;
-  // Re-vérification (défense en profondeur, cf. rclHubSelectReason ci-dessus) :
-  // un fil déjà clos par le client, en remboursement, ou remboursé ne
-  // doit plus accepter de nouveau message, même par appel direct.
   if (r.confirmed_by_client || r.statut === 'remboursement_demande' || r.statut === 'remboursée') return;
 
   if (kind === 'recu') {
-    DB.reclamations.addMessage(reclaId, { sender: 'client', type: 'texte', texte: 'J\'ai reçu ma commande, merci !' });
-    DB.reclamations.update(reclaId, { statut: 'résolue', confirmed_by_client: true, date_resolved: r.date_resolved || DB.now() });
-    DB.notifications.create(r.cabine_id, `Le client confirme avoir reçu la commande ${Fmt.ref(r.transaction_id)}.`, 'success');
+    const res = await DB.reclamations.confirmReceived(reclaId);
+    if (!res.ok) { Toast.error(res.error); return; }
     Toast.success('Merci ! La cabine a été notifiée.');
     renderReclamationHub();
     return;
   }
 
   // kind === 'non_recue'
-  if (!r.screenshot) {
-    // Aucune preuve encore fournie par la cabine : simple relance, la
-    // limite ne s'applique qu'"après" une première preuve (voir plan).
-    DB.reclamations.addMessage(reclaId, { sender: 'client', type: 'texte', texte: RECLA_REASONS.non_recue });
-    renderReclamationHub();
-    return;
-  }
-  if ((r.relances_apres_preuve || 0) >= 3) {
+  if (r.screenshot && (r.relances_apres_preuve || 0) >= 3) {
     // 4e tentative : le client a droit à 3 relances par commande après
     // preuve — redirection directe vers l'assistance WhatsApp plutôt que
-    // de le laisser relancer indéfiniment.
+    // de le laisser relancer indéfiniment (vérifié aussi côté serveur).
     renderReclamationHub();
     const link = await assistanceWhatsappLink('Bonjour, j\'ai besoin d\'aide concernant une réclamation en cours.');
     if (!link) { Toast.error('Aucun numéro d\'assistance WhatsApp n\'est configuré pour le moment.'); return; }
@@ -3372,9 +3372,8 @@ async function rclHubQuickReply(reclaId, kind) {
     window.open(link, '_blank');
     return;
   }
-  DB.reclamations.addMessage(reclaId, { sender: 'client', type: 'texte', texte: RECLA_REASONS.non_recue });
-  DB.reclamations.update(reclaId, { statut: 'en_attente', relances_apres_preuve: (r.relances_apres_preuve || 0) + 1 });
-  DB.notifications.create(r.cabine_id, `Le client indique ne toujours pas avoir reçu la commande ${Fmt.ref(r.transaction_id)}.`, 'reclamation');
+  const res = await DB.reclamations.relance(reclaId);
+  if (!res.ok) { Toast.error(res.error); return; }
   Toast.warning('La cabine a été notifiée à nouveau.');
   renderReclamationHub();
 }

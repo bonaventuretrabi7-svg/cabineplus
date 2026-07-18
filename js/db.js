@@ -1000,6 +1000,12 @@ const DB = (() => {
   };
 
   /* â”€â”€ Réclamations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+  // Réclamations — synchronisées de bout en bout (Phase 5, voir
+  // api/reclamations_*.php) : lectures restent 100% synchrones (cache
+  // local, comme avant), chaque mutation devient un appel serveur dédié
+  // (plus de update()/addMessage() génériques — chaque transition d'état a
+  // désormais sa propre règle métier vérifiée côté serveur : CAS de
+  // propriété, plafond de relances, statut requis...).
   const reclamations = {
     all:             ()      => get(KEY.reclamations) || [],
     byTransaction:   (txnId) => (get(KEY.reclamations)||[]).find(r => r.transaction_id === txnId) || null,
@@ -1008,63 +1014,86 @@ const DB = (() => {
     countByClient:   (cliId) => (get(KEY.reclamations)||[]).filter(r => r.client_id === cliId).length,
     pending:         ()      => (get(KEY.reclamations)||[]).filter(r => r.statut === 'en_attente'),
 
-    create({ transaction_id, client_id, cabine_id, motif }) {
+    // Rafraîchit depuis le serveur (portée par rôle côté serveur — voir
+    // api/reclamations_list.php) : upsert par id plutôt qu'un remplacement
+    // total, même patron que transactions.refresh().
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.reclamationsList();
+      if (!res.ok) return;
       const list = get(KEY.reclamations) || [];
-      const r = { id: uid(), transaction_id, client_id, cabine_id, motif,
-                  statut: 'en_attente', screenshot: null,
-                  date_created: now(), date_resolved: null,
-                  // Fil de discussion : seedé avec la déclaration initiale du
-                  // client. relances_apres_preuve ne compte que les messages
-                  // "toujours pas reçu" envoyés APRÈS qu'une preuve (screenshot)
-                  // a déjà été fournie par la cabine — voir rclHubQuickReply()
-                  // dans js/client.js.
-                  messages: [{ sender: 'client', type: 'texte', texte: motif, date: now() }],
-                  relances_apres_preuve: 0 };
-      list.push(r);
+      res.reclamations.forEach(row => {
+        const idx = list.findIndex(r => r.id === row.id);
+        if (idx !== -1) list[idx] = row; else list.push(row);
+      });
       set(KEY.reclamations, list);
-      return r;
     },
 
-    update(id, updates) {
+    // client_id/cabine_id ignorés : toujours re-dérivés de la transaction
+    // réelle côté serveur (voir api/reclamations_create.php), jamais fait
+    // confiance à une valeur locale potentiellement obsolète ou usurpée.
+    async create({ transaction_id, client_id, cabine_id, motif }) {
+      void client_id, cabine_id;
+      const res = await ServerAPI.reclamationsCreate({ transactionId: transaction_id, motif });
+      if (!res.ok) return { ok: false, error: res.error };
       const list = get(KEY.reclamations) || [];
-      const idx  = list.findIndex(r => r.id === id);
-      if (idx !== -1) { list[idx] = { ...list[idx], ...updates }; set(KEY.reclamations, list); }
+      list.push(res.reclamation);
+      set(KEY.reclamations, list);
+      return { ok: true, reclamation: res.reclamation };
     },
 
-    addMessage(id, message) {
-      const list = get(KEY.reclamations) || [];
-      const idx  = list.findIndex(r => r.id === id);
-      if (idx === -1) return null;
-      list[idx] = { ...list[idx], messages: [...(list[idx].messages || []), { ...message, date: now() }] };
-      set(KEY.reclamations, list);
-      return list[idx];
+    // Cabine : fournit une preuve de paiement (voir api/reclamations_resolve.php).
+    async resolve(reclaId, screenshot) {
+      const res = await ServerAPI.reclamationsResolve(reclaId, screenshot);
+      if (!res.ok) return { ok: false, error: res.error };
+      await reclamations.refresh();
+      return { ok: true };
+    },
+
+    // Client : confirme avoir reçu sa commande (voir api/reclamations_confirm_received.php).
+    async confirmReceived(reclaId) {
+      const res = await ServerAPI.reclamationsConfirmReceived(reclaId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await reclamations.refresh();
+      return { ok: true };
+    },
+
+    // Client : relance ("toujours pas reçu") — voir api/reclamations_relance.php.
+    async relance(reclaId) {
+      const res = await ServerAPI.reclamationsRelance(reclaId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await reclamations.refresh();
+      return { ok: true, relancesApresPreuve: res.relancesApresPreuve };
+    },
+
+    // Cabine : transmet une demande de remboursement à l'administration —
+    // voir api/reclamations_request_refund.php (déclenche aussi la
+    // suspension automatique à 5 demandes/jour, désormais réellement
+    // active puisque refund_requests est synchronisée).
+    async requestRefund(reclaId) {
+      const res = await ServerAPI.reclamationsRequestRefund(reclaId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await reclamations.refresh();
+      return { ok: true };
     },
   };
 
   /* ── Demandes de remboursement (soumises par la cabine suite à une
      réclamation) ──────────────────────────────────────────────────
-     Visibles uniquement côté administration (onglet dédié) jusqu'à
-     validation — voir DB.business.processRefundRequest ci-dessous, qui
-     réutilise refundTransaction() pour l'effet financier réel. */
+     Visibles uniquement côté administration (onglet dédié) — création et
+     traitement vivent désormais entièrement côté serveur (voir
+     reclamations.requestRefund() ci-dessus et
+     DB.business.processRefundRequest ci-dessous), cette collection ne sert
+     plus qu'à afficher la liste. */
   const refundRequests = {
     all:            ()        => get(KEY.refundRequests) || [],
     pending:        ()        => (get(KEY.refundRequests) || []).filter(r => r.statut === 'en_attente'),
     byReclamation:  (reclaId) => (get(KEY.refundRequests) || []).find(r => r.reclamation_id === reclaId) || null,
-    countSince:     (cabineId, sinceMs) => (get(KEY.refundRequests) || []).filter(r => r.cabine_id === cabineId && new Date(r.date_created).getTime() >= sinceMs).length,
 
-    create({ reclamation_id, transaction_id, cabine_id, client_id, motif }) {
-      const list = get(KEY.refundRequests) || [];
-      const r = { id: 'rfr_' + uid(), reclamation_id, transaction_id, cabine_id, client_id, motif,
-                  statut: 'en_attente', date_created: now(), date_traitement: null, processed_by: null };
-      list.push(r);
-      set(KEY.refundRequests, list);
-      return r;
-    },
-
-    update(id, updates) {
-      const list = get(KEY.refundRequests) || [];
-      const idx  = list.findIndex(r => r.id === id);
-      if (idx !== -1) { list[idx] = { ...list[idx], ...updates }; set(KEY.refundRequests, list); }
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.refundRequestsList();
+      if (res.ok) set(KEY.refundRequests, res.refundRequests);
     },
   };
 
@@ -1694,24 +1723,14 @@ const DB = (() => {
     },
 
     /* Admin : valide une demande de remboursement soumise par une cabine
-       suite à une réclamation (voir DB.refundRequests — encore 100%
-       locale, synchronisation prévue en Phase 5 avec reclamations).
-       Réutilise refundTransaction() ci-dessus (désormais serveur) pour
-       l'effet financier, puis trace la demande et la réclamation liée
-       comme traitées, toujours en local pour l'instant. */
+       suite à une réclamation — remplace la version locale par
+       api/orders_process_refund.php (effet financier + traçage de la
+       demande et de la réclamation liée, dans une seule transaction PDO). */
     async processRefundRequest(requestId, adminId) {
-      const req = refundRequests.all().find(r => r.id === requestId);
-      if (!req || req.statut !== 'en_attente') {
-        return { ok: false, error: 'Demande introuvable ou déjà traitée.' };
-      }
-
-      const res = await business.refundTransaction(req.transaction_id);
-      if (!res.ok) return res;
-
-      refundRequests.update(requestId, { statut: 'traité', date_traitement: now(), processed_by: adminId });
-      reclamations.update(req.reclamation_id, { statut: 'remboursée', date_resolved: now() });
-      notifications.create(req.cabine_id, `Le remboursement de la commande ${Fmt.ref(req.transaction_id)} a été validé par l'administration.`, 'success');
-
+      void adminId; // désormais inféré côté serveur depuis le jeton
+      const res = await ServerAPI.ordersProcessRefund(requestId);
+      if (!res.ok) return { ok: false, error: res.error };
+      await Promise.all([transactions.refresh(), refundRequests.refresh(), reclamations.refresh()]);
       return { ok: true };
     },
 
@@ -1806,17 +1825,6 @@ const DB = (() => {
       const res = await ServerAPI.cabineSuspendManual(cabineId, motif);
       if (!res.ok) return { ok: false, error: res.error };
       return { ok: true };
-    },
-
-    /* Suspension automatique si la cabine a soumis 5 demandes de
-       remboursement (voir DB.refundRequests) au cours de la journée en
-       cours — appelée depuis requestReclamationRefund() dans js/cabine.js
-       juste après la création de la demande. */
-    checkRefundRequestSuspension(cabineId) {
-      const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-      if (refundRequests.countSince(cabineId, todayStart.getTime()) >= 5) {
-        business.suspendCabineAuto(cabineId, '5 demandes de remboursement en une journée');
-      }
     },
 
     /* Quota atteint = même condition que celle qui fait déjà passer une

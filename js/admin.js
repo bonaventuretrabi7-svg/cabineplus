@@ -1592,6 +1592,11 @@ async function refundTxn(txnId) {
 /* ── Demandes de remboursement (soumises par une cabine suite à une
    réclamation reconnue — voir DB.refundRequests dans js/db.js) ─────── */
 function loadRefundRequests() {
+  _renderRefundRequests();
+  DB.refundRequests.refresh().then(_renderRefundRequests);
+}
+
+function _renderRefundRequests() {
   const list  = DB.refundRequests.all();
   const el    = document.getElementById('refund-admin-list');
   const badge = document.getElementById('refund-badge');
@@ -1643,6 +1648,11 @@ function loadRefundRequests() {
    renderRclHubThread() dans js/client.js pour le patron de rendu côté
    client (repris ici en lecture seule, sans les boutons de réponse). */
 function loadDiscussionsAdmin() {
+  _renderDiscussionsAdmin();
+  DB.reclamations.refresh().then(_renderDiscussionsAdmin);
+}
+
+function _renderDiscussionsAdmin() {
   const list = DB.reclamations.all();
   const el   = document.getElementById('discussions-admin-list');
   if (!el) return;

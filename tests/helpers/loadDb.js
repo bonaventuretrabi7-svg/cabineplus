@@ -144,6 +144,15 @@ function loadDb(opts = {}) {
       cabineResubscribe: options.serverCabineResubscribe || (async () => ({ ok: false, error: 'not mocked' })),
       adminSetAbonnement: options.serverAdminSetAbonnement || (async () => ({ ok: false, error: 'not mocked' })),
       cabineTransfer: options.serverCabineTransfer || (async () => ({ ok: false, error: 'not mocked' })),
+      // Réclamations + demandes de remboursement (Phase 5).
+      reclamationsList: options.serverReclamationsList || (async () => ({ ok: true, reclamations: [] })),
+      reclamationsCreate: options.serverReclamationsCreate || (async () => ({ ok: false, error: 'not mocked' })),
+      reclamationsResolve: options.serverReclamationsResolve || (async () => ({ ok: false, error: 'not mocked' })),
+      reclamationsConfirmReceived: options.serverReclamationsConfirmReceived || (async () => ({ ok: false, error: 'not mocked' })),
+      reclamationsRelance: options.serverReclamationsRelance || (async () => ({ ok: false, error: 'not mocked' })),
+      reclamationsRequestRefund: options.serverReclamationsRequestRefund || (async () => ({ ok: false, error: 'not mocked' })),
+      ordersProcessRefund: options.serverOrdersProcessRefund || (async () => ({ ok: false, error: 'not mocked' })),
+      refundRequestsList: options.serverRefundRequestsList || (async () => ({ ok: true, refundRequests: [] })),
     },
   };
   vm.createContext(sandbox);

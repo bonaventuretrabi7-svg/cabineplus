@@ -154,3 +154,46 @@ function checkAutoUnsuspend(PDO $pdo, string $cabineId): bool {
   createNotification($cabineId, 'Votre compte a été réactivé automatiquement après la période de suspension de 24h.', 'success');
   return true;
 }
+
+// Effet financier d'un remboursement admin (voir orders_refund.php et
+// orders_process_refund.php, qui l'appellent tous les deux — extrait ici
+// pour ne jamais laisser diverger les deux copies). Suppose déjà dans une
+// transaction PDO ouverte par l'appelant ; ne fait AUCUN commit/rollback
+// elle-même. Retourne la ligne transactions telle qu'avant remboursement
+// (utile pour les notifications post-commit).
+function refundTransactionEffect(PDO $pdo, string $txnId): array {
+  $PENALITE_REMBOURSEMENT_TERMINE = 60;
+
+  $txnStmt = $pdo->prepare('SELECT * FROM transactions WHERE id = ? FOR UPDATE');
+  $txnStmt->execute([$txnId]);
+  $txn = $txnStmt->fetch();
+  if (!$txn || ($txn['statut'] !== 'en_attente' && $txn['statut'] !== 'terminé')) {
+    fail('Cette commande ne peut pas être remboursée.');
+  }
+
+  if ($txn['statut'] === 'terminé' && $txn['cabine_id']) {
+    $cabStmt = $pdo->prepare('SELECT id FROM profiles WHERE id = ?');
+    $cabStmt->execute([$txn['cabine_id']]);
+    if ($cabStmt->fetch()) {
+      $commission = (int)$txn['commission'];
+      $sanction = (int)$txn['montant'] + $PENALITE_REMBOURSEMENT_TERMINE;
+      $pdo->prepare('UPDATE profiles SET
+          solde = solde - ?,
+          commissions_total = GREATEST(0, commissions_total - ?),
+          transferts_total = GREATEST(0, transferts_total - 1),
+          remboursements_recus = remboursements_recus + 1
+        WHERE id = ?')
+        ->execute([$commission + $sanction, $commission, $txn['cabine_id']]);
+
+      $pdo->prepare('INSERT INTO retraits (id, cabine_id, montant, statut, methode_retrait, type, motif, date) VALUES (?, ?, ?, \'terminé\', \'Sanction\', \'sanction\', ?, NOW())')
+          ->execute([uuid4(), $txn['cabine_id'], $sanction, 'Remboursement commande — montant (' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F) + pénalité (' . $PENALITE_REMBOURSEMENT_TERMINE . ' F)']);
+
+      createNotification($txn['cabine_id'], 'Une commande que vous aviez marquée "Terminée" a été remboursée par l\'administration : ' . number_format((float)$sanction, 0, ',', ' ') . ' F (montant + pénalité de ' . $PENALITE_REMBOURSEMENT_TERMINE . ' F) ont été prélevés sur votre solde.', 'warning');
+    }
+  }
+
+  $pdo->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([(int)$txn['montant'], $txn['client_id']]);
+  $pdo->prepare("UPDATE transactions SET statut='remboursé', date_remboursement=NOW() WHERE id=?")->execute([$txnId]);
+
+  return $txn;
+}

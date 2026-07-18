@@ -356,6 +356,57 @@ const ServerAPI = (() => {
     return { ok: true, recipient: data.recipient };
   }
 
+  /* Réclamations + demandes de remboursement (Phase 5) — voir
+     DB.reclamations/refundRequests (js/db.js) et api/reclamations_*.php,
+     refund_requests_list.php. */
+  async function reclamationsList() {
+    const { res, data } = await _call('reclamations_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, reclamations: data.reclamations };
+  }
+
+  async function reclamationsCreate({ transactionId, motif }) {
+    const { res, data } = await _call('reclamations_create.php', { auth: true, body: { transaction_id: transactionId, motif } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de l\'envoi de la réclamation.' };
+    return { ok: true, reclamation: data.reclamation };
+  }
+
+  async function reclamationsResolve(reclamationId, screenshot) {
+    const { res, data } = await _call('reclamations_resolve.php', { auth: true, body: { reclamation_id: reclamationId, screenshot } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de l\'envoi de la preuve.' };
+    return { ok: true };
+  }
+
+  async function reclamationsConfirmReceived(reclamationId) {
+    const { res, data } = await _call('reclamations_confirm_received.php', { auth: true, body: { reclamation_id: reclamationId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la confirmation.' };
+    return { ok: true };
+  }
+
+  async function reclamationsRelance(reclamationId) {
+    const { res, data } = await _call('reclamations_relance.php', { auth: true, body: { reclamation_id: reclamationId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la relance.' };
+    return { ok: true, relancesApresPreuve: data.relances_apres_preuve };
+  }
+
+  async function reclamationsRequestRefund(reclamationId) {
+    const { res, data } = await _call('reclamations_request_refund.php', { auth: true, body: { reclamation_id: reclamationId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la demande de remboursement.' };
+    return { ok: true };
+  }
+
+  async function ordersProcessRefund(requestId) {
+    const { res, data } = await _call('orders_process_refund.php', { auth: true, body: { request_id: requestId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du remboursement.' };
+    return { ok: true };
+  }
+
+  async function refundRequestsList() {
+    const { res, data } = await _call('refund_requests_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, refundRequests: data.refundRequests };
+  }
+
   return {
     login, logout, createAccount, adminCreateAccount, getSettings, updateSettings, listProfiles,
     isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
@@ -365,5 +416,7 @@ const ServerAPI = (() => {
     ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, cabineSuspendManual,
     cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer,
+    reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,
+    reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,
   };
 })();

@@ -2458,12 +2458,14 @@ function cabUvCancelReclaPick() {
   renderCabUvReclaNewList();
 }
 
-function cabUvSubmitRecla(motifKey) {
+async function cabUvSubmitRecla(motifKey) {
   const t = DB.transactions.byId(_cabUvReclaTxnId);
   if (!t) return;
   const motif = RECLA_REASONS[motifKey] || motifKey;
-  DB.reclamations.create({ transaction_id: t.id, client_id: t.client_id, cabine_id: t.cabine_id, motif });
-  DB.notifications.create(t.cabine_id, `Réclamation reçue sur la commande ${Fmt.ref(t.id)} (${t.operateur} ${t.montant.toLocaleString()} FCFA).`, 'reclamation');
+  // Notification à la cabine concernée envoyée côté serveur (voir
+  // api/reclamations_create.php), plus de doublon local ici.
+  const res = await DB.reclamations.create({ transaction_id: t.id, motif });
+  if (!res.ok) { Toast.error(res.error); return; }
   Toast.success('Réclamation envoyée. La cabine concernée a été notifiée.');
   _cabUvReclaTxnId = null;
   cabUvSwitchReclaSubTab('historique');
@@ -2536,6 +2538,13 @@ let _cabReclaFilter = 'en_attente';
 let _cabReclaQuery = '';
 
 function loadCabReclamations() {
+  _renderCabReclamations();
+  // Cache local affiché immédiatement ci-dessus ; resynchronise en tâche
+  // de fond (voir DB.reclamations.refresh(), js/db.js) puis rafraîchit.
+  DB.reclamations.refresh().then(_renderCabReclamations);
+}
+
+function _renderCabReclamations() {
   const reclas = DB.reclamations.byCabine(currentUser.id);
   const pendingCount = reclas.filter(r => r.statut === 'en_attente').length;
   const badge = document.getElementById('recla-tab-badge-attente');
@@ -2739,37 +2748,30 @@ function handleReclaFileSelect(reclaId, input) {
   reader.readAsDataURL(file);
 }
 
-function resolveReclamation(reclaId) {
+async function resolveReclamation(reclaId) {
   const screenshot = _reclaPendingScreenshots[reclaId];
   if (!screenshot) { Toast.error("Veuillez téléverser une capture d'écran."); return; }
-  const r = DB.reclamations.all().find(x => x.id === reclaId);
-  if (!r) return;
-  DB.reclamations.update(reclaId, { statut: 'résolue', screenshot, date_resolved: DB.now() });
-  DB.reclamations.addMessage(reclaId, { sender: 'cabine', type: 'texte', texte: 'Nous sommes désolés pour le désagrément rencontré. Voici la preuve du transfert :' });
-  DB.reclamations.addMessage(reclaId, { sender: 'cabine', type: 'image', image: screenshot });
+  // Statut/messages/notification client entièrement gérés côté serveur
+  // (voir api/reclamations_resolve.php) — CAS de propriété inclus.
+  const res = await DB.reclamations.resolve(reclaId, screenshot);
+  if (!res.ok) { Toast.error(res.error); return; }
   delete _reclaPendingScreenshots[reclaId];
-  DB.notifications.create(r.client_id, `Votre réclamation sur la commande ${Fmt.ref(r.transaction_id)} a été traitée. Une preuve a été fournie.`, 'success');
   Toast.success('Preuve soumise. Le client a été notifié.');
   loadCabReclamations();
   updateNotifBadge();
 }
 
 // Soumet une demande de remboursement à l'administration suite à une
-// réclamation reconnue par la cabine (voir DB.refundRequests dans
-// js/db.js). Visible uniquement dans l'onglet admin "Demandes de
-// remboursement" tant qu'elle n'est pas traitée — ni chez le client, ni
-// ailleurs côté cabine (voir renderCabReclaList ci-dessus).
-function requestReclamationRefund(reclaId) {
-  const r = DB.reclamations.all().find(x => x.id === reclaId);
-  if (!r || r.statut !== 'en_attente') return;
-  const txn = DB.transactions.byId(r.transaction_id);
-  if (!txn || txn.statut !== 'terminé') { Toast.error('Cette commande ne peut pas faire l\'objet d\'un remboursement.'); return; }
+// réclamation reconnue par la cabine — voir api/reclamations_request_refund.php
+// (CAS de propriété + statut, 5 demandes/jour → suspension automatique,
+// tout géré côté serveur). Visible uniquement dans l'onglet admin
+// "Demandes de remboursement" tant qu'elle n'est pas traitée — ni chez le
+// client, ni ailleurs côté cabine (voir renderCabReclaList ci-dessus).
+async function requestReclamationRefund(reclaId) {
   if (!confirm('Transmettre une demande de remboursement à l\'administration pour cette commande ?')) return;
 
-  DB.refundRequests.create({ reclamation_id: r.id, transaction_id: txn.id, cabine_id: currentUser.id, client_id: r.client_id, motif: r.motif });
-  DB.reclamations.update(reclaId, { statut: 'remboursement_demande' });
-  // 5 demandes de remboursement en une journée → suspension automatique 24h.
-  DB.business.checkRefundRequestSuspension(currentUser.id);
+  const res = await DB.reclamations.requestRefund(reclaId);
+  if (!res.ok) { Toast.error(res.error); return; }
   currentUser = Auth.refresh();
   loadCabBalanceCard();
   Toast.success('Demande de remboursement transmise à l\'administration.');
