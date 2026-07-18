@@ -47,6 +47,8 @@ Crée-y un dossier **`api`**, et dépose DANS ce dossier tous les fichiers de
 - `permission_logs_create.php`
 - `maintenance_logs_list.php`
 - `maintenance_logs_create.php`
+- `presence_ping.php`
+- `presence_online.php`
 - `config.example.php`
 - `.htaccess`
 

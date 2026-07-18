@@ -365,11 +365,13 @@ function startCabPresence() {
   DB.presence.ping(currentUser.id);
   _refreshOnlineCount();
   _touchCurrentCabDevice();
+  DB.presence.refresh().then(_refreshOnlineCount);
 
   setInterval(() => {
     DB.presence.ping(currentUser.id);
     _refreshOnlineCount();
     _touchCurrentCabDevice();
+    DB.presence.refresh().then(_refreshOnlineCount);
   }, DB.presence.HEARTBEAT_MS);
 
   window.addEventListener('beforeunload', () => DB.presence.leave(currentUser.id));

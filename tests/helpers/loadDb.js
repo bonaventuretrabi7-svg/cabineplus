@@ -113,6 +113,13 @@ function loadDb(opts = {}) {
       favorisList: options.serverFavorisList || (async () => ({ ok: true, favoris: [] })),
       favorisCreate: options.serverFavorisCreate || (async () => ({ ok: false, error: 'not mocked' })),
       favorisRemove: options.serverFavorisRemove || (async () => ({ ok: false, error: 'not mocked' })),
+      // Présence (voir tests/presence-sync.test.js) — no-op par défaut :
+      // DB.presence.ping() appelle ceci en tâche de fond dès que online:true
+      // (défaut de ce harnais), donc TOUS les tests existants qui pinguent
+      // sans fournir ce mock (ex. tests/retards-suspension.test.js) doivent
+      // continuer de fonctionner sans erreur.
+      presencePing: options.serverPresencePing || (async () => ({ ok: true })),
+      presenceOnline: options.serverPresenceOnline || (async () => ({ ok: true, presence: [] })),
     },
   };
   vm.createContext(sandbox);

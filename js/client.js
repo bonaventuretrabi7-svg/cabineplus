@@ -534,8 +534,10 @@ function renderAndroidProfileButton() {
 /* ── Présence en ligne (voir DB.presence, même mécanisme que cabine.js) ── */
 function startClientPresence() {
   DB.presence.ping(currentUser.id);
+  DB.presence.refresh();
   setInterval(() => {
     DB.presence.ping(currentUser.id);
+    DB.presence.refresh();
     // Élargit la couverture du balayage de commandes en retard (features
     // 4/5) — les onglets client sont typiquement les plus nombreux ouverts.
     DB.business.sweepStaleOrders();

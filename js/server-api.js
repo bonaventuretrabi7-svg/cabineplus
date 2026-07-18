@@ -219,10 +219,27 @@ const ServerAPI = (() => {
     return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
   }
 
+  /* Présence en ligne (voir DB.presence, js/db.js et
+     api/presence_ping.php/presence_online.php) — prérequis à la migration
+     du moteur d'attribution des commandes (Phase 4), qui doit distinguer
+     une cabine réellement joignable d'une autre appareil du même compte
+     hors ligne. Écriture best-effort (même raisonnement que les journaux
+     d'audit : un battement manqué n'est pas critique, le suivant dans
+     HEARTBEAT_MS le rattrape). */
+  async function presencePing() {
+    const { res, data } = await _call('presence_ping.php', { auth: true });
+    return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
+  }
+  async function presenceOnline() {
+    const { res, data } = await _call('presence_online.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, presence: data.presence };
+  }
+
   return {
     login, logout, createAccount, adminCreateAccount, getSettings, updateSettings, listProfiles,
     isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
     accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
-    maintenanceLogsList, maintenanceLogsCreate,
+    maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline,
   };
 })();

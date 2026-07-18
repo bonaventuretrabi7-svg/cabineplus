@@ -597,10 +597,19 @@ const DB = (() => {
     hash: hashPwd,
   };
 
-  /* â”€â”€ Présence en ligne (localStorage, multi-onglets) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  // Chaque onglet connecté "pinge" son id périodiquement ; une entrée plus
-  // vieille que STALE_MS est considérée hors ligne (onglet fermé sans avoir
-  // pu prévenir, crash, etc.).
+  /* â”€â”€ Présence en ligne (localStorage multi-onglets + serveur multi-appareils) â”€
+     Chaque onglet/appareil connecté "pingue" son id périodiquement ; une
+     entrée plus vieille que STALE_MS est considérée hors ligne (onglet
+     fermé sans avoir pu prévenir, crash, etc.). ping() écrit en local
+     IMMÉDIATEMENT (même comportement qu'avant, y compris hors ligne) puis
+     pousse vers le serveur en tâche de fond (best-effort — voir
+     api/presence_ping.php) ; refresh() tire la liste serveur pour que ce
+     même appareil sache aussi qui est en ligne SUR LES AUTRES appareils,
+     prérequis à la migration de l'attribution des commandes (Phase 4) qui
+     doit distinguer une cabine réellement joignable d'un autre appareil du
+     même compte resté ouvert mais inactif. onlineCabineIds()/onlineIds()
+     restent synchrones (lisent ce même cache local fusionné) : appelées
+     depuis DB.business.findReassignmentTarget, encore 100% synchrone. */
   const presence = {
     HEARTBEAT_MS: 10000,
     STALE_MS: 25000,
@@ -612,8 +621,31 @@ const DB = (() => {
       const map = presence._all();
       map[userId] = Date.now();
       presence._save(map);
+      if (ServerAPI.isConfigured && Net.isOnline()) {
+        ServerAPI.presencePing().catch(() => {});
+      }
     },
 
+    // Fusionne la présence connue côté serveur (autres appareils) dans le
+    // cache local — ne recule jamais un timestamp déjà plus récent
+    // localement (ex. ce même appareil vient de pinguer, plus à jour que
+    // la dernière lecture serveur disponible).
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.presenceOnline();
+      if (!res.ok) return;
+      const map = presence._all();
+      res.presence.forEach(row => {
+        const ts = row.ts * 1000;
+        if (!map[row.profile_id] || ts > map[row.profile_id]) map[row.profile_id] = ts;
+      });
+      presence._save(map);
+    },
+
+    // beforeunload n'a pas de contrepartie serveur fiable (la page peut
+    // être détruite avant qu'une requête réseau n'aboutisse) — le seuil de
+    // fraîcheur (STALE_MS) côté refresh() suffit à faire disparaître un
+    // appareil réellement fermé du prochain rafraîchissement des autres.
     leave(userId) {
       const map = presence._all();
       delete map[userId];

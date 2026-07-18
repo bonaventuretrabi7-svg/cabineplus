@@ -364,8 +364,10 @@ function boot() {
 
     // Présence en ligne (voir DB.presence, même mécanisme que cabine.js/client.js)
     DB.presence.ping(currentUser.id);
+    DB.presence.refresh().then(loadDashboard);
     setInterval(() => {
       DB.presence.ping(currentUser.id);
+      DB.presence.refresh().then(loadDashboard);
       refreshUsersFromServer();
       const sweep = DB.business.sweepStaleOrders();
       if (sweep.staleCount > 0) {
