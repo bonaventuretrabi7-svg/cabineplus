@@ -1171,7 +1171,7 @@ body.dark .balance-strip { background: linear-gradient(135deg,#0D1117,#161B22); 
 /* â”€â”€ Transfer Layout (wizard, full-width) ─────────────────────── */
 .tf-layout {
   display: block;
-  margin-top: 16px;
+  margin-top: 8px;
   background: linear-gradient(145deg, #0F0A2E 0%, #1A1040 55%, #0D0820 100%);
   border: 1.5px solid rgba(138,99,255,.2);
   border-radius: var(--radius-lg);
@@ -2182,6 +2182,7 @@ body:not(.on-home) .cs-section.active {
   body:not(.on-home) .cs-section.active { padding: 16px 12px 110px; }
 }
 body:not(.on-home) .cs-section.active > * { margin-bottom: 16px; }
+body:not(.on-home) .cs-section.active > .pgc-panel { margin-bottom: 6px; }
 
 /* ── Dark mode : carte & panneau ─────────────────────────── */
 body.dark .client-page { background: #0d0d1a; }
@@ -4883,6 +4884,15 @@ body.dark .hbc-btn { color: var(--dark-text-muted); }
   border: none;
   box-shadow: none;
   margin-top: -4px;
+}
+
+/* Variante claire : carte détachée sur fond blanc (au lieu du dégradé
+   sombre par défaut de .home-section), pour les blocs dont le contenu
+   (ex. .social-circ-lbl, texte noir) est pensé pour un fond clair. */
+.home-section--light {
+  background: var(--white);
+  border: none;
+  box-shadow: 0 4px 16px rgba(0,0,0,.06);
 }
 
 /* ── Vitrine app (façon fiche App Store) ──────────────────────── */
@@ -8695,31 +8705,36 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
    simplification délibérée). */
 .pgc-hero-card {
   position: sticky; top: 0; z-index: 150;
-  width: 100%; box-sizing: border-box;
-  padding: 26px 20px 34px;
+  width: auto; box-sizing: border-box;
+  margin: 0 -20px;
+  padding: 34px 20px 120px;
   border-radius: 0 0 28px 28px;
   background: #0F0A2E;
 }
-@media (max-width: 600px) { .pgc-hero-card { padding: 22px 16px 30px; } }
+@media (max-width: 600px) { .pgc-hero-card { margin: 0 -12px; padding: 30px 16px 110px; } }
 
-/* Montant centré pile au-dessus du QR : le conteneur du montant est
-   dimensionné uniquement par le texte (le bouton œil, en position
-   absolue, ne compte pas dans sa largeur) puis centré dans la ligne. */
+/* Montant centré pile au-dessus du QR : texte + bouton œil forment un
+   groupe flex centré comme un seul bloc dans la ligne. */
 .pgc-hero-amount-row {
   display: flex; align-items: center; justify-content: center;
+  width: 100%;
+  margin-bottom: 24px;
 }
 .pgc-hero-amount-wrap {
-  position: relative; display: inline-flex; align-items: center;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  transform: translateX(10px);
 }
 .pgc-hero-amount-row .pgc-balance-real {
-  color: #fff; font-size: 1.5rem; letter-spacing: -.01em;
+  color: #fff; font-size: 2rem; letter-spacing: -.01em;
+  display: inline-flex; align-items: baseline; gap: 4px;
 }
+.pgc-hero-amount-row .pgc-amount-num { font-size: 2rem; font-weight: 900; }
+.pgc-hero-amount-row .pgc-amount-cur { font-size: 1rem; font-weight: 700; opacity: .8; }
 .pgc-eye-btn {
-  position: absolute; left: 100%; top: 50%; transform: translateY(-50%);
-  margin-left: 10px;
-  width: 26px; height: 26px; display: flex; align-items: center; justify-content: center;
+  flex: none;
+  width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
   background: rgba(255,255,255,.1); border: none; cursor: pointer; padding: 0;
-  color: rgba(255,255,255,.8); font-size: .78rem;
+  color: rgba(255,255,255,.8); font-size: .6rem;
   transition: background .18s, color .18s;
   border-radius: 50%;
 }
@@ -8730,10 +8745,10 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
    coins arrondis + ombre portée pour donner du relief. */
 .pgc-qr-card {
   position: relative; z-index: 160;
-  width: fit-content; margin: -20px auto 0;
-  padding: 18px;
-  background: var(--white);
-  border-radius: 24px;
+  width: fit-content; margin: -108px auto 0;
+  padding: 22px;
+  background: #FF6200;
+  border-radius: 28px;
   box-shadow: 0 16px 34px rgba(0,0,0,.22), 0 3px 8px rgba(0,0,0,.08);
   /* Même correctif que .pgc-hero-card juste au-dessus (couche de
      composition dédiée) : cette carte chevauche son bord bas via une
@@ -8743,6 +8758,44 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
 }
+
+/* ── Carte blanche interne : deuxième couche entre le fond teinté de
+   .pgc-qr-card et le carré du QR, pour l'effet "carte à double-couche". */
+.pgc-qr-inner {
+  background: var(--white);
+  border-radius: 20px;
+  padding: 12px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.08);
+}
+
+/* ── Barre flottante "solde" — réapparaît en haut de l'accueil quand on
+   défile assez loin (voir _initHomeFloatBalance, js/client.js). Cachée
+   par défaut (transform + opacity) ; .hfb-visible la fait glisser depuis
+   le haut. z-index au-dessus de .pgc-hero-card (150) puisqu'elle doit
+   rester visible par-dessus le bandeau sticky une fois qu'on a défilé.
+   display:none est géré séparément par showSection() (classe
+   .home-only) pour les autres onglets. */
+.hfb-bar {
+  position: fixed; left: 0; right: 0; top: 0; z-index: 170;
+  transform: translateY(-100%); opacity: 0; pointer-events: none;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  background: #0F0A2E; color: #fff;
+  padding: 22px 20px calc(22px + env(safe-area-inset-top, 0px));
+  border-radius: 0 0 24px 24px;
+  font-size: 1.1rem; font-weight: 700;
+  box-shadow: 0 10px 26px rgba(0,0,0,.35);
+  transition: transform .25s ease, opacity .25s ease;
+}
+.hfb-bar #hfb-amount { font-size: 1.3rem; }
+.hfb-bar i { color: rgba(255,255,255,.7); font-size: .95rem; }
+.hfb-bar.hfb-visible { transform: translateY(0); opacity: 1; pointer-events: auto; }
+.hfb-eye-btn {
+  flex: none; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+  background: rgba(255,255,255,.18); border: none; cursor: pointer; padding: 0;
+  color: #fff; font-size: .62rem; border-radius: 50%;
+  transition: background .18s;
+}
+.hfb-eye-btn:hover { background: rgba(255,255,255,.3); }
 
 .pgc-balance-real {
   font-size: 1.6rem; font-weight: 900; color: var(--gray-800);
@@ -8996,7 +9049,7 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
 .pgc-panel {
   position: relative; z-index: 1;
   margin: -10px 12px 0;
-  padding: 14px 14px 16px;
+  padding: 14px 14px 8px;
   background: rgba(255,255,255,.03);
   border: 1.5px solid rgba(255,255,255,.08);
   border-radius: 20px;

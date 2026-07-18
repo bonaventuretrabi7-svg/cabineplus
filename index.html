@@ -61,6 +61,19 @@
        quelle section (voir showReclaFloatWidget dans js/client.js). -->
   <div id="recla-float-widget" class="recla-float-widget" style="display:none;"></div>
 
+  <!-- Barre flottante "solde" : le bandeau du haut (.pgc-hero-card) est
+       sticky mais son contenu se perd visuellement une fois qu'on a
+       défilé loin — cette pilule réapparaît par-dessus, en haut de
+       l'écran, pour resituer son solde sans avoir à remonter (voir
+       _initHomeFloatBalance, js/client.js). Home-only : masquée sur les autres onglets comme le
+       reste des blocs ".home-only" (voir showSection). -->
+  <div id="home-float-balance" class="hfb-bar home-only">
+    <strong id="hfb-amount">—</strong>
+    <button class="hfb-eye-btn" onclick="toggleBalanceVisibility()" title="Afficher/masquer">
+      <i class="fa-solid fa-eye" id="hfb-eye-icon"></i>
+    </button>
+  </div>
+
   <!-- -- SECTION : NOUVEAU TRANSFERT (défaut) ------------------ -->
   <div class="cs-section active" id="cs-transfer">
 
@@ -83,12 +96,14 @@
         </div>
       </div>
       <div class="pgc-qr-card">
-        <div class="pgc-qr-big-wrap">
-          <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
-            <img id="hbc-qr-img" alt="Mon code KBINE" class="pgc-qr-big-img">
-            <span class="pgc-qr-pulse-ring"></span>
-            <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
-          </button>
+        <div class="pgc-qr-inner">
+          <div class="pgc-qr-big-wrap">
+            <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
+              <img id="hbc-qr-img" alt="Mon code KBINE" class="pgc-qr-big-img">
+              <span class="pgc-qr-pulse-ring"></span>
+              <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -110,12 +125,14 @@
         </div>
       </div>
       <div class="pgc-qr-card">
-        <div class="pgc-qr-big-wrap">
-          <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
-            <img id="hbc-qr-guest-img" alt="" class="pgc-qr-big-img">
-            <span class="pgc-qr-pulse-ring"></span>
-            <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
-          </button>
+        <div class="pgc-qr-inner">
+          <div class="pgc-qr-big-wrap">
+            <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
+              <img id="hbc-qr-guest-img" alt="" class="pgc-qr-big-img">
+              <span class="pgc-qr-pulse-ring"></span>
+              <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -561,12 +578,9 @@
     </div>
 
     <!-- -- 6. Réseaux Sociaux --------------------------------- -->
-    <div class="home-section home-section--bare home-only" style="padding:0;overflow:hidden;">
-
-      <!-- Icônes sociales -->
-      <div style="padding:2px 14px;">
-        <div class="social-circles-title">Rejoignez-nous dès maintenant</div>
-        <div class="social-circles">
+    <div class="home-section home-section--light home-only">
+      <div class="social-circles-title">Rejoignez-nous dès maintenant</div>
+      <div class="social-circles">
           <a class="social-circ social-circ--fb" href="https://facebook.com" target="_blank" rel="noopener">
             <div class="social-circ-ico"><i class="fa-brands fa-facebook-f"></i></div>
             <span class="social-circ-lbl">Facebook</span>
@@ -584,7 +598,6 @@
             <span class="social-circ-lbl">WhatsApp</span>
           </a>
         </div>
-      </div>
     </div>
 
   </div><!-- /#cs-transfer -->

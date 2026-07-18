@@ -4481,37 +4481,87 @@ window.addEventListener('scroll', _bnHandleScroll, { passive: true });
    au basculement (voir .pgc-balance-swap). */
 function _maskMoney(text) { return text.replace(/\d/g, '•'); }
 
+/* Sépare le nombre et l'unité monétaire ("11 000 F" → num="11 000",
+   cur="F") pour pouvoir styler l'unité plus petite que le montant,
+   uniquement pour l'affichage du solde au-dessus du QR (le reste de
+   l'app garde Fmt.money tel quel, avec "FCFA"). */
+function _amountHtml(text, masked) {
+  const m = text.match(/^(.*\d)(\D+)$/);
+  if (!m) return text;
+  const num = masked ? _maskMoney(m[1]) : m[1];
+  return `<span class="pgc-amount-num">${num}</span><span class="pgc-amount-cur">${m[2].trim()}</span>`;
+}
+
+/* Reflète le solde (masqué ou non, même valeur que #hbc-amount) dans la
+   barre flottante du bas (voir .hfb-bar, _initHomeFloatBalance). */
+function _syncFloatBalance(display, masked) {
+  const el = document.getElementById('hfb-amount');
+  if (!el) return;
+  el.textContent = masked ? _maskMoney(display) : display;
+}
+
 function _setBalanceValue(formatted) {
   const el = document.getElementById('hbc-amount');
   if (!el) return;
-  el.dataset.value = formatted;
-  el.textContent = localStorage.getItem('kbine_bal_hidden') === 'true'
-    ? _maskMoney(formatted) : formatted;
+  const display = formatted.replace(/\s*FCFA$/, ' F');
+  const masked = localStorage.getItem('kbine_bal_hidden') === 'true';
+  el.dataset.value = display;
+  el.innerHTML = _amountHtml(display, masked);
+  _syncFloatBalance(display, masked);
 }
 
 function toggleBalanceVisibility() {
   const el = document.getElementById('hbc-amount');
   const icon = document.getElementById('pgc-eye-icon');
+  const footIcon = document.getElementById('hfb-eye-icon');
   if (!el) return;
   const hidden = localStorage.getItem('kbine_bal_hidden') !== 'true';
   localStorage.setItem('kbine_bal_hidden', hidden);
   if (icon) icon.className = hidden ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
+  if (footIcon) footIcon.className = hidden ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye';
   el.classList.remove('pgc-balance-swap');
   void el.offsetWidth; // relance l'animation même si elle vient de tourner
   el.classList.add('pgc-balance-swap');
   setTimeout(() => {
-    el.textContent = hidden ? _maskMoney(el.dataset.value || '') : (el.dataset.value || '');
+    el.innerHTML = _amountHtml(el.dataset.value || '', hidden);
+    _syncFloatBalance(el.dataset.value || '', hidden);
   }, 160);
   el.addEventListener('animationend', () => el.classList.remove('pgc-balance-swap'), { once: true });
 }
 
 function initBalanceVisibility() {
   const icon = document.getElementById('pgc-eye-icon');
-  if (localStorage.getItem('kbine_bal_hidden') === 'true' && icon) {
-    icon.className = 'fa-solid fa-eye-slash';
+  const footIcon = document.getElementById('hfb-eye-icon');
+  if (localStorage.getItem('kbine_bal_hidden') === 'true') {
+    if (icon) icon.className = 'fa-solid fa-eye-slash';
+    if (footIcon) footIcon.className = 'fa-solid fa-eye-slash';
   }
 }
 document.addEventListener('DOMContentLoaded', initBalanceVisibility);
+
+/* ── Barre flottante "solde" (accueil uniquement) ────────────────
+   Le bandeau du haut (.pgc-hero-card) est sticky, donc déjà visible en
+   permanence pendant qu'on défile — cette pilule ne fait que réapparaître
+   par-dessus, en haut de l'écran, une fois qu'on a fait défiler assez
+   loin la page d'accueil, pour resituer le solde sans avoir à remonter.
+   Sur l'accueil, la page
+   défile via la fenêtre (pas de conteneur interne, voir showSection) :
+   on écoute donc window.scroll et on vérifie body.on-home à chaque appel
+   (la barre est aussi masquée par showSection sur les autres onglets via
+   sa classe .home-only). */
+function _initHomeFloatBalance() {
+  const bar = document.getElementById('home-float-balance');
+  if (!bar) return;
+  const THRESHOLD = 320;
+  window.addEventListener('scroll', () => {
+    if (!document.body.classList.contains('on-home') || !currentUser) {
+      bar.classList.remove('hfb-visible');
+      return;
+    }
+    bar.classList.toggle('hfb-visible', window.scrollY > THRESHOLD);
+  }, { passive: true });
+}
+document.addEventListener('DOMContentLoaded', _initHomeFloatBalance);
 
 /* Mode sombre retiré de l'espace client : on s'assure qu'aucun ancien
    réglage enregistré (localStorage) ne réactive silencieusement le
