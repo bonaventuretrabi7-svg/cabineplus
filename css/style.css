@@ -8739,7 +8739,7 @@ body.dark .rh-card-ref { color: var(--dark-text, #F1F3F9); }
   position: relative; z-index: 160;
   width: fit-content; margin: -108px auto 0;
   padding: 22px;
-  background: #FFCC99;
+  background: #0F0A2E;
   border-radius: 28px;
   box-shadow: 0 16px 34px rgba(0,0,0,.22), 0 3px 8px rgba(0,0,0,.08);
   /* Même correctif que .pgc-hero-card juste au-dessus (couche de
