@@ -216,16 +216,18 @@ async function boot() {
   _refreshCabNotifSoundUI();
   _refreshImpersonationBanner();
 
-  // Restore network toggles from localStorage
-  const saved = localStorage.getItem('kbine_cab_nets');
-  if (saved) _cabNetworks = JSON.parse(saved);
-  // Synchronise sur le compte (visible par l'admin), voir toggleNetwork() ci-dessous.
-  DB.users.update(currentUser.id, { reseaux_actifs: _cabNetworks });
+  // Réseaux actifs : la source de vérité est désormais le compte (voir
+  // api/cabine_update_self.php/toggleNetwork() plus bas), déjà repris dans
+  // currentUser par Auth.require()/_tryRememberMeRestore() ci-dessus — le
+  // localStorage ne sert plus que de repli pour un compte jamais
+  // synchronisé depuis l'ajout de ce réglage (ancienne installation).
+  _cabNetworks = currentUser.reseaux_actifs || JSON.parse(localStorage.getItem('kbine_cab_nets') || 'null') || _cabNetworks;
+  localStorage.setItem('kbine_cab_nets', JSON.stringify(_cabNetworks));
 
-  // Restore des toggles USSD par réseau (voir toggleUssdNetwork() plus bas).
-  const savedUssd = localStorage.getItem('kbine_cab_ussd_enabled');
-  if (savedUssd) _cabUssdEnabled = JSON.parse(savedUssd);
-  DB.users.update(currentUser.id, { ussd_enabled: _cabUssdEnabled });
+  // Toggles USSD par réseau (voir toggleUssdNetwork() plus bas) — même
+  // patron que ci-dessus.
+  _cabUssdEnabled = currentUser.ussd_enabled || JSON.parse(localStorage.getItem('kbine_cab_ussd_enabled') || 'null') || _cabUssdEnabled;
+  localStorage.setItem('kbine_cab_ussd_enabled', JSON.stringify(_cabUssdEnabled));
   _refreshUssdTogglesUI();
 
   // Show app, hide loader
@@ -648,13 +650,18 @@ function _renderCabColorPreview(key) {
 /* Applique la couleur immédiatement (pas de bouton "Valider" séparé) et
    met à jour l'aperçu + la vraie carte derrière la fenêtre, qui reste
    ouverte pour comparer plusieurs teintes de suite. */
-function previewCabCardColor(key) {
-  DB.users.update(currentUser.id, { carte_couleur: key === 'auto' ? null : key });
-  currentUser = Auth.refresh();
+async function previewCabCardColor(key) {
   document.querySelectorAll('.cab-color-dot').forEach(d => d.classList.remove('sel'));
   document.getElementById('cab-color-dot-' + key)?.classList.add('sel');
   _renderCabColorPreview(key);
   loadCabBalanceCard();
+
+  // Persisté côté serveur (voir api/cabine_update_self.php) — sans ça, ce
+  // choix restait local à l'appareil et se perdait sur un autre appareil
+  // connecté au même compte.
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { carte_couleur: key === 'auto' ? null : key });
+  if (!res.ok) { Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.'); return; }
+  currentUser = Auth.refresh();
 }
 
 function loadCabBalanceCard() {
@@ -3175,14 +3182,19 @@ function _refreshUssdTogglesUI() {
   });
 }
 
-function toggleUssdNetwork(net, btn) {
+async function toggleUssdNetwork(net, btn) {
   _cabUssdEnabled[net] = !_cabUssdEnabled[net];
   localStorage.setItem('kbine_cab_ussd_enabled', JSON.stringify(_cabUssdEnabled));
-  DB.users.update(currentUser.id, { ussd_enabled: _cabUssdEnabled });
-  currentUser = Auth.refresh();
   if (btn) btn.classList.toggle('active', _cabUssdEnabled[net]);
   const label = net === 'orange' ? 'Orange' : net === 'mtn' ? 'MTN' : 'Moov';
   Toast.info(`Code USSD ${label} ${_cabUssdEnabled[net] ? 'activé' : 'désactivé'}.`);
+
+  // Persisté côté serveur (voir api/cabine_update_self.php) — sans ça, ce
+  // réglage restait local à l'appareil et disparaissait sur un autre
+  // appareil connecté au même compte.
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { ussd_enabled: _cabUssdEnabled });
+  if (!res.ok) { Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.'); return; }
+  currentUser = Auth.refresh();
 }
 
 function toggleCabDevicesSection() {

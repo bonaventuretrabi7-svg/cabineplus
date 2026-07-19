@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   pause_debut          DATETIME     NULL,
   reseaux_actifs       JSON         NULL,
   services_actifs      JSON         NULL,
+  ussd_enabled         JSON         NULL,
+  carte_couleur        VARCHAR(32)  NULL,
   commandes_renvoyees  INT          NOT NULL DEFAULT 0,
   remboursements_recus INT          NOT NULL DEFAULT 0,
   paiement_vers         VARCHAR(64)  NULL,

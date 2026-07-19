@@ -589,6 +589,14 @@ const DB = (() => {
         quartier: row.quartier || undefined,
         date_naissance: row.date_naissance || undefined,
         docs: parseJsonField(row.docs) || undefined,
+        en_pause: row.en_pause || false,
+        pause_raison: row.pause_raison || null,
+        pause_note: row.pause_note || null,
+        pause_debut: row.pause_debut || null,
+        reseaux_actifs: parseJsonField(row.reseaux_actifs) || undefined,
+        services_actifs: parseJsonField(row.services_actifs) || undefined,
+        ussd_enabled: parseJsonField(row.ussd_enabled) || undefined,
+        carte_couleur: row.carte_couleur || undefined,
       };
       if (plainPin) out.mot_de_passe = hashPwd(plainPin);
       return out;

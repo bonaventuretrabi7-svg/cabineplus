@@ -38,6 +38,16 @@ if (array_key_exists('reseaux_actifs', $in)) {
   $params[] = json_encode($in['reseaux_actifs']);
 }
 
+if (array_key_exists('ussd_enabled', $in)) {
+  $columns[] = 'ussd_enabled = ?';
+  $params[] = json_encode($in['ussd_enabled']);
+}
+
+if (array_key_exists('carte_couleur', $in)) {
+  $columns[] = 'carte_couleur = ?';
+  $params[] = $in['carte_couleur'] === null ? null : (string)$in['carte_couleur'];
+}
+
 // Pause du service : un seul appel pose/lève la pause ET ses détails
 // ensemble (jamais désynchronisés entre eux). pause_raison/pause_note/
 // pause_debut valent NULL à la reprise (voir toggleCabPause(), js/cabine.js).
@@ -60,4 +70,4 @@ $stmt = db()->prepare('SELECT * FROM profiles WHERE id = ?');
 $stmt->execute([$me['id']]);
 $profile = $stmt->fetch();
 unset($profile['mot_de_passe_hash']);
-echo json_encode(['ok' => true, 'profile' => decodeJsonColumns($profile, ['reseaux_actifs', 'services_actifs', 'permissions', 'puces', 'docs'])]);
+echo json_encode(['ok' => true, 'profile' => decodeJsonColumns($profile, ['reseaux_actifs', 'services_actifs', 'ussd_enabled', 'permissions', 'puces', 'docs'])]);
