@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS profiles (
   abonnement          VARCHAR(32)   NULL,
   date_creation       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   en_pause             TINYINT(1)   NOT NULL DEFAULT 0,
+  pause_raison         VARCHAR(64)  NULL,
+  pause_note           TEXT         NULL,
+  pause_debut          DATETIME     NULL,
   reseaux_actifs       JSON         NULL,
   services_actifs      JSON         NULL,
   commandes_renvoyees  INT          NOT NULL DEFAULT 0,
@@ -172,6 +175,7 @@ CREATE TABLE IF NOT EXISTS transactions (
   dernier_renvoi_cabine_id       CHAR(36)     NULL,
   statut_avant_suspension        VARCHAR(32)  NULL,
   motif_suspension                TEXT         NULL,
+  hold_used                      TINYINT(1)   NOT NULL DEFAULT 0,
   KEY idx_txn_client (client_id),
   KEY idx_txn_cabine (cabine_id),
   KEY idx_txn_statut (statut)

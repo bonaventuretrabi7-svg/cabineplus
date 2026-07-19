@@ -1353,11 +1353,16 @@ function _refreshCabDarkBtn() {
 }
 
 /* ── Actions rapides : pause / reprise du service ─────────────────── */
-function toggleCabPause() {
+async function toggleCabPause() {
   const user = DB.users.byId(currentUser.id);
   if (user.en_pause) {
-    // Reprise immédiate, pas besoin de justification
-    DB.users.update(currentUser.id, { en_pause: false, pause_raison: null, pause_note: null, pause_debut: null });
+    // Reprise immédiate, pas besoin de justification. Persisté côté
+    // serveur (voir api/cabine_update_self.php) — c'est cette valeur,
+    // jamais le cache local, que le moteur d'attribution des commandes
+    // consulte pour savoir si de nouvelles commandes doivent t'être
+    // envoyées.
+    const res = await DB.business.cabineUpdateSelf(currentUser.id, { en_pause: false, pause_raison: null, pause_note: null, pause_debut: null });
+    if (!res.ok) { Toast.error(res.error || 'Échec de la reprise — réessayez.'); return; }
     _refreshCabPauseUI();
     Toast.success(`Bon retour, ${user.prenom || 'partenaire'} ! Votre espace est de nouveau en service.`);
   } else {
@@ -1418,7 +1423,7 @@ function onCabPauseReasonChange() {
   _saveCabPauseDraft();
 }
 
-function handleCabPauseSubmit(event) {
+async function handleCabPauseSubmit(event) {
   event.preventDefault();
   const select = document.getElementById('cqk-reason-select');
   if (!select || !select.value) { Toast.error('Choisissez un motif.'); return; }
@@ -1432,7 +1437,8 @@ function handleCabPauseSubmit(event) {
   }
 
   const pauseDebut = new Date().toISOString();
-  DB.users.update(currentUser.id, { en_pause: true, pause_raison: raison, pause_note: note, pause_debut: pauseDebut });
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { en_pause: true, pause_raison: raison, pause_note: note, pause_debut: pauseDebut });
+  if (!res.ok) { Toast.error(res.error || 'Échec de la mise en pause — réessayez.'); return; }
   closeModal('modal-cab-pause');
   _cabResume.pauseDraft = null;
   _saveCabResume();
@@ -1504,15 +1510,21 @@ function _setNetLineState(net, on) {
   if (line) line.classList.toggle('cab-net-line--off', !on);
 }
 
-function toggleNetwork(net, btn) {
+async function toggleNetwork(net, btn) {
   _cabNetworks[net] = !_cabNetworks[net];
   localStorage.setItem('kbine_cab_nets', JSON.stringify(_cabNetworks));
-  DB.users.update(currentUser.id, { reseaux_actifs: _cabNetworks });
   if (btn) btn.classList.toggle('active', _cabNetworks[net]);
   _setNetLineState(net, _cabNetworks[net]);
   _setNetStatusLabel(net, _cabNetworks[net]);
   loadCabOrders(_cabFilter);
   Toast.info(`Réseau ${net.charAt(0).toUpperCase() + net.slice(1)} ${_cabNetworks[net] ? 'activé' : 'désactivé'}`);
+
+  // Persisté côté serveur (voir api/cabine_update_self.php) — c'est cette
+  // valeur, jamais le cache local, que le moteur d'attribution des
+  // commandes consulte pour décider de t'envoyer ou non une commande sur
+  // ce réseau.
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { reseaux_actifs: _cabNetworks });
+  if (!res.ok) Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.');
 }
 
 /* ── Accepter / Refuser une demande ────────────────────────────── */
@@ -1546,7 +1558,7 @@ function _startHoldCountdown(txnId, remainingSeconds) {
   }, 1000);
 }
 
-function holdRequest(txnId) {
+async function holdRequest(txnId) {
   const txn = DB.transactions.byId(txnId);
   if (!txn) return;
   // Une seule utilisation de "Conserver 5min" par commande — une fois
@@ -1557,10 +1569,12 @@ function holdRequest(txnId) {
   // Prolonge aussi le délai avant réattribution automatique (DB.RETARD_MS,
   // 3 min) de 5 minutes supplémentaires — sans ça, la commande pouvait
   // être réattribuée à une autre cabine pendant que celle-ci la "gardait"
-  // volontairement.
-  const base = new Date(txn.date_assignation || txn.date).getTime();
-  const newAssignation = new Date(base + 5 * 60 * 1000).toISOString();
-  DB.transactions.update(txnId, { date_assignation: newAssignation, hold_used: true });
+  // volontairement. Persisté côté serveur (voir api/orders_hold.php) :
+  // c'est la date d'assignation EN BASE, jamais le cache local, que le
+  // balayage des commandes en retard (api/orders_sweep.php) consulte.
+  const res = await DB.business.holdOrder(txnId);
+  if (!res.ok) { Toast.error(res.error || 'Échec de la réservation — réessayez.'); return; }
+  const newAssignation = res.transaction.date_assignation;
   const countdownEl = document.querySelector(`#req-${txnId} .cov-countdown`);
   if (countdownEl) countdownEl.dataset.assigned = newAssignation;
 
@@ -3264,9 +3278,8 @@ function loadProfile() {
   loadCabDevices();
 }
 
-function handleCabineProfileUpdate(e) {
+async function handleCabineProfileUpdate(e) {
   e.preventDefault();
-  if (currentUser.role !== 'admin') return;
   const prenom    = document.getElementById('cab-prof-prenom')?.value.trim();
   const nom       = document.getElementById('cab-prof-nom')?.value.trim();
   const cabineNom = document.getElementById('cab-prof-cabnom')?.value.trim();
@@ -3277,23 +3290,30 @@ function handleCabineProfileUpdate(e) {
   if (!Auth.isValidGmail(email)) { Toast.error('Adresse Gmail invalide (ex : nom@gmail.com).'); return; }
   const existing = DB.users.byEmail(email);
   if (existing && existing.id !== currentUser.id) { Toast.error('Cet email est déjà utilisé par un autre compte.'); return; }
-  DB.users.update(currentUser.id, { prenom, nom, cabine_nom: cabineNom, telephone: tel, whatsapp: wa, email, zone });
+  // Persisté côté serveur (voir api/cabine_update_self.php) — un bug
+  // séparé empêchait jusqu'ici cet enregistrement de s'exécuter, même
+  // localement (condition de garde inversée, corrigée ici).
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { prenom, nom, cabine_nom: cabineNom, telephone: tel, whatsapp: wa, email, zone });
+  if (!res.ok) { Toast.error(res.error || 'Échec de la mise à jour du profil.'); return; }
   currentUser = Auth.refresh();
   renderTopbarUser();
   loadProfile();
   Toast.success('Profil mis à jour avec succès.');
 }
 
-function handleCabinePwdChange(e) {
+async function handleCabinePwdChange(e) {
   e.preventDefault();
   const current = document.getElementById('cab-pwd-current').value;
   const newPwd  = document.getElementById('cab-pwd-new').value;
   const confirm = document.getElementById('cab-pwd-confirm').value;
-  const user    = DB.users.byId(currentUser.id);
-  if (!DB.users.checkPwd(user, current)) { Toast.error('Mot de passe actuel incorrect.'); return; }
   if (!Auth.isValidPin(newPwd)) { Toast.error('Le nouveau code doit contenir exactement 4 chiffres.'); return; }
   if (newPwd !== confirm) { Toast.error('Les mots de passe ne correspondent pas.'); return; }
-  DB.users.update(currentUser.id, { mot_de_passe: newPwd });
+  // Revérifié côté serveur (voir api/cabine_update_pin.php) : sans ça, le
+  // code n'était changé que dans le cache local de l'appareil, obligeant
+  // à retenir l'ANCIEN code sur tout autre appareil ou après effacement
+  // des données du navigateur.
+  const res = await DB.business.cabineUpdatePin(currentUser.id, current, newPwd);
+  if (!res.ok) { Toast.error(res.error || 'Mot de passe actuel incorrect.'); return; }
   document.getElementById('cab-pwd-form').reset();
   Toast.success('Mot de passe modifié avec succès.');
 }

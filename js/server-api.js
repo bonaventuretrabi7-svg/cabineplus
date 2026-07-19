@@ -585,6 +585,28 @@ const ServerAPI = (() => {
     return { ok: true, transaction: data.transaction, assignedTo: data.assignedTo, frais: data.frais, total: data.total };
   }
 
+  // Réglages propres à la cabine (réseaux actifs, pause du service,
+  // coordonnées) -- voir api/cabine_update_self.php. `updates` transporte
+  // uniquement les clés à modifier (même convention que adminUpdateUser).
+  async function cabineUpdateSelf(updates) {
+    const { res, data } = await _call('cabine_update_self.php', { auth: true, body: updates });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la mise à jour.' };
+    return { ok: true, profile: data.profile };
+  }
+
+  async function cabineUpdatePin(currentPin, newPin) {
+    const { res, data } = await _call('cabine_update_pin.php', { auth: true, body: { current_pin: currentPin, new_pin: newPin } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du changement de code PIN.' };
+    return { ok: true };
+  }
+
+  // "Conserver 5 min" -- voir api/orders_hold.php.
+  async function ordersHold(transactionId) {
+    const { res, data } = await _call('orders_hold.php', { auth: true, body: { transaction_id: transactionId } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la réservation.' };
+    return { ok: true, transaction: data.transaction };
+  }
+
   async function cabineResubscribe(formule) {
     const { res, data } = await _call('cabine_resubscribe.php', { auth: true, body: { formule } });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du réabonnement.' };
@@ -729,7 +751,7 @@ const ServerAPI = (() => {
     ordersCreate, ordersCreateAdvanced, cadeauClaim, updateProfilePhoto, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
-    cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,
+    cabineSelfRecharge, cabineUpdateSelf, cabineUpdatePin, ordersHold, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,
     adminCreateLoginLink, adminMagicLogin,
     forfaitsList, forfaitsCreate, forfaitsUpdate, forfaitsRemove, commissionsList, commissionsUpdateRate,
     reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,

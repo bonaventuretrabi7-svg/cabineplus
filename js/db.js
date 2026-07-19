@@ -2050,6 +2050,32 @@ const DB = (() => {
       return { ok: true, transaction: res.transaction, assignedTo: res.assignedTo, frais: res.frais, total: res.total };
     },
 
+    /* Réglages propres à la cabine (réseaux actifs, pause du service,
+       coordonnées) — remplace DB.users.update() local (js/cabine.js) par
+       api/cabine_update_self.php : sans ça, ni le moteur d'attribution des
+       commandes (qui lit reseaux_actifs/en_pause directement en base) ni
+       un autre appareil connecté au même compte ne voyaient jamais ces
+       changements. `updates` ne transporte que les clés à modifier. */
+    async cabineUpdateSelf(cabineId, updates) {
+      const res = await ServerAPI.cabineUpdateSelf(updates);
+      if (!res.ok) return { ok: false, error: res.error };
+      users.update(cabineId, updates);
+      return { ok: true, profile: res.profile };
+    },
+
+    /* Changement de code PIN par la cabine — remplace DB.users.update()
+       local par api/cabine_update_pin.php (revérifie le code actuel côté
+       serveur, jamais fait confiance à une vérification locale seule pour
+       une action de sécurité). Le cache local est mis à jour après coup
+       (même hash local que tous les comptes, voir users.update()) pour que
+       la connexion hors-ligne sur CET appareil reste possible. */
+    async cabineUpdatePin(cabineId, currentPin, newPin) {
+      const res = await ServerAPI.cabineUpdatePin(currentPin, newPin);
+      if (!res.ok) return { ok: false, error: res.error };
+      users.update(cabineId, { mot_de_passe: newPin });
+      return { ok: true };
+    },
+
     /* Cabine accepte une commande — remplace l'ancienne version locale
        (voir historique Git) par un appel serveur atomique (voir
        api/orders_accept.php) qui corrige la faille de concurrence
@@ -2082,6 +2108,21 @@ const DB = (() => {
 
       await transactions.refresh();
       return { ok: true };
+    },
+
+    /* "Conserver 5 min" — remplace la version locale (transactions.update()
+       direct) par api/orders_hold.php : sans ça, le balayage serveur des
+       commandes en retard (api/orders_sweep.php) ne voyait jamais la
+       prolongation et pouvait réattribuer la commande malgré la
+       réservation affichée à l'écran. */
+    async holdOrder(txnId) {
+      const res = await ServerAPI.ordersHold(txnId);
+      if (!res.ok) return { ok: false, error: res.error };
+      const list = get(KEY.transactions);
+      const idx = list.findIndex(t => t.id === txnId);
+      if (idx !== -1) list[idx] = res.transaction;
+      set(KEY.transactions, list);
+      return { ok: true, transaction: res.transaction };
     },
 
     /* Cabine refuse (renvoi manuel motivé) — remplace l'ancienne version
