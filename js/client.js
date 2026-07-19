@@ -4103,6 +4103,7 @@ function rchGoStep1() {
 async function handleRecharge(e) {
   e.preventDefault();
   if (!currentUser) { Toast.error('Connectez-vous pour recharger votre portefeuille.'); return; }
+  if (!_checkOrderCooldown()) return;
   const method  = document.getElementById('rch-method-hidden')?.value ||
                   document.querySelector('input[name="recharge-method"]:checked')?.value;
   const montant = parseInt(document.getElementById('recharge-amount').value) || 0;
@@ -4110,6 +4111,7 @@ async function handleRecharge(e) {
   if (montant < 1000) { Toast.error('Montant minimum : 1 000 FCFA.'); return; }
   const res = await DB.business.recharge(currentUser.id, montant, method);
   if (res.ok) {
+    _markOrderSubmitted();
     closeModal('modal-recharge');
     currentUser = Auth.refresh();
     Toast.success(`Portefeuille rechargé de ${Fmt.money(montant)} via ${method}.`);
@@ -4794,6 +4796,7 @@ async function handleClientTransfer(e) {
 async function ctConfirmTransfer() {
   const me = Auth.current();
   if (!me || !_ctData.recipientId) return;
+  if (!_checkOrderCooldown()) return;
 
   const sender = DB.users.byId(me.id);
   if ((sender.solde || 0) < _ctData.amount) {
@@ -4809,6 +4812,7 @@ async function ctConfirmTransfer() {
     return;
   }
 
+  _markOrderSubmitted();
   currentUser = Auth.refresh();
   closeModal('modal-client-transfer');
   renderSoldeSection();
@@ -5778,6 +5782,7 @@ function cadeauClaim() {
   if (!canClaim) return;
   const me = Auth.current();
   if (!me) return;
+  if (!_checkOrderCooldown()) return;
 
   DB.users.updateSolde(me.id, CADEAU_MONTANT);
   DB.transactions.create({
@@ -5793,6 +5798,7 @@ function cadeauClaim() {
     notes       : `Cadeau KBINE PLUS — récompense pour ${(_cadeauStats().claimed + 1) * CADEAU_GOAL} commandes réalisées`,
   });
 
+  _markOrderSubmitted();
   currentUser = Auth.refresh();
   closeModal('modal-cadeau');
   renderSoldeSection();
