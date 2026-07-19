@@ -193,6 +193,12 @@ async function submitCabineLoginGate() {
 }
 
 async function boot() {
+  // Vérification de mise à jour (voir js/update-notifier.js) — jamais
+  // bloquant : sur le site web, recharge la page toute seule dès qu'un
+  // déploiement plus récent est détecté ; dans l'app Android empaquetée,
+  // propose le téléchargement du nouvel APK.
+  UpdateNotifier.init();
+
   DB.init();
   // Rattrape une file de synchronisation laissée en attente (voir
   // DB.syncQueue) si la connexion est déjà là au lancement, et

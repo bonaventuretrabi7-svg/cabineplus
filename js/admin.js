@@ -330,6 +330,11 @@ async function refreshUsersFromServer() {
 
 async function boot() {
   const loaderSafety = setTimeout(hideLoader, 3000);
+  // Vérification de mise à jour (voir js/update-notifier.js) — jamais
+  // bloquant : sur le site web, recharge la page toute seule dès qu'un
+  // déploiement plus récent est détecté ; dans l'app Android empaquetée,
+  // propose le téléchargement du nouvel APK.
+  UpdateNotifier.init();
   try {
     DB.init();
     // Rattrape une file de synchronisation laissée en attente (voir
