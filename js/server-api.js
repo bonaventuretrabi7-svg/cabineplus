@@ -235,6 +235,14 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  /* Préférence de son de notification de l'admin connecté — voir
+     api/admin_update_own_sound.php (libre-service, tout niveau d'admin). */
+  async function adminUpdateOwnSound(updates) {
+    const { res, data } = await _call('admin_update_own_sound.php', { auth: true, body: updates });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de l\'enregistrement.' };
+    return { ok: true };
+  }
+
   /* Lecture/écriture des réglages globaux (voir api/settings_get.php et
      api/settings_update.php, réservée à un jeton admin) — utilisées par
      DB.settings dans js/db.js. Lève une exception en cas d'échec (au lieu
@@ -758,7 +766,7 @@ const ServerAPI = (() => {
   }
 
   return {
-    login, logout, createAccount, adminCreateAccount, adminUpdateProfile, adminUpdateUser, adminSetAccountStatus, getSettings, updateSettings, listProfiles,
+    login, logout, createAccount, adminCreateAccount, adminUpdateProfile, adminUpdateUser, adminSetAccountStatus, adminUpdateOwnSound, getSettings, updateSettings, listProfiles,
     isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
     accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
     maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline,

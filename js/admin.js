@@ -565,10 +565,18 @@ const AdminSound = {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     return this.ctx;
   },
-  isEnabled() { return localStorage.getItem('kbine_admin_notif_sound') !== 'off'; },
+  // Source de vérité = le compte (voir api/admin_update_own_sound.php)
+  // quand déjà réglé ; le localStorage ne sert plus que de repli pour un
+  // compte jamais synchronisé depuis l'ajout de ce réglage.
+  isEnabled() {
+    if (currentUser && currentUser.notif_son_actif !== undefined) return currentUser.notif_son_actif;
+    return localStorage.getItem('kbine_admin_notif_sound') !== 'off';
+  },
   _presetKey(role) { return role === 'reclamation' ? 'kbine_admin_notif_sound_preset_recla' : 'kbine_admin_notif_sound_preset'; },
+  _presetField(role) { return role === 'reclamation' ? 'notif_son_preset_reclamation' : 'notif_son_preset_commande'; },
   currentPreset(role = 'commande') {
-    const key = localStorage.getItem(this._presetKey(role)) || ADMIN_SOUND_DEFAULTS[role] || ADMIN_SOUND_PRESETS[0].key;
+    const serverKey = currentUser && currentUser[this._presetField(role)];
+    const key = serverKey || localStorage.getItem(this._presetKey(role)) || ADMIN_SOUND_DEFAULTS[role] || ADMIN_SOUND_PRESETS[0].key;
     return ADMIN_SOUND_PRESETS.find(p => p.key === key) || ADMIN_SOUND_PRESETS[0];
   },
   tone(freq, delay, duration = .16, type = 'sine') {
@@ -632,19 +640,31 @@ function loadAdminNotifSoundSettings() {
     <div class="admin-sound-picker" id="admin-sound-picker-recla">${buildPicker('reclamation')}</div>`;
 }
 
-function toggleAdminNotifSound() {
+async function toggleAdminNotifSound() {
   const cb = document.getElementById('admin-notif-sound-toggle');
   const on = cb ? cb.checked : !AdminSound.isEnabled();
   localStorage.setItem('kbine_admin_notif_sound', on ? 'on' : 'off');
   if (on) AdminSound.tone(880, 0, .14);
+
+  // Persisté côté serveur (voir api/admin_update_own_sound.php).
+  const res = await ServerAPI.adminUpdateOwnSound({ notif_son_actif: on });
+  if (!res.ok) { Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.'); return; }
+  DB.users.update(currentUser.id, { notif_son_actif: on });
+  currentUser = Auth.refresh();
 }
 
-function selectAdminSoundPreset(key, role = 'commande') {
+async function selectAdminSoundPreset(key, role = 'commande') {
   localStorage.setItem(AdminSound._presetKey(role), key);
   const scope = role === 'reclamation' ? '#admin-sound-picker-recla' : '#admin-sound-picker';
   document.querySelectorAll(`${scope} .admin-sound-option`).forEach(o =>
     o.classList.toggle('admin-sound-option--active', o.dataset.sound === key));
   AdminSound.preview(key);
+
+  // Persisté côté serveur (voir api/admin_update_own_sound.php).
+  const res = await ServerAPI.adminUpdateOwnSound({ [AdminSound._presetField(role)]: key });
+  if (!res.ok) { Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.'); return; }
+  DB.users.update(currentUser.id, { [AdminSound._presetField(role)]: key });
+  currentUser = Auth.refresh();
 }
 
 /* Sondage dédié (indépendant du heartbeat présence 10s) : détecte une

@@ -7,6 +7,6 @@
 -- place.
 
 ALTER TABLE profiles
-  ADD COLUMN motif_zero_txn TEXT        NULL AFTER docs,
-  ADD COLUMN motif_inactif  TEXT        NULL AFTER motif_zero_txn,
-  ADD COLUMN appel_statut   VARCHAR(32) NULL AFTER motif_inactif;
+  ADD COLUMN motif_zero_txn TEXT        NULL,
+  ADD COLUMN motif_inactif  TEXT        NULL,
+  ADD COLUMN appel_statut   VARCHAR(32) NULL;
