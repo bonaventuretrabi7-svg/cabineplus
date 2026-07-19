@@ -429,6 +429,13 @@ const ServerAPI = (() => {
     return (res.ok && data && !data.error) ? { ok: true, liftedCount: data.liftedCount } : { ok: false, liftedCount: 0 };
   }
 
+  // Suspend automatiquement les cabines dont le délai de 30 jours pour
+  // atteindre leur quota est dépassé — voir api/orders_sweep_quota.php.
+  async function ordersSweepQuota() {
+    const { res, data } = await _call('orders_sweep_quota.php', { auth: true });
+    return (res.ok && data && !data.error) ? { ok: true, suspendedCount: data.suspendedCount } : { ok: false, suspendedCount: 0 };
+  }
+
   // Historique des retards — lecture seule (voir DB.retards, js/db.js et
   // api/retards_list.php), sa seule écriture se fait désormais côté
   // serveur (orders_sweep.php).
@@ -783,7 +790,7 @@ const ServerAPI = (() => {
     accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
     maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline,
     ordersCreate, ordersCreateAdvanced, cadeauClaim, updateProfilePhoto, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
-    ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
+    ordersSweep, ordersSweepUnsuspend, ordersSweepQuota, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
     cabineSelfRecharge, cabineUpdateSelf, cabineUpdatePin, ordersHold, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,
     adminCreateLoginLink, adminMagicLogin,

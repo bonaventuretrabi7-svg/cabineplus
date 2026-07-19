@@ -30,9 +30,13 @@ $stmt->execute([$telephone, $role]);
 if ($stmt->fetch()) fail('Ce numéro est déjà utilisé par un autre compte de ce type.');
 
 $id = uuid4();
-$pdo->prepare('INSERT INTO profiles (id, role, nom, prenom, telephone, email, mot_de_passe_hash, cabine_nom, solde, statut)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, "actif")')
-    ->execute([$id, $role, $nom, $prenom, $telephone, $email, password_hash($pin, PASSWORD_BCRYPT), $cabineNom]);
+// abonnement_debut : amorce le délai de 30 jours pour atteindre le quota
+// (voir checkQuotaDeadline(), api/orders_common.php) — uniquement pour une
+// cabine, sans effet sur un client.
+$abonnementDebut = $role === 'cabine' ? date('Y-m-d H:i:s') : null;
+$pdo->prepare('INSERT INTO profiles (id, role, nom, prenom, telephone, email, mot_de_passe_hash, cabine_nom, solde, statut, abonnement_debut)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, "actif", ?)')
+    ->execute([$id, $role, $nom, $prenom, $telephone, $email, password_hash($pin, PASSWORD_BCRYPT), $cabineNom, $abonnementDebut]);
 
 if ($role === 'client' && $parrainTelephone !== null && $parrainTelephone !== $telephone) {
   $refStmt = $pdo->prepare("SELECT id FROM profiles WHERE role = 'client' AND telephone = ?");

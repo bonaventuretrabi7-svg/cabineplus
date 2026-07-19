@@ -46,10 +46,12 @@ try {
   }
 
   $cabineId = uuid4();
+  // abonnement_debut : amorce le délai de 30 jours pour atteindre le
+  // quota (voir checkQuotaDeadline(), api/orders_common.php).
   $pdo->prepare('INSERT INTO profiles
-      (id, role, nom, prenom, telephone, email, mot_de_passe_hash, cabine_nom, solde, statut, abonnement,
+      (id, role, nom, prenom, telephone, email, mot_de_passe_hash, cabine_nom, solde, statut, abonnement, abonnement_debut,
        whatsapp, photo, code_qr, motivation, experience, puces, paiement_abo, paiement_vers, numero_compte)
-      VALUES (?, \'cabine\', ?, ?, ?, ?, ?, ?, 0, \'actif\', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      VALUES (?, \'cabine\', ?, ?, ?, ?, ?, ?, 0, \'actif\', ?, NOW(), ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       ->execute([
         $cabineId, $app['nom'], $app['prenom'], $app['telephone'], $app['email'], $app['mot_de_passe_hash'],
         $app['cabine_nom'], $app['abonnement'] ?: 'Premium', $app['whatsapp'], $app['photo'], $app['code_qr'],

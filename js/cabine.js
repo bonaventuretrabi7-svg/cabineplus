@@ -274,6 +274,7 @@ async function boot() {
   // réattribuée ailleurs.
   await DB.business.sweepStaleOrders();
   await DB.business.sweepAutoUnsuspensions();
+  await DB.business.sweepQuotaDeadlines();
   updateNotifBadge();
   loadCabHome();
   restoreCabState();
@@ -323,6 +324,7 @@ async function _cabRefreshCycle() {
   ]);
   await DB.business.sweepStaleOrders();
   await DB.business.sweepAutoUnsuspensions();
+  await DB.business.sweepQuotaDeadlines();
   currentUser = Auth.refresh();
   // Compte supprimé entre-temps : déconnexion. Une suspension (auto ou
   // manuelle) ne déconnecte plus le partenaire — il doit rester connecté
@@ -608,14 +610,21 @@ function loadCabQuota() {
   const ringPctEl = document.getElementById('cqt-ring-pct');
   const expiryEl  = document.getElementById('cqt-expiry');
 
+  // Échéance des 30 jours pour atteindre le quota (voir
+  // checkQuotaDeadline(), api/orders_common.php, qui suspend
+  // automatiquement le compte au-delà si le quota n'est pas atteint) —
+  // amorcée à l'inscription/au dernier réabonnement (abonnement_debut).
+  const deadline = user.abonnement_debut ? new Date(new Date(user.abonnement_debut).getTime() + 30 * 24 * 60 * 60 * 1000) : null;
+  const joursRestants = deadline ? Math.ceil((deadline - Date.now()) / 86400000) : null;
+
   if (planEl)    planEl.textContent    = plan;
   if (currentEl) currentEl.textContent = Fmt.money(acc);
   if (quotaEl)   quotaEl.textContent   = Fmt.money(quota);
   if (ringEl)    ringEl.style.setProperty('--pct', pct);
   if (ringPctEl) ringPctEl.textContent = Math.round(pct) + '%';
   if (expiryEl) {
-    expiryEl.textContent = user.date_expiration
-      ? new Date(user.date_expiration).toLocaleDateString('fr-CI', { day: '2-digit', month: 'short', year: 'numeric' })
+    expiryEl.textContent = deadline
+      ? deadline.toLocaleDateString('fr-CI', { day: '2-digit', month: 'short', year: 'numeric' })
       : '—';
   }
 
@@ -623,10 +632,20 @@ function loadCabQuota() {
     if (reached) {
       noteEl.className = 'cqt-note cqt-note--full';
       noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Quota atteint — votre abonnement ${plan} a pris fin avant la fin du mois.</span>`;
+    } else if (joursRestants !== null && joursRestants <= 0) {
+      // Ne devrait plus être visible longtemps : le prochain sondage
+      // (DB.business.sweepQuotaDeadlines()) suspend le compte, qui bascule
+      // alors sur le bandeau de suspension (_refreshSuspensionBanner) avec
+      // le motif exact. Filet de sécurité pour l'instant entre les deux.
+      noteEl.className = 'cqt-note cqt-note--full';
+      noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Délai de 30 jours dépassé sans avoir atteint votre quota — votre compte va être suspendu.</span>`;
     } else {
       const reste = quota - acc;
-      noteEl.className = 'cqt-note' + (pct >= 80 ? ' cqt-note--warn' : '');
-      noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Encore ${Fmt.money(reste)} avant la fin anticipée de votre abonnement ${plan}.</span>`;
+      const echeanceTxt = joursRestants !== null
+        ? ` Vous avez encore ${joursRestants} jour${joursRestants > 1 ? 's' : ''} (jusqu'au ${deadline.toLocaleDateString('fr-CI', { day: '2-digit', month: 'short' })}) pour l'atteindre, sinon votre compte sera automatiquement suspendu.`
+        : '';
+      noteEl.className = 'cqt-note' + (pct >= 80 || (joursRestants !== null && joursRestants <= 7) ? ' cqt-note--warn' : '');
+      noteEl.innerHTML = `<i class="fa-solid fa-triangle-exclamation"></i> <span>Encore ${Fmt.money(reste)} avant la fin anticipée de votre abonnement ${plan}.${echeanceTxt}</span>`;
     }
   }
 }
@@ -672,7 +691,7 @@ function _renderCabColorPreview(key) {
   const tierClass = 'cbc-card--' + (user.abonnement || 'Premium').toLowerCase();
   preview.className = 'cab-color-preview cbc-card ' + (key === 'auto' ? tierClass : 'cbc-card--c-' + key);
   document.getElementById('cab-color-preview-name').textContent = user.cabine_nom || (user.prenom + ' ' + user.nom);
-  document.getElementById('cab-color-preview-val').textContent = Fmt.money(user.solde || 0);
+  document.getElementById('cab-color-preview-val').textContent = Fmt.money(DB.business.cabineSoldeDisponible(user));
 }
 
 /* Applique la couleur immédiatement (pas de bouton "Valider" séparé) et
@@ -694,19 +713,13 @@ async function previewCabCardColor(key) {
 
 function loadCabBalanceCard() {
   const user  = DB.users.byId(currentUser.id);
-  const txns  = DB.transactions.byCabine(currentUser.id);
-  const done  = txns.filter(t => t.statut === 'terminé');
 
-  // Solde en attente = cumul des MONTANTS (jamais la commission) des
-  // crédits/transferts directs et forfaits (internet, appels) traités
-  // pour de vrais clients — exclut donc les types à part (recharge_uv,
-  // facture, exchange, cadeau_reward, réabonnement...), qui ont tous un
-  // `type` renseigné (le tunnel principal, lui, n'en a jamais). Même
-  // filtre que "commandes" dans l'Historique (loadCabHistory()) pour ne
-  // jamais diverger d'un écran à l'autre.
-  const pending = done
-    .filter(t => t.client_id && !t.type)
-    .reduce((s, t) => s + (t.montant || 0), 0);
+  // Solde en attente = solde réellement disponible sur le compte (voir
+  // DB.business.cabineSoldeDisponible()) — strictement le même calcul
+  // (juste `user.solde`) que "Montant disponible" côté admin (tableau
+  // "Retraits des cabines", loadRetraitsAdmin() dans js/admin.js), pour ne
+  // jamais afficher deux valeurs différentes pour le même compte.
+  const pending = DB.business.cabineSoldeDisponible(user);
 
   // Total payé = tout l'argent réellement sorti du compte, toutes
   // origines confondues : les retraits posés par l'administration

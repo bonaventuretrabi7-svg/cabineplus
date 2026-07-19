@@ -50,12 +50,16 @@ if ($email !== null) {
 }
 
 $id = uuid4();
+// abonnement_debut : amorce le délai de 30 jours pour atteindre le quota
+// (voir checkQuotaDeadline(), api/orders_common.php) — uniquement pour une
+// cabine, sans effet sur client/admin.
+$abonnementDebut = $role === 'cabine' ? date('Y-m-d H:i:s') : null;
 $pdo->prepare('INSERT INTO profiles
       (id, role, nom, prenom, telephone, email, mot_de_passe_hash, cabine_nom, admin_level, solde, statut,
-       permissions, whatsapp, photo, poste, pays, ville, quartier, date_naissance, docs)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, "actif", ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+       permissions, whatsapp, photo, poste, pays, ville, quartier, date_naissance, docs, abonnement_debut)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, "actif", ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     ->execute([$id, $role, $nom, $prenom, $telephone, $email, password_hash($pin, PASSWORD_BCRYPT), $cabineNom, $adminLevel,
-               $permissions, $whatsapp, $photo, $poste, $pays, $ville, $quartier, $dateNaissance, $docs]);
+               $permissions, $whatsapp, $photo, $poste, $pays, $ville, $quartier, $dateNaissance, $docs, $abonnementDebut]);
 
 $stmt = $pdo->prepare('SELECT * FROM profiles WHERE id = ?');
 $stmt->execute([$id]);

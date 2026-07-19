@@ -155,6 +155,40 @@ function checkAutoUnsuspend(PDO $pdo, string $cabineId): bool {
   return true;
 }
 
+// Délai de 30 jours pour atteindre le quota de commissions du forfait en
+// cours (voir DB.SUBSCRIPTION_QUOTAS, js/db.js) — au-delà, la cabine est
+// suspendue automatiquement (comme suspendCabineAuto() ci-dessus, mais
+// SANS échéance : suspendu_jusqu reste NULL, checkAutoUnsuspend() ne la
+// lèvera donc jamais toute seule — seul un réabonnement (cabine_resubscribe.php)
+// ou un changement de formule par le super admin (admin_set_abonnement.php)
+// repart le compteur et lève la suspension). Voir orders_sweep_quota.php,
+// appelé par le même sondage périodique que les autres balayages.
+function checkQuotaDeadline(PDO $pdo, string $cabineId): bool {
+  $stmt = $pdo->prepare("SELECT abonnement, abonnement_debut, commissions_total FROM profiles
+    WHERE id = ? AND role = 'cabine' AND statut = 'actif' AND abonnement_debut IS NOT NULL");
+  $stmt->execute([$cabineId]);
+  $c = $stmt->fetch();
+  if (!$c) return false;
+
+  $deadline = strtotime($c['abonnement_debut']) + 30 * 86400;
+  if (time() < $deadline) return false;
+
+  $plan  = $c['abonnement'] ?: 'Premium';
+  $quota = ORDER_SUBSCRIPTION_QUOTAS[$plan] ?? null;
+  if ($quota !== null && (int)$c['commissions_total'] >= $quota) return false; // quota déjà atteint, rien à faire
+
+  $motif = "Quota de commissions ($plan) non atteint dans le délai de 30 jours";
+  $upd = $pdo->prepare("UPDATE profiles SET statut='suspendu', suspendu_auto=1, suspendu_by=NULL, suspendu_motif=?, suspendu_jusqu=NULL
+    WHERE id = ? AND statut = 'actif'");
+  $upd->execute([$motif, $cabineId]);
+  if ($upd->rowCount() === 0) return false;
+
+  $pdo->prepare('INSERT INTO suspension_logs (id, cabine_id, motif, auto, date_debut, date_fin_prevue, date_levee, levee_par) VALUES (?, ?, ?, 1, NOW(), NULL, NULL, NULL)')
+      ->execute([uuid4(), $cabineId, $motif]);
+  createNotification($cabineId, "Votre compte a été suspendu : $motif. Réabonnez-vous pour reprendre votre activité.", 'warning');
+  return true;
+}
+
 // Effet financier d'un remboursement admin (voir orders_refund.php et
 // orders_process_refund.php, qui l'appellent tous les deux — extrait ici
 // pour ne jamais laisser diverger les deux copies). Suppose déjà dans une

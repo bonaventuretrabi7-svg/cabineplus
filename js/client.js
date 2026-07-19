@@ -637,6 +637,7 @@ function startClientPresence() {
     // 4/5) — les onglets client sont typiquement les plus nombreux ouverts.
     DB.business.sweepStaleOrders();
     DB.business.sweepAutoUnsuspensions();
+    DB.business.sweepQuotaDeadlines();
     // Notifications réelles (voir api/notifications_list.php) — la cloche
     // reflète désormais ce qui se passe partout, pas seulement ce que cet
     // appareil a lui-même déclenché.

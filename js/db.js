@@ -572,6 +572,7 @@ const DB = (() => {
         suspendu_motif: row.suspendu_motif || null,
         suspendu_jusqu: row.suspendu_jusqu || null,
         abonnement: row.abonnement || undefined,
+        abonnement_debut: row.abonnement_debut || undefined,
         date_creation: row.date_creation,
         paiement_vers: row.paiement_vers || undefined,
         numero_compte: row.numero_compte || undefined,
@@ -2072,6 +2073,18 @@ const DB = (() => {
       return { ok: true, transaction: res.transaction, assignedTo: res.assignedTo, frais: res.frais, total: res.total };
     },
 
+    /* Source UNIQUE du "solde disponible" d'une cabine — utilisée à la
+       fois par "Solde en attente" (loadCabBalanceCard(), js/cabine.js) et
+       par "Montant disponible" côté admin (loadRetraitsAdmin()/viewUser(),
+       js/admin.js), pour que les deux espaces affichent toujours
+       exactement le même chiffre pour le même compte. C'est aussi ce
+       solde qui limite un retrait traité par l'administration — jamais un
+       autre calcul (volume de commandes, etc.) ici, pour ne jamais risquer
+       d'autoriser un retrait supérieur à l'argent réellement disponible. */
+    cabineSoldeDisponible(user) {
+      return (user && user.solde) || 0;
+    },
+
     /* Réglages propres à la cabine (réseaux actifs, pause du service,
        coordonnées) — remplace DB.users.update() local (js/cabine.js) par
        api/cabine_update_self.php : sans ça, ni le moteur d'attribution des
@@ -2284,6 +2297,18 @@ const DB = (() => {
       const res = await ServerAPI.ordersSweepUnsuspend();
       if (res.ok && res.liftedCount > 0) await transactions.refresh();
       return { liftedCount: res.liftedCount };
+    },
+
+    /* Suspend automatiquement les cabines dont le délai de 30 jours pour
+       atteindre leur quota de commissions est dépassé — voir
+       api/orders_sweep_quota.php/checkQuotaDeadline() (orders_common.php).
+       Rafraîchit le profil courant : si c'est CETTE cabine qui vient
+       d'être suspendue, elle doit voir le bandeau de suspension
+       immédiatement, sans attendre une reconnexion. */
+    async sweepQuotaDeadlines() {
+      const res = await ServerAPI.ordersSweepQuota();
+      if (res.ok && res.suspendedCount > 0) await users.refreshSelf();
+      return { suspendedCount: res.suspendedCount };
     },
 
     /* Suspension automatique 24h (retards, renvois répétés, demandes de

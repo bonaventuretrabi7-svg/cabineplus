@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   suspendu_motif      TEXT          NULL,
   suspendu_jusqu      DATETIME      NULL,
   abonnement          VARCHAR(32)   NULL,
+  abonnement_debut    DATETIME      NULL,
   date_creation       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   en_pause             TINYINT(1)   NOT NULL DEFAULT 0,
   pause_raison         VARCHAR(64)  NULL,

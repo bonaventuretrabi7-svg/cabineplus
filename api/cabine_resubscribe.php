@@ -27,12 +27,23 @@ $profStmt->execute([$me['id']]);
 $cab = $profStmt->fetch();
 if (!$cab) fail('Compte invalide.');
 
+// Un réabonnement lève aussi une suspension causée par le délai de 30
+// jours dépassé (voir checkQuotaDeadline(), api/orders_common.php) — c'est
+// justement l'action qui répare ce motif précis, jamais une suspension
+// pour une AUTRE raison (retards, renvois répétés, manuelle par un admin),
+// qui reste de son ressort propre.
+$lifteQuotaSuspension = $cab['statut'] === 'suspendu' && strpos((string)$cab['suspendu_motif'], 'Quota de commissions') === 0;
+
 $currentQuota = $quotas[$cab['abonnement']] ?? $quotas['Premium'];
-if ((int)$cab['commissions_total'] < $currentQuota) {
+// Exception : une cabine suspendue faute d'avoir atteint son quota dans le
+// délai a précisément besoin de se réabonner pour en sortir — exiger le
+// quota ici l'en empêcherait définitivement.
+if (!$lifteQuotaSuspension && (int)$cab['commissions_total'] < $currentQuota) {
   fail('Vous devez atteindre votre quota actuel avant de changer de formule ou de vous réabonner.');
 }
 
 $nouveauStatut = $cab['statut'] === 'inactif' ? 'actif' : $cab['statut'];
+if ($lifteQuotaSuspension) $nouveauStatut = 'actif';
 
 $pdo->beginTransaction();
 try {
@@ -42,8 +53,16 @@ try {
   // reste de cet endpoint (peu de contention réelle, action self-service
   // déclenchée une fois par la cabine elle-même), ce champ-ci PEUT changer
   // sous nos pieds via un tout autre flux, donc protégé quand même.
-  $pdo->prepare('UPDATE profiles SET solde = solde - ?, abonnement = ?, commissions_total = 0, statut = ? WHERE id = ?')
-      ->execute([$prix, $formule, $nouveauStatut, $me['id']]);
+  // abonnement_debut repart de NOW() : un nouveau cycle de 30 jours
+  // commence à chaque réabonnement.
+  $sql = 'UPDATE profiles SET solde = solde - ?, abonnement = ?, abonnement_debut = NOW(), commissions_total = 0, statut = ?';
+  $params = [$prix, $formule, $nouveauStatut];
+  if ($lifteQuotaSuspension) {
+    $sql .= ', suspendu_auto = 0, suspendu_by = NULL, suspendu_motif = NULL, suspendu_jusqu = NULL';
+  }
+  $sql .= ' WHERE id = ?';
+  $params[] = $me['id'];
+  $pdo->prepare($sql)->execute($params);
 
   $pdo->prepare('INSERT INTO resubscriptions (id, cabine_id, formule, prix, date) VALUES (?, ?, ?, ?, NOW())')
       ->execute([uuid4(), $me['id'], $formule, $prix]);

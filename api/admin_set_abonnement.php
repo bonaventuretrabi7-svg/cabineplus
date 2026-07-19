@@ -20,12 +20,24 @@ if (!isset($prices[$formule])) fail('Formule invalide.');
 // rowCount() vaudrait 0 (aucune LIGNE changée) alors que la cabine existe
 // bel et bien — rowCount() reflète les changements, pas les lignes
 // matchées par le WHERE (comportement par défaut de PDO MySQL).
-$checkStmt = db()->prepare("SELECT id FROM profiles WHERE id = ? AND role = 'cabine'");
+$checkStmt = db()->prepare("SELECT id, statut, suspendu_motif FROM profiles WHERE id = ? AND role = 'cabine'");
 $checkStmt->execute([$cabineId]);
-if (!$checkStmt->fetch()) fail('Cabine introuvable.');
+$cab = $checkStmt->fetch();
+if (!$cab) fail('Cabine introuvable.');
 
-db()->prepare("UPDATE profiles SET abonnement = ?, commissions_total = 0 WHERE id = ? AND role = 'cabine'")
-    ->execute([$formule, $cabineId]);
+// abonnement_debut repart de NOW() (nouveau délai de 30 jours, voir
+// checkQuotaDeadline(), api/orders_common.php) et une éventuelle
+// suspension causée par ce même délai est levée — le veto du super admin
+// équivaut à un réabonnement forcé, jamais les AUTRES suspensions
+// (retards, manuelle), qui restent de leur ressort propre.
+$sql = "UPDATE profiles SET abonnement = ?, abonnement_debut = NOW(), commissions_total = 0";
+$params = [$formule];
+if ($cab['statut'] === 'suspendu' && strpos((string)$cab['suspendu_motif'], 'Quota de commissions') === 0) {
+  $sql .= ", statut = 'actif', suspendu_auto = 0, suspendu_by = NULL, suspendu_motif = NULL, suspendu_jusqu = NULL";
+}
+$sql .= " WHERE id = ? AND role = 'cabine'";
+$params[] = $cabineId;
+db()->prepare($sql)->execute($params);
 
 createNotification($cabineId, 'Votre formule a été changée en ' . $formule . ' par l\'administration.', 'info');
 

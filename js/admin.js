@@ -407,6 +407,7 @@ async function boot() {
 
     DB.business.sweepStaleOrders();
     DB.business.sweepAutoUnsuspensions();
+    DB.business.sweepQuotaDeadlines();
     // Cache local affiché immédiatement par les chargements ci-dessous
     // (jamais bloquant) ; resynchronise les commandes/retards en tâche de
     // fond (voir DB.transactions.refresh()/DB.retards.refresh(), js/db.js
@@ -465,6 +466,7 @@ async function boot() {
       await DB.transactions.refresh();
       await DB.business.sweepStaleOrders();
       await DB.business.sweepAutoUnsuspensions();
+      await DB.business.sweepQuotaDeadlines();
       // Notifications réelles (voir api/notifications_list.php) — reflète
       // désormais ce qui se passe partout, pas seulement ce que cet
       // appareil admin a lui-même déclenché.
@@ -963,7 +965,7 @@ function loadCabines(query = '') {
     return `<tr>
       <td><div class="user-chip"><div class="avatar" style="background:linear-gradient(135deg,var(--secondary),var(--secondary-dark))">${Fmt.initials(c.nom,c.prenom)}</div><div><div class="name">${c.prenom} ${c.nom}</div><div style="font-size:.72rem;color:var(--gray-400)">${c.zone || 'N/A'}</div></div></div></td>
       <td><code>${Fmt.phone(c.telephone)}</code></td>
-      <td><strong>${Fmt.money(c.solde)}</strong></td>
+      <td><strong>${Fmt.money(DB.business.cabineSoldeDisponible(c))}</strong></td>
       <td><span class="commission-pill">${Fmt.money(c.commissions_total || 0)}</span></td>
       <td><span class="badge badge-info">${txnCount}</span></td>
       <td><span class="badge" style="background:rgba(139,92,246,.12);color:#8B5CF6;">${pending.length}</span></td>
@@ -1081,7 +1083,7 @@ function loadRetraitsAdmin() {
   tbody.innerHTML = cabines.map(c => `
     <tr>
       <td><div class="user-chip"><div class="avatar" style="background:linear-gradient(135deg,var(--secondary),var(--secondary-dark))">${Fmt.initials(c.nom,c.prenom)}</div><div><div class="name">${c.prenom} ${c.nom}</div><div style="font-size:.72rem;color:var(--gray-400)">${c.zone || 'N/A'}</div></div></div></td>
-      <td><strong>${Fmt.money(c.solde)}</strong></td>
+      <td><strong>${Fmt.money(DB.business.cabineSoldeDisponible(c))}</strong></td>
       <td>${c.paiement_vers ? `<span class="badge badge-info">${c.paiement_vers}</span>` : '<span style="color:var(--gray-400)">Non renseigné</span>'}</td>
       <td>${c.numero_compte ? `<code>${c.numero_compte}</code>` : '<span style="color:var(--gray-400)">—</span>'}${c.retrait_derniere_maj ? `<div style="font-size:.65rem;color:var(--gray-400);margin-top:3px;">Modifié le ${Fmt.datetime(c.retrait_derniere_maj)}</div>` : ''}</td>
       <td><button class="menu-btn-row" onclick="toggleRetraitRowMenu(this,'${c.id}')" title="Actions"><i class="fa-solid fa-ellipsis-vertical"></i></button></td>
@@ -1094,7 +1096,7 @@ function toggleRetraitRowMenu(btn, cabineId) {
   if (!c) return;
   openRowMenu(btn, [
     { label: 'Modifier le moyen de paiement', icon: 'fa-credit-card', fn: `openEditPaymentModal('${cabineId}')` },
-    c.solde > 0 && { label: 'Traiter un retrait', icon: 'fa-money-bill-wave', fn: `openProcessRetraitModal('${cabineId}')` },
+    DB.business.cabineSoldeDisponible(c) > 0 && { label: 'Traiter un retrait', icon: 'fa-money-bill-wave', fn: `openProcessRetraitModal('${cabineId}')` },
   ]);
 }
 
@@ -1198,14 +1200,15 @@ function openProcessRetraitModal(cabineId) {
   const c = DB.users.byId(cabineId);
   if (!c) return;
   _processRetraitCabineId = cabineId;
-  document.getElementById('process-retrait-dispo').textContent = Fmt.money(c.solde);
-  document.getElementById('process-retrait-restant').textContent = Fmt.money(c.solde);
+  const dispo = DB.business.cabineSoldeDisponible(c);
+  document.getElementById('process-retrait-dispo').textContent = Fmt.money(dispo);
+  document.getElementById('process-retrait-restant').textContent = Fmt.money(dispo);
   const montantInput = document.getElementById('process-retrait-montant');
   montantInput.value = '';
-  montantInput.max = c.solde;
+  montantInput.max = dispo;
   montantInput.oninput = () => {
     const montant = parseFloat(montantInput.value) || 0;
-    document.getElementById('process-retrait-restant').textContent = Fmt.money(Math.max(0, c.solde - montant));
+    document.getElementById('process-retrait-restant').textContent = Fmt.money(Math.max(0, dispo - montant));
   };
   openModal('modal-process-retrait');
 }
@@ -1215,7 +1218,7 @@ async function confirmProcessRetrait() {
   if (!c) return;
   const montant = parseFloat(document.getElementById('process-retrait-montant').value);
   if (isNaN(montant) || montant <= 0) { Toast.error('Montant invalide.'); return; }
-  if (montant > c.solde) { Toast.error('Le montant dépasse le solde disponible.'); return; }
+  if (montant > DB.business.cabineSoldeDisponible(c)) { Toast.error('Le montant dépasse le solde disponible.'); return; }
 
   const res = await DB.retraits.process(c.id, montant);
   if (!res.ok) { Toast.error(res.error); return; }
@@ -1250,7 +1253,7 @@ function loadRechargeCabiniste(query = '') {
     <tr>
       <td><div class="user-chip"><div class="avatar" style="background:linear-gradient(135deg,var(--secondary),var(--secondary-dark))">${Fmt.initials(c.nom,c.prenom)}</div><div><div class="name">${c.prenom} ${c.nom}</div><div style="font-size:.72rem;color:var(--gray-400)">${c.cabine_nom || c.zone || 'N/A'}</div></div></div></td>
       <td><code>${Fmt.phone(c.telephone)}</code></td>
-      <td><strong>${Fmt.money(c.solde)}</strong></td>
+      <td><strong>${Fmt.money(DB.business.cabineSoldeDisponible(c))}</strong></td>
       <td><span class="badge ${c.statut === 'actif' ? 'badge-success' : 'badge-failed'}">${c.statut}</span></td>
       <td>
         <button class="btn btn-sm btn-secondary" onclick="openRechargeCabinisteModal('${c.id}')" title="Recharger le solde"><i class="fa-solid fa-wallet"></i> Recharger</button>
@@ -1265,8 +1268,8 @@ function openRechargeCabinisteModal(cabineId) {
   if (!c) return;
   _rechargeCabinisteId = cabineId;
   document.getElementById('recharge-cabiniste-label').textContent = `${c.prenom} ${c.nom} (${c.cabine_nom || c.zone || 'N/A'})`;
-  document.getElementById('recharge-cabiniste-solde').textContent = Fmt.money(c.solde);
-  document.getElementById('recharge-cabiniste-apres').textContent = Fmt.money(c.solde);
+  document.getElementById('recharge-cabiniste-solde').textContent = Fmt.money(DB.business.cabineSoldeDisponible(c));
+  document.getElementById('recharge-cabiniste-apres').textContent = Fmt.money(DB.business.cabineSoldeDisponible(c));
   document.getElementById('recharge-cabiniste-montant').value = '';
   openModal('modal-recharge-cabiniste');
 }
@@ -1275,7 +1278,7 @@ function updateRechargeCabinistePreview() {
   const c = DB.users.byId(_rechargeCabinisteId);
   if (!c) return;
   const montant = parseFloat(document.getElementById('recharge-cabiniste-montant').value) || 0;
-  document.getElementById('recharge-cabiniste-apres').textContent = Fmt.money(c.solde + montant);
+  document.getElementById('recharge-cabiniste-apres').textContent = Fmt.money(DB.business.cabineSoldeDisponible(c) + montant);
 }
 
 async function confirmRechargeCabiniste() {
@@ -2194,7 +2197,7 @@ function viewUser(id) {
     </div>
     <div class="stat-mini"><span class="stat-mini-label">Rôle</span><span class="stat-mini-val">${u.role}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Téléphone</span><span class="stat-mini-val">${Fmt.phone(u.telephone)}</span></div>
-    <div class="stat-mini"><span class="stat-mini-label">Solde</span><span class="stat-mini-val">${Fmt.money(u.solde)}</span></div>
+    <div class="stat-mini"><span class="stat-mini-label">Solde</span><span class="stat-mini-val">${Fmt.money(DB.business.cabineSoldeDisponible(u))}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Statut</span><span class="stat-mini-val">${u.statut}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Transactions</span><span class="stat-mini-val">${txns.length}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Volume</span><span class="stat-mini-val">${Fmt.money(done.reduce((s,t)=>s+t.montant,0))}</span></div>
@@ -3652,7 +3655,7 @@ function exportCSV(type) {
   } else if (type === 'cabines') {
     const cabines = DB.users.byRole('cabine');
     headers = ['ID','Prénom','Nom','Téléphone','Zone','Solde','Commissions','Statut'];
-    data = cabines.map(c => [c.id, c.prenom, c.nom, c.telephone, c.zone||'', c.solde, c.commissions_total||0, c.statut]);
+    data = cabines.map(c => [c.id, c.prenom, c.nom, c.telephone, c.zone||'', DB.business.cabineSoldeDisponible(c), c.commissions_total||0, c.statut]);
     filename = 'cabines_kbineplus.csv';
   } else if (type === 'bilan') {
     if (currentUser.admin_level !== 'super') { Toast.error('Seul le super administrateur peut exporter le bilan.'); return; }
