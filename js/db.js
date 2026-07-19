@@ -597,6 +597,10 @@ const DB = (() => {
         services_actifs: parseJsonField(row.services_actifs) || undefined,
         ussd_enabled: parseJsonField(row.ussd_enabled) || undefined,
         carte_couleur: row.carte_couleur || undefined,
+        theme_sombre: row.theme_sombre === null || row.theme_sombre === undefined ? undefined : !!row.theme_sombre,
+        notif_son_actif: row.notif_son_actif === null || row.notif_son_actif === undefined ? undefined : !!row.notif_son_actif,
+        notif_son_preset_commande: row.notif_son_preset_commande || undefined,
+        notif_son_preset_reclamation: row.notif_son_preset_reclamation || undefined,
       };
       if (plainPin) out.mot_de_passe = hashPwd(plainPin);
       return out;

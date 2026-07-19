@@ -210,7 +210,14 @@ async function boot() {
   currentUser = Auth.require('cabine', { silent: true });
   if (!currentUser) { showCabineLoginGate(); return; }
 
+  // Mode sombre : source de vérité = le compte (voir
+  // api/cabine_update_self.php/toggleCabDarkMode() plus bas) quand déjà
+  // réglé ; Theme.init() (repli localStorage partagé) sert seulement pour
+  // un compte jamais synchronisé depuis l'ajout de ce réglage.
   Theme.init();
+  if (currentUser.theme_sombre !== undefined) {
+    document.body.classList.toggle('dark', currentUser.theme_sombre);
+  }
   _refreshCabDarkBtn();
   _refreshCabPauseUI();
   _refreshCabNotifSoundUI();
@@ -1249,10 +1256,18 @@ const CabSound = {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     return this.ctx;
   },
-  isEnabled() { return localStorage.getItem('kbine_cab_notif_sound') !== 'off'; },
+  // Source de vérité = le compte (voir api/cabine_update_self.php) quand
+  // déjà réglé ; le localStorage ne sert plus que de repli pour un compte
+  // jamais synchronisé depuis l'ajout de ce réglage.
+  isEnabled() {
+    if (currentUser && currentUser.notif_son_actif !== undefined) return currentUser.notif_son_actif;
+    return localStorage.getItem('kbine_cab_notif_sound') !== 'off';
+  },
   _presetKey(role) { return role === 'reclamation' ? 'kbine_cab_notif_sound_preset_recla' : 'kbine_cab_notif_sound_preset'; },
+  _presetField(role) { return role === 'reclamation' ? 'notif_son_preset_reclamation' : 'notif_son_preset_commande'; },
   currentPreset(role = 'commande') {
-    const key = localStorage.getItem(this._presetKey(role)) || CAB_SOUND_DEFAULTS[role] || CAB_SOUND_PRESETS[0].key;
+    const serverKey = currentUser && currentUser[this._presetField(role)];
+    const key = serverKey || localStorage.getItem(this._presetKey(role)) || CAB_SOUND_DEFAULTS[role] || CAB_SOUND_PRESETS[0].key;
     return CAB_SOUND_PRESETS.find(p => p.key === key) || CAB_SOUND_PRESETS[0];
   },
   tone(freq, delay, duration = .16, type = 'sine') {
@@ -1284,11 +1299,15 @@ const CabSound = {
   },
 };
 
-function toggleCabNotifSound() {
+async function toggleCabNotifSound() {
   const nowOn = !CabSound.isEnabled();
   localStorage.setItem('kbine_cab_notif_sound', nowOn ? 'on' : 'off');
   _refreshCabNotifSoundUI();
   if (nowOn) CabSound.tone(880, 0, .14);
+
+  // Persisté côté serveur (voir api/cabine_update_self.php).
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { notif_son_actif: nowOn });
+  if (!res.ok) Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.');
 }
 
 function toggleCabSoundPicker(role = 'commande') {
@@ -1304,7 +1323,7 @@ function toggleCabSoundPicker(role = 'commande') {
   if (!isOpen) section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function selectCabSoundPreset(key, role = 'commande') {
+async function selectCabSoundPreset(key, role = 'commande') {
   const suffix = role === 'reclamation' ? '-recla' : '';
   localStorage.setItem(CabSound._presetKey(role), key);
   document.querySelectorAll(`#cab-sound-picker${suffix} .cab-sound-option`).forEach(o =>
@@ -1313,6 +1332,10 @@ function selectCabSoundPreset(key, role = 'commande') {
   const label = document.getElementById(`cab-sound-current${suffix}`);
   const preset = CAB_SOUND_PRESETS.find(p => p.key === key);
   if (label && preset) label.textContent = preset.label;
+
+  // Persisté côté serveur (voir api/cabine_update_self.php).
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { [CabSound._presetField(role)]: key });
+  if (!res.ok) Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.');
 }
 
 function _refreshCabNotifSoundUI() {
@@ -1344,9 +1367,15 @@ function _refreshCabNotifSoundUI() {
 }
 
 /* ── Actions rapides : mode sombre ────────────────────────────────── */
-function toggleCabDarkMode() {
+async function toggleCabDarkMode() {
   Theme.toggle();
   _refreshCabDarkBtn();
+
+  // Persisté côté serveur (voir api/cabine_update_self.php) — sans ça, la
+  // préférence restait locale à l'appareil et ne suivait pas le compte
+  // sur un autre appareil.
+  const res = await DB.business.cabineUpdateSelf(currentUser.id, { theme_sombre: document.body.classList.contains('dark') });
+  if (!res.ok) Toast.error(res.error || 'Échec de l\'enregistrement — réessayez.');
 }
 
 function _refreshCabDarkBtn() {

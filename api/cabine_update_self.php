@@ -48,6 +48,24 @@ if (array_key_exists('carte_couleur', $in)) {
   $params[] = $in['carte_couleur'] === null ? null : (string)$in['carte_couleur'];
 }
 
+if (array_key_exists('theme_sombre', $in)) {
+  $columns[] = 'theme_sombre = ?';
+  $params[] = !empty($in['theme_sombre']) ? 1 : 0;
+}
+
+if (array_key_exists('notif_son_actif', $in)) {
+  $columns[] = 'notif_son_actif = ?';
+  $params[] = !empty($in['notif_son_actif']) ? 1 : 0;
+}
+if (array_key_exists('notif_son_preset_commande', $in)) {
+  $columns[] = 'notif_son_preset_commande = ?';
+  $params[] = (string)$in['notif_son_preset_commande'];
+}
+if (array_key_exists('notif_son_preset_reclamation', $in)) {
+  $columns[] = 'notif_son_preset_reclamation = ?';
+  $params[] = (string)$in['notif_son_preset_reclamation'];
+}
+
 // Pause du service : un seul appel pose/lève la pause ET ses détails
 // ensemble (jamais désynchronisés entre eux). pause_raison/pause_note/
 // pause_debut valent NULL à la reprise (voir toggleCabPause(), js/cabine.js).
