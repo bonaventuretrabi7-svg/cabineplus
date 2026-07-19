@@ -33,15 +33,27 @@ if ($method !== null) {
 
 // Un admin peut créditer un autre compte (client/cabine) ; les autres
 // rôles ne peuvent créditer qu'eux-mêmes.
-$targetId = $me['id'];
+$targetId   = $me['id'];
+$targetRole = $me['role'];
 if ($me['role'] === 'admin' && !empty($in['target_id'])) {
   $targetId = (string)$in['target_id'];
-  $checkStmt = db()->prepare('SELECT id FROM profiles WHERE id = ?');
+  $checkStmt = db()->prepare('SELECT id, role FROM profiles WHERE id = ?');
   $checkStmt->execute([$targetId]);
-  if (!$checkStmt->fetch()) fail('Compte introuvable.');
+  $targetRow = $checkStmt->fetch();
+  if (!$targetRow) fail('Compte introuvable.');
+  $targetRole = $targetRow['role'];
 }
 
 db()->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([$montant, $targetId]);
 createNotification($targetId, 'Votre portefeuille a été rechargé de ' . number_format((float)$montant, 0, ',', ' ') . ' F.', 'info');
+
+// Historique visible côté client (voir loadWallet()/renderWalletRechargeList()
+// dans js/client.js) — seulement pour un compte client, `transactions.client_id`
+// ne doit jamais référencer un id de cabine (voir orders_list.php, scopé par
+// client_id pour le rôle client).
+if ($targetRole === 'client') {
+  db()->prepare("INSERT INTO transactions (id, client_id, type, moyen_paiement, montant, statut, date) VALUES (?, ?, 'recharge', ?, ?, 'terminé', NOW())")
+      ->execute([uuid4(), $targetId, $method, $montant]);
+}
 
 echo json_encode(['ok' => true]);

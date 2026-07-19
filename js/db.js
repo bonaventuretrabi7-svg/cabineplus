@@ -2226,6 +2226,22 @@ const DB = (() => {
       return { ok: true, recipient: res.recipient };
     },
 
+    // Transfert client-à-client — remplace l'ancienne version 100% locale
+    // de ctConfirmTransfer() (js/client.js), qui ne faisait que
+    // users.updateSolde()/transactions.create() en local : le destinataire
+    // ne voyait jamais le crédit sur son propre appareil. Voir
+    // api/client_transfer.php (débit/crédit atomiques + une ligne
+    // transactions par participant). transactions.refresh() rapatrie ces
+    // deux nouvelles lignes juste après.
+    async clientTransfer(fromClientId, toPhone, montant) {
+      const res = await ServerAPI.clientTransfer(toPhone, montant);
+      if (!res.ok) return { ok: false, error: res.error };
+      const from = users.byId(fromClientId);
+      if (from) users.update(fromClientId, { solde: (from.solde || 0) - montant });
+      await transactions.refresh();
+      return { ok: true, recipient: res.recipient };
+    },
+
     /* Réassignation groupée (feature 2) — remplace la version locale par
        un seul appel à api/orders_reassign.php (transaction_ids accepte
        déjà un tableau). */

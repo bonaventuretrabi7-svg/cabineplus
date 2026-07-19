@@ -541,6 +541,14 @@ const ServerAPI = (() => {
     return { ok: true, recipient: data.recipient };
   }
 
+  // Transfert client-à-client, identifié par numéro de téléphone — voir
+  // api/client_transfer.php.
+  async function clientTransfer(toPhone, montant) {
+    const { res, data } = await _call('client_transfer.php', { auth: true, body: { to_phone: toPhone, montant } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du transfert.' };
+    return { ok: true, recipient: data.recipient };
+  }
+
   /* Réclamations + demandes de remboursement (Phase 5) — voir
      DB.reclamations/refundRequests (js/db.js) et api/reclamations_*.php,
      refund_requests_list.php. */
@@ -640,7 +648,7 @@ const ServerAPI = (() => {
     ordersCreate, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
-    cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer,
+    cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer,
     forfaitsList, forfaitsCreate, forfaitsUpdate, forfaitsRemove, commissionsList, commissionsUpdateRate,
     reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,
     reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,

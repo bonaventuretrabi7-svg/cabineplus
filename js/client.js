@@ -870,11 +870,16 @@ function loadDepenses() {
     return d.getFullYear() === year && d.getMonth() === month && t.statut === 'terminé';
   });
 
-  const totalMonth = monthly.reduce((s, t) => s + (t.montant || 0), 0);
+  // Les rechargements sont des crédits (pas des dépenses) : affichés dans la
+  // liste par semaine ci-dessous, mais exclus de tous les totaux/statistiques
+  // de cet onglet (total du mois, répartition par réseau, compteur de
+  // commandes) pour ne pas fausser "Total dépensé".
+  const monthlySpend = monthly.filter(t => t.type !== 'recharge');
+  const totalMonth = monthlySpend.reduce((s, t) => s + (t.montant || 0), 0);
 
   // Récap mois
   const opBreak = {};
-  monthly.forEach(t => { opBreak[t.operateur] = (opBreak[t.operateur] || 0) + t.montant; });
+  monthlySpend.forEach(t => { opBreak[t.operateur] = (opBreak[t.operateur] || 0) + t.montant; });
 
   const topOp  = Object.entries(opBreak).sort((a,b)=>b[1]-a[1])[0];
   const topOpName = topOp ? topOp[0] : '—';
@@ -888,7 +893,7 @@ function loadDepenses() {
       <div class="sec-hero-chips">
         <div class="sec-chip">
           <i class="fa-solid fa-receipt"></i>
-          <span>${monthly.length} commande${monthly.length>1?'s':''}</span>
+          <span>${monthlySpend.length} commande${monthlySpend.length>1?'s':''}</span>
         </div>
         <div class="sec-chip">
           <i class="fa-solid fa-signal" style="color:${topOpClr}"></i>
@@ -909,8 +914,28 @@ function loadDepenses() {
   const weeksHtml = Object.entries(weeks).map(([label, items]) => {
     if (!items.length) return '';
     items.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const weekTotal = items.reduce((s, t) => s + (t.montant || 0), 0);
+    // Total de la semaine : mêmes dépenses uniquement (voir monthlySpend
+    // ci-dessus), un rechargement listé dans la semaine ne doit pas s'y
+    // ajouter.
+    const weekTotal = items.filter(t => t.type !== 'recharge').reduce((s, t) => s + (t.montant || 0), 0);
     const rows = items.map(t => {
+      // Rechargement : ligne distincte (crédit), pas une dépense par
+      // opérateur — icône éclair + montant en vert précédé d'un "+".
+      if (t.type === 'recharge') {
+        const dateStr = new Date(t.date).toLocaleDateString('fr-CI',{day:'2-digit',month:'short'});
+        return `
+        <div class="dp-row">
+          <div class="dp-row-avatar" style="background:#f59e0b;color:#fff"><i class="fa-solid fa-bolt"></i></div>
+          <div class="dp-row-info">
+            <div class="dp-row-op">Recharge</div>
+            <div class="dp-row-num">${t.moyen_paiement || ''}</div>
+          </div>
+          <div class="dp-row-right">
+            <div class="dp-row-amt" style="color:#22c55e">+${Fmt.money(t.montant)}</div>
+            <div class="dp-row-date">${dateStr}</div>
+          </div>
+        </div>`;
+      }
       const opClr = {Orange:'#FF6200', MTN:'#FFCC00', Moov:'#0066CC'}[t.operateur] || '#7c3aed';
       const opTxt = t.operateur === 'MTN' ? '#1a1a1a' : '#fff';
       const dateStr = new Date(t.date).toLocaleDateString('fr-CI',{day:'2-digit',month:'short'});
@@ -3641,7 +3666,14 @@ function renderHistoryList(txns) {
   const TYPE_META = {
     recharge      : { ico:'fa-bolt',             clr:'#f59e0b', lbl:'Recharge' },
     transfert     : { ico:'fa-paper-plane',      clr:'#6366f1', lbl:'Transfert' },
+    // 'transfert_client' : ancien type 100% local (avant la synchronisation
+    // serveur, voir DB.business.clientTransfer) — conservé pour l'affichage
+    // d'éventuelles lignes déjà en cache sur l'appareil. Les nouveaux
+    // transferts utilisent les deux types ci-dessous (un par sens), chacun
+    // avec sa propre ligne `transactions` server-side (api/client_transfer.php).
     transfert_client: { ico:'fa-paper-plane',    clr:'#6366f1', lbl:'Transfert client' },
+    transfert_client_envoi:     { ico:'fa-arrow-up',   clr:'#ef4444', lbl:'Transfert envoyé' },
+    transfert_client_reception: { ico:'fa-arrow-down', clr:'#22c55e', lbl:'Transfert reçu' },
     facture       : { ico:'fa-file-invoice-dollar', clr:'#f59e0b', lbl:'Facture' },
     recharge_uv   : { ico:'fa-bolt-lightning',   clr:'#06b6d4', lbl:'Recharge UV' },
     exchange      : { ico:'fa-arrows-rotate',    clr:'#8b5cf6', lbl:'Exchange' },
@@ -3663,12 +3695,18 @@ function renderHistoryList(txns) {
 
     let desc = t.service || meta.lbl;
     let secondLine = '';
-    if (t.type === 'exchange') {
+    if (t.type === 'recharge') {
+      secondLine = t.moyen_paiement ? `Via ${t.moyen_paiement}` : '';
+    } else if (t.type === 'exchange') {
       secondLine = `${d.debit_network || ''}/${d.debit_numero ? Fmt.phone(d.debit_numero) : '—'} → ${d.recep_network || ''}/${d.recep_numero ? Fmt.phone(d.recep_numero) : '—'}`;
     } else if (t.type === 'cadeau') {
       secondLine = `Pour ${d.network || t.operateur} ${Fmt.phone(d.numero || t.numero_beneficiaire) || '—'}`;
     } else if (t.type === 'facture') {
       secondLine = `Réf : ${d.ref || t.numero_beneficiaire || '—'}${d.offer ? ' · ' + d.offer : ''}`;
+    } else if (t.type === 'transfert_client_envoi' || t.type === 'transfert_client_reception') {
+      const other = t.numero_beneficiaire ? DB.users.byPhone(t.numero_beneficiaire) : null;
+      const otherName = other ? (other.prenom + ' ' + other.nom).trim() : Fmt.phone(t.numero_beneficiaire);
+      secondLine = t.type === 'transfert_client_envoi' ? `Vers ${otherName}` : `De ${otherName}`;
     } else if (t.numero_beneficiaire) {
       secondLine = `→ ${t.operateur ? t.operateur + ' ' : ''}${Fmt.phone(t.numero_beneficiaire)}`;
     }
@@ -4075,6 +4113,7 @@ async function handleRecharge(e) {
     closeModal('modal-recharge');
     currentUser = Auth.refresh();
     Toast.success(`Portefeuille rechargé de ${Fmt.money(montant)} via ${method}.`);
+    await DB.transactions.refresh();
     renderSoldeSection();
     refreshSoldeNumbers();
     refreshSidebarBalance();
@@ -4736,31 +4775,23 @@ function handleClientTransfer(e) {
   _ctSetStep(2);
 }
 
-function ctConfirmTransfer() {
+async function ctConfirmTransfer() {
   const me = Auth.current();
   if (!me || !_ctData.recipientId) return;
 
-  const sender    = DB.users.byId(me.id);
-  const recipient = DB.users.byId(_ctData.recipientId);
-  if (!recipient) { Toast.error('Destinataire introuvable.'); return; }
+  const sender = DB.users.byId(me.id);
   if ((sender.solde || 0) < _ctData.amount) {
     Toast.error('Solde insuffisant — disponible : ' + Fmt.money(sender.solde || 0));
     ctGoBackToForm();
     return;
   }
 
-  DB.users.updateSolde(me.id, -_ctData.amount);
-  DB.users.updateSolde(recipient.id, _ctData.amount);
-
-  DB.transactions.create({
-    client_id: me.id,
-    type: 'transfert_client',
-    sens: 'envoi',
-    montant: _ctData.amount,
-    destinataire_nom: _ctData.destName,
-    destinataire_tel: recipient.telephone,
-    statut: 'terminé',
-  });
+  const res = await DB.business.clientTransfer(me.id, _ctData.phone, _ctData.amount);
+  if (!res.ok) {
+    Toast.error(res.error);
+    ctGoBackToForm();
+    return;
+  }
 
   currentUser = Auth.refresh();
   closeModal('modal-client-transfer');
@@ -4768,6 +4799,7 @@ function ctConfirmTransfer() {
   refreshSidebarBalance();
   loadWallet();
   loadProfit();
+  if (document.querySelector('.cs-section.active')?.id === 'cs-historique') loadHistory();
   Toast.success(Fmt.money(_ctData.amount) + ' transféré avec succès à ' + _ctData.destName + ' !');
 }
 
