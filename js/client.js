@@ -3139,11 +3139,20 @@ function toggleAproposSection() {
    formatMmSs sont désormais définis dans js/db.js (fonctions globales
    partagées avec js/cabine.js, voir onglet Réclamation de la Recharge UV). */
 
+// Même numéro que le bouton WhatsApp fixe de "Réseaux sociaux" (accueil,
+// voir index.html) — utilisé comme filet de sécurité partout où un
+// assistant WhatsApp configurable pourrait être vide (voir
+// openClientWhatsappPicker()/assistanceWhatsappLink() ci-dessous).
+const DEFAULT_WHATSAPP_NUMBER = '2250576230860';
+
 async function assistanceWhatsappLink(motif) {
   const settings = await DB.settings.get();
   const list = (settings.assistance && settings.assistance.whatsapp) || [];
-  const raw = list.find(n => n && n.trim());
-  if (!raw) return null;
+  // Filet de sécurité (voir DEFAULT_WHATSAPP_NUMBER ci-dessus) : si aucun
+  // numéro d'assistance n'est configuré, on redirige quand même vers un
+  // numéro WhatsApp qui fonctionne plutôt que de laisser le client sans
+  // recours.
+  const raw = list.find(n => n && n.trim()) || DEFAULT_WHATSAPP_NUMBER;
   return Fmt.whatsappLink(raw, motif || 'Bonjour, j\'ai besoin d\'assistance concernant une commande KBINE PLUS.');
 }
 
@@ -3213,7 +3222,14 @@ async function openClientWhatsappPicker() {
   });
   const list = document.getElementById('client-wa-picker-list');
   if (!contacts.length) {
-    Toast.error('Aucun assistant WhatsApp configuré pour le moment.');
+    // Aucun numéro configuré (onglets "Assistant clientèle client/cabine"
+    // vides côté admin) : plutôt que de laisser le client sans recours
+    // (ancien comportement, un simple message d'erreur), on ouvre le même
+    // numéro WhatsApp fixe que le bouton "Réseaux sociaux" de l'accueil
+    // (voir index.html, section "Rejoignez-nous dès maintenant") — le
+    // client trouve toujours un contact WhatsApp qui fonctionne.
+    const link = Fmt.whatsappLink(DEFAULT_WHATSAPP_NUMBER, 'Bonjour, j\'ai besoin d\'assistance concernant KBINE PLUS.');
+    if (link) window.open(link, '_blank');
     return;
   }
   list.innerHTML = contacts.map(c => `

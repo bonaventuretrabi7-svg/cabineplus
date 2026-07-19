@@ -562,14 +562,19 @@ const Fmt = {
   // Espace tous les 2 chiffres pour un affichage uniforme (ex. "07 12 34 56 78")
   // dans les 3 espaces — jamais tronqué (affichage, pas saisie).
   phone: (v) => (v || '').toString().replace(/\D/g, '').replace(/(\d{2})(?=\d)/g, '$1 '),
-  // Lien "click-to-chat" wa.me — retire le 0 initial d'un numéro local
-  // ivoirien avant de préfixer 225 (un numéro déjà international n'est
-  // pas modifié). Centralisé ici pour être réutilisé partout où un
-  // contact WhatsApp est proposé (assistance client, contact admin…).
+  // Lien "click-to-chat" wa.me — préfixe 225 devant un numéro local
+  // ivoirien (un numéro déjà international n'est pas modifié). Le 0
+  // initial est CONSERVÉ : contrairement à la France, la réforme de
+  // numérotation ivoirienne (2021, numéros passés à 10 chiffres) ne
+  // traite pas ce 0 comme un préfixe interurbain à retirer — le
+  // supprimer produit un numéro à 12 chiffres que WhatsApp refuse comme
+  // invalide (vérifié contre le lien WhatsApp fixe de l'accueil, qui lui
+  // fonctionne : wa.me/2250576230860, 0 conservé). Centralisé ici pour
+  // être réutilisé partout où un contact WhatsApp est proposé (assistance
+  // client, contact admin…).
   whatsappLink: (rawNumber, message) => {
     let digits = (rawNumber || '').toString().replace(/\D/g, '');
     if (!digits) return null;
-    if (digits.startsWith('0')) digits = digits.slice(1);
     if (!digits.startsWith('225')) digits = '225' + digits;
     return `https://wa.me/${digits}` + (message ? '?text=' + encodeURIComponent(message) : '');
   },
