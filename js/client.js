@@ -1176,6 +1176,7 @@ function switchAuthGateTab(tab) {
   }
   if (tab === 'login') {
     clearPinRow('pin-login-row');
+    _agLoginResetToStep1();
   } else if (tab === 'register') {
     clearPinRow('pin-register-row');
     clearPinRow('pin-register-confirm-row');
@@ -1199,26 +1200,72 @@ function clearPinRow(rowId) {
    chargé avant ce fichier — voir aussi applyNetworkPrefix() pour le préfixe
    auto Orange/Moov/MTN. */
 
-/* Champ téléphone du login — révèle le PIN quand numéro complet */
-function onLoginPhoneInput(input) {
-  formatPhoneInput(input);
-  const digits = input.value.replace(/\D/g, '');
-  const reveal  = document.getElementById('ag-pin-reveal');
-  const submitBtn = document.getElementById('ag-login-submit-btn');
-  if (!reveal) return;
-  if (digits.length === 10) {
-    if (!reveal.classList.contains('visible')) {
-      reveal.classList.add('visible');
-      clearPinRow('pin-login-row');
-      setTimeout(() => {
-        document.querySelector('#pin-login-row .pin-box')?.focus();
-      }, 280);
-    }
-  } else {
-    reveal.classList.remove('visible');
-    if (submitBtn) submitBtn.style.display = 'none';
-    clearPinRow('pin-login-row');
+/* Connexion client en 2 étapes glissantes (numéro puis PIN), même patron
+   que prtGoStep()/openPartnerLoginModal() ci-dessus pour la connexion
+   partenaire — le code PIN n'est demandé qu'une fois le numéro reconnu
+   (voir api/client_login_lookup.php, vérification serveur : le cache
+   local d'un client ne contient jamais les autres clients, une recherche
+   purement locale donnerait de faux négatifs sur un appareil jamais
+   utilisé par ce compte). */
+function _agLoginResetToStep1() {
+  const s1 = document.getElementById('ag-login-slide-1');
+  const s2 = document.getElementById('ag-login-slide-2');
+  if (!s1 || !s2) return;
+  s1.classList.remove('pln-slide--hidden', 'pln-slide--exit', 'pln-slide--enter');
+  s1.style.display = '';
+  s2.style.display = 'none'; s2.classList.remove('pln-slide--enter', 'pln-slide--exit');
+  document.getElementById('ag-login-denied').style.display = 'none';
+  const continueBtn = document.getElementById('ag-login-continue-btn');
+  if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = ''; continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuer'; }
+}
+
+async function agLoginGoStep(step) {
+  const s1 = document.getElementById('ag-login-slide-1');
+  const s2 = document.getElementById('ag-login-slide-2');
+  const deniedEl = document.getElementById('ag-login-denied');
+
+  if (step === 1) {
+    s2.classList.remove('pln-slide--enter'); s2.classList.add('pln-slide--exit');
+    setTimeout(() => {
+      s2.style.display = 'none'; s2.classList.remove('pln-slide--exit');
+      s1.classList.remove('pln-slide--hidden', 'pln-slide--exit');
+      requestAnimationFrame(() => { requestAnimationFrame(() => { s1.classList.add('pln-slide--enter'); }); });
+    }, 260);
+    setTimeout(() => document.getElementById('ag-login-tel')?.focus(), 420);
+    return;
   }
+
+  // Étape 2 : vérifier le numéro auprès du serveur avant de demander le PIN.
+  const tel = (document.getElementById('ag-login-tel')?.value || '').replace(/\s/g, '');
+  if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
+
+  const continueBtn = document.getElementById('ag-login-continue-btn');
+  if (continueBtn) { continueBtn.disabled = true; continueBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vérification…'; }
+  const res = await ServerAPI.clientLoginLookup(tel);
+  if (continueBtn) { continueBtn.disabled = false; continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuer'; }
+
+  if (!res.ok) { Toast.error(res.error || 'Connexion Internet requise.'); return; }
+  if (!res.found) {
+    if (deniedEl) deniedEl.style.display = 'flex';
+    Toast.error('Aucun compte client trouvé pour ce numéro.');
+    return;
+  }
+  if (deniedEl) deniedEl.style.display = 'none';
+
+  const fullName = `${res.prenom || ''} ${res.nom || ''}`.trim() || 'Client KBINE PLUS';
+  const initials = ((res.prenom || '')[0] || '') + ((res.nom || '')[0] || '') || '?';
+  document.getElementById('ag-login-user-ava').textContent  = initials.toUpperCase();
+  document.getElementById('ag-login-user-name').textContent = fullName;
+  document.getElementById('ag-login-user-tel').textContent  = Fmt.phone(tel);
+
+  clearPinRow('pin-login-row');
+  s1.classList.add('pln-slide--exit');
+  setTimeout(() => {
+    s1.classList.add('pln-slide--hidden'); s1.classList.remove('pln-slide--exit');
+    s2.style.display = 'block'; s2.classList.remove('pln-slide--enter');
+    requestAnimationFrame(() => { requestAnimationFrame(() => { s2.classList.add('pln-slide--enter'); }); });
+  }, 260);
+  setTimeout(() => document.querySelector('#pin-login-row .pin-box')?.focus(), 420);
 }
 
 /* Initialiser la navigation clavier entre les cases PIN */
@@ -1297,26 +1344,6 @@ async function checkLoginLive() {
   }
 }
 
-async function handleAuthGateLogin(e) {
-  e.preventDefault();
-  const tel = document.getElementById('ag-login-tel').value.replace(/\s/g, '');
-  const pin = getPinValue('pin-login-row');
-
-  if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
-  if (pin.length !== 4)         { Toast.error('Saisissez votre code à 4 chiffres.'); return; }
-
-  const res = await Auth.login(tel, pin, true, 'client');
-  if (res.ok) {
-    if (res.user.role === 'admin')  { window.location.href = 'admin.html';  return; }
-    if (res.user.role === 'cabine') { window.location.href = 'cabine.html'; return; }
-    closeAuthModalAnimated(() => afterLogin(res.user, true));
-  } else {
-    Toast.error(res.error || 'Numéro ou code incorrect.');
-    clearPinRow('pin-login-row');
-    document.querySelector('#pin-login-row .pin-box')?.focus();
-  }
-}
-
 // Déverrouillage (panneau ag-panel-unlock) : identifiant déjà connu
 // (_rememberedClient, voir _lookupRememberedClient()) — uniquement le
 // code à saisir, réutilise Auth.login() telle quelle pour bénéficier des
@@ -1379,7 +1406,7 @@ async function handleAuthGateRegister(e) {
     DB.users.create({ prenom: tel, telephone: tel, mot_de_passe: pin, role: 'client' });
   }
   // remember:true — même règle que toute connexion client (voir
-  // handleAuthGateLogin() plus haut) : un compte tout juste créé doit lui
+  // checkLoginLive() plus haut) : un compte tout juste créé doit lui
   // aussi être mémorisé sur cet appareil, sinon le client devait ressaisir
   // numéro + code dès le lancement suivant alors qu'une connexion "normale"
   // ne le lui demande plus.

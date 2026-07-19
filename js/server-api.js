@@ -558,6 +558,16 @@ const ServerAPI = (() => {
     return { ok: true, found: data.found, recipient: data.recipient };
   }
 
+  // Vérifie qu'un numéro correspond à un compte client existant, AVANT
+  // l'étape PIN de l'écran de connexion (voir agLoginGoStep(), js/client.js
+  // et api/client_login_lookup.php) — public, aucun jeton (l'utilisateur
+  // n'est pas encore connecté).
+  async function clientLoginLookup(phone) {
+    const { res, data } = await _call('client_login_lookup.php', { body: { telephone: phone } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la vérification.' };
+    return { ok: true, found: data.found, prenom: data.prenom, nom: data.nom };
+  }
+
   /* Réclamations + demandes de remboursement (Phase 5) — voir
      DB.reclamations/refundRequests (js/db.js) et api/reclamations_*.php,
      refund_requests_list.php. */
@@ -657,7 +667,7 @@ const ServerAPI = (() => {
     ordersCreate, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
-    cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup,
+    cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,
     forfaitsList, forfaitsCreate, forfaitsUpdate, forfaitsRemove, commissionsList, commissionsUpdateRate,
     reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,
     reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,

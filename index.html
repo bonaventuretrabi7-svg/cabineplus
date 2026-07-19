@@ -2355,19 +2355,44 @@
       </div>
       <!-- Carte formulaire -->
       <div class="ag-form-card">
-        <form onsubmit="handleAuthGateLogin(event)" autocomplete="off">
-          <div class="ag-field-label"><i class="fa-solid fa-phone"></i> Numéro de téléphone</div>
-          <div class="form-group">
-            <div class="ag-input-wrap">
-              <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
-              <span class="ag-prefix-sep"></span>
-              <input type="tel" class="ag-input" id="ag-login-tel"
-                placeholder="00 00 00 00 00" maxlength="14"
-                inputmode="numeric" oninput="onLoginPhoneInput(this)" required />
+        <div class="pln-slides">
+
+          <!-- Étape 1 : numéro de téléphone seul -->
+          <div class="pln-slide" id="ag-login-slide-1">
+            <div class="ag-field-label"><i class="fa-solid fa-phone"></i> Numéro de téléphone</div>
+            <div class="form-group">
+              <div class="ag-input-wrap">
+                <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
+                <span class="ag-prefix-sep"></span>
+                <input type="tel" class="ag-input" id="ag-login-tel"
+                  placeholder="00 00 00 00 00" maxlength="14"
+                  inputmode="numeric" oninput="formatPhoneInput(this)"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();agLoginGoStep(2);}" required />
+              </div>
             </div>
+            <button type="button" class="ag-submit-btn" id="ag-login-continue-btn" onclick="agLoginGoStep(2)">
+              <i class="fa-solid fa-arrow-right"></i> Continuer
+            </button>
           </div>
-          <!-- PIN — apparaît automatiquement après numéro valide -->
-          <div class="ag-pin-reveal" id="ag-pin-reveal">
+
+          <!-- Étape 2 : code PIN — uniquement une fois le numéro reconnu
+               (voir agLoginGoStep(), js/client.js et
+               api/client_login_lookup.php). -->
+          <div class="pln-slide pln-slide--hidden" id="ag-login-slide-2">
+            <button type="button" class="pln-back-btn" id="ag-login-back-btn" onclick="agLoginGoStep(1)" title="Retour">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="pln-user-card" id="ag-login-user-card">
+              <div class="pln-user-ava" id="ag-login-user-ava">?</div>
+              <div>
+                <div class="pln-user-name" id="ag-login-user-name">—</div>
+                <div class="pln-user-tel" id="ag-login-user-tel">—</div>
+              </div>
+            </div>
+            <div id="ag-login-denied" class="pln-denied" style="display:none;">
+              <i class="fa-solid fa-circle-xmark"></i>
+              <span>Aucun compte client trouvé pour ce numéro.</span>
+            </div>
             <div class="ag-pin-section">
               <div class="ag-pin-reveal-label">
                 <i class="fa-solid fa-lock"></i> Code PIN
@@ -2380,10 +2405,8 @@
               </div>
             </div>
           </div>
-          <button type="submit" class="ag-submit-btn" id="ag-login-submit-btn" style="display:none">
-            <i class="fa-solid fa-arrow-right-to-bracket"></i> Se connecter
-          </button>
-        </form>
+
+        </div>
 
         <div class="ag-switch-line">
           <button type="button" onclick="closeModal('modal-auth-gate');openResetModal('client');">Mot de passe oublié ?</button>

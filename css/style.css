@@ -5171,7 +5171,7 @@ body.dark .fid-ms-dot { background: var(--dark-border); border-color: var(--dark
 .elc-wall {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   text-align: center; padding: 44px 24px 40px;
-  background: linear-gradient(160deg, #190f3e 0%, #0f0830 100%);
+  background: #fafafa;
   border-radius: 20px; margin-bottom: 16px;
   border: 1px solid rgba(255,98,0,.18);
 }
@@ -5180,24 +5180,24 @@ body.dark .fid-ms-dot { background: var(--dark-border); border-color: var(--dark
   width: 64px; height: 64px; border-radius: 50%;
   background: #fff;
   border: 1.5px solid rgba(255,98,0,.3);
-  color: var(--primary); font-size: 1.35rem;
+  color: #FF6200; font-size: 1.35rem;
   display: flex; align-items: center; justify-content: center;
   margin: 0 auto 16px;
   overflow: hidden;
 }
 .elc-wall-lock img { width: 78%; height: 78%; object-fit: contain; }
 .elc-wall-title {
-  font-size: 1rem; font-weight: 900; color: #fff;
+  font-size: 1rem; font-weight: 900; color: #000000;
   margin-bottom: 8px;
 }
 .elc-wall-sub {
-  font-size: .78rem; color: rgba(255,255,255,.35);
+  font-size: .78rem; color: #FF6200;
   line-height: 1.6; max-width: 220px; margin: 0 auto 22px;
 }
 .elc-wall-btn {
   display: inline-flex; align-items: center; gap: 8px;
   padding: 12px 26px; border-radius: 99px; border: none;
-  background: linear-gradient(135deg, var(--primary), #cc4400);
+  background: #FF6200;
   color: #fff; font-size: .85rem; font-weight: 800;
   cursor: pointer; transition: opacity .15s;
   box-shadow: 0 4px 16px rgba(255,98,0,.35);
@@ -6006,7 +6006,7 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 @media(min-width:500px) { .modal-overlay:has(#modal-auth-gate) { align-items: center; } }
 
 .ag-modal {
-  background: #0F0A2E;
+  background: #fafafa;
   border: 1.5px solid rgba(255,98,0,.18);
   border-top: 2.5px solid rgba(255,98,0,.5);
   border-radius: 28px;
@@ -6053,12 +6053,12 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 .ag-brand-logo { width: 17px; height: 17px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
 .ag-close-btn {
   width: 25px; height: 25px; border: none;
-  background: rgba(255,255,255,.1); border-radius: 50%;
-  cursor: pointer; color: rgba(255,255,255,.6); font-size: .68rem;
+  background: rgba(0,0,0,.06); border-radius: 50%;
+  cursor: pointer; color: rgba(0,0,0,.5); font-size: .68rem;
   display: flex; align-items: center; justify-content: center;
   transition: background .15s, color .15s;
 }
-.ag-close-btn:hover { background: rgba(255,255,255,.18); color: #fff; }
+.ag-close-btn:hover { background: rgba(0,0,0,.12); color: #000; }
 
 /* Hero */
 .ag-hero { padding: 7px 18px 5px; text-align: center; }
@@ -6073,23 +6073,22 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 .ag-hero-logo { width: 100%; height: 100%; object-fit: cover; }
 .ag-title {
   font-size: .94rem; font-weight: 900; margin-bottom: 2px; letter-spacing: -.01em;
-  background: linear-gradient(135deg, #fff 30%, #FF9A3C 100%);
-  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  color: #000000;
 }
-.ag-sub { font-size: .6rem; color: rgba(255,255,255,.75); font-weight: 500; }
+.ag-sub { font-size: .6rem; color: #FF6200; font-weight: 500; }
 
 /* Labels */
 .ag-label {
   display: block; font-size: .6rem; font-weight: 800;
-  color: #fff; margin-bottom: 5px;
+  color: #000000; margin-bottom: 5px;
   padding: 0 20px; text-transform: uppercase; letter-spacing: .07em;
 }
 
 /* Carte formulaire intérieure */
 .ag-form-card {
   margin: 0 13px 4px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid rgba(255,255,255,.12);
+  background: #ffffff;
+  border: 1px solid rgba(0,0,0,.1);
   border-radius: 15px;
   padding: 9px 0 11px;
   position: relative;
@@ -6100,7 +6099,7 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
   background: linear-gradient(90deg, transparent, rgba(255,98,0,.35), transparent);
 }
 .ag-field-label {
-  font-size: .56rem; font-weight: 800; color: rgba(255,255,255,.7);
+  font-size: .56rem; font-weight: 800; color: #000000;
   text-transform: uppercase; letter-spacing: .08em;
   padding: 0 16px 6px;
   display: flex; align-items: center; gap: 5px;
@@ -6119,29 +6118,29 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 .ag-input-wrap {
   display: flex; align-items: center;
   margin: 0 18px;
-  border: 1.5px solid rgba(255,255,255,.15); border-radius: 15px;
-  background: #0A1128;
+  border: 1.5px solid rgba(0,0,0,.15); border-radius: 15px;
+  background: #ffffff;
   transition: border-color .22s, box-shadow .22s, background .22s;
   overflow: hidden;
 }
 .ag-input-wrap:focus-within {
   border-color: var(--primary);
   box-shadow: 0 0 0 3px rgba(255,98,0,.16);
-  background: #0A1128;
+  background: #ffffff;
 }
 .ag-flag-prefix {
   padding: 0 8px 0 13px; font-size: .74rem; flex-shrink: 0;
   display: flex; align-items: center; gap: 4px; white-space: nowrap;
-  color: #fff;
+  color: #000000;
 }
-.ag-flag-prefix strong { font-size: .7rem; font-weight: 800; color: #fff; }
-.ag-prefix-sep { width: 1px; height: 18px; background: rgba(255,255,255,.15); flex-shrink: 0; margin-right: 2px; }
+.ag-flag-prefix strong { font-size: .7rem; font-weight: 800; color: #000000; }
+.ag-prefix-sep { width: 1px; height: 18px; background: rgba(0,0,0,.15); flex-shrink: 0; margin-right: 2px; }
 .ag-input {
   flex: 1; border: none; background: transparent; outline: none;
   padding: 11px 12px 11px 0; font-size: .82rem; font-weight: 700;
-  color: #fff; font-family: inherit; letter-spacing: .05em;
+  color: #000000; font-family: inherit; letter-spacing: .05em;
 }
-.ag-input::placeholder { color: rgba(255,255,255,.35); font-weight: 400; letter-spacing: 0; }
+.ag-input::placeholder { color: rgba(0,0,0,.35); font-weight: 400; letter-spacing: 0; }
 
 /* Cases PIN */
 .pin-row {
@@ -6206,18 +6205,6 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 .ag-modal.login-error .ag-input-wrap { border-color: #ef4444 !important; }
 .ag-modal.login-error .pin-box.pin-filled { border-color: #ef4444 !important; background: rgba(239,68,68,.1) !important; }
 
-/* PIN reveal progressif */
-.ag-pin-reveal {
-  max-height: 0; overflow: hidden;
-  opacity: 0; transform: translateY(-8px);
-  transition: max-height .3s ease, opacity .28s ease, transform .28s ease;
-  margin-bottom: 0;
-}
-.ag-pin-reveal.visible {
-  max-height: 180px; opacity: 1; transform: translateY(0);
-  margin-bottom: 0;
-}
-
 /* Section PIN encadrée */
 .ag-pin-section {
   margin: 14px 18px 0;
@@ -6227,13 +6214,24 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
   padding: 14px 12px 16px;
 }
 .ag-pin-reveal-label {
-  font-size: .65rem; font-weight: 800; color: rgba(255,255,255,.45);
+  font-size: .65rem; font-weight: 800; color: rgba(0,0,0,.55);
   text-transform: uppercase; letter-spacing: .09em;
   display: flex; align-items: center; justify-content: center; gap: 6px;
   margin-bottom: 14px; padding: 0;
 }
 .ag-pin-reveal-label i { color: var(--primary); font-size: .7rem; }
 .ag-pin-reveal-label i { color: var(--primary); font-size: .7rem; }
+
+/* Étape 2 (numéro reconnu) : carte utilisateur + bouton retour réutilisés
+   du patron de connexion partenaire (.pln-user-card/.pln-back-btn, pensés
+   pour un fond sombre) — adaptés ici au thème clair de .ag-modal. */
+.ag-modal .pln-user-name { color: #000000; }
+.ag-modal .pln-user-tel  { color: rgba(0,0,0,.5); }
+.ag-modal .pln-back-btn {
+  background: rgba(0,0,0,.06); border: 1px solid rgba(0,0,0,.1);
+  color: rgba(0,0,0,.6); margin: 0 0 12px 16px;
+}
+.ag-modal .pln-back-btn:hover { background: rgba(0,0,0,.12); }
 
 /* Bannière succès */
 .ag-live-success {
@@ -6252,7 +6250,7 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
   display: flex; align-items: center; justify-content: center; gap: 7px;
   width: calc(100% - 36px); margin: 15px 18px 0;
   padding: 12px; border: none; border-radius: 15px;
-  background: linear-gradient(135deg, #FF6200 0%, #e04500 60%, #c03a00 100%);
+  background: #FF6200;
   color: #fff; font-size: .82rem; font-weight: 900; cursor: pointer;
   box-shadow: 0 4px 0 rgba(0,0,0,.3), 0 8px 28px rgba(255,98,0,.4);
   transition: transform .15s, box-shadow .15s;
@@ -6264,7 +6262,7 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
 /* Lien switch */
 .ag-switch-line {
   text-align: center; margin-top: 2px;
-  font-size: .7rem; color: rgba(255,255,255,.75);
+  font-size: .7rem; color: #000000;
 }
 .ag-switch-line button {
   background: none; border: none; color: var(--primary);
