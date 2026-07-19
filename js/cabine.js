@@ -253,6 +253,9 @@ async function boot() {
   // obsolète (une commande traitée sur un autre appareil pendant que
   // celui-ci était fermé).
   await DB.transactions.refresh();
+  // Nécessaire pour que "Total payé" (loadCabBalanceCard()) soit correct
+  // dès l'ouverture, pas seulement après le premier tick de sondage.
+  await DB.retraits.refresh();
   // Reprend aussi son propre profil (solde compris) dès l'ouverture — une
   // recharge/un changement de formule fait par l'administration pendant que
   // l'app était fermée doit apparaître dès la réouverture, sans attendre le
@@ -294,6 +297,9 @@ async function boot() {
     // s'est produit.
     const _pollBefore = DB.pollSignature(currentUser.id, 'cabine');
     await DB.transactions.refresh();
+    // Nécessaire pour que "Total payé" (loadCabBalanceCard()) reflète les
+    // retraits/sanctions posés depuis un autre appareil (admin ou soi-même).
+    await DB.retraits.refresh();
     await DB.business.sweepStaleOrders();
     await DB.business.sweepAutoUnsuspensions();
     // Reprend son propre profil (solde compris) — une recharge/un
@@ -676,10 +682,32 @@ function loadCabBalanceCard() {
   const txns  = DB.transactions.byCabine(currentUser.id);
   const done  = txns.filter(t => t.statut === 'terminé');
 
-  // Solde en attente = solde opérationnel de la cabine
-  const pending = user.solde || 0;
-  // Solde payé = commissions totales reçues
-  const paid    = user.commissions_total || done.reduce((s, t) => s + (t.commission || 0), 0);
+  // Solde en attente = cumul des MONTANTS (jamais la commission) des
+  // crédits/transferts directs et forfaits (internet, appels) traités
+  // pour de vrais clients — exclut donc les types à part (recharge_uv,
+  // facture, exchange, cadeau_reward, réabonnement...), qui ont tous un
+  // `type` renseigné (le tunnel principal, lui, n'en a jamais). Même
+  // filtre que "commandes" dans l'Historique (loadCabHistory()) pour ne
+  // jamais diverger d'un écran à l'autre.
+  const pending = done
+    .filter(t => t.client_id && !t.type)
+    .reduce((s, t) => s + (t.montant || 0), 0);
+
+  // Total payé = tout l'argent réellement sorti du compte, toutes
+  // origines confondues : les retraits posés par l'administration
+  // (y compris les sanctions, elles aussi des retraits admin — voir
+  // refundTransactionEffect(), api/orders_common.php) + les dépenses de
+  // cette cabine pour ses propres recharges UV en libre-service (elle
+  // occupe alors la colonne client_id de sa propre demande, voir
+  // api/cabine_self_recharge.php) — débitées immédiatement à la demande,
+  // quel que soit le statut final de la commande.
+  const retraitsTotal = DB.retraits.byCabine(currentUser.id)
+    .filter(r => r.statut === 'terminé')
+    .reduce((s, r) => s + (r.montant || 0), 0);
+  const uvSelfSpend = DB.transactions.all()
+    .filter(t => t.client_id === currentUser.id && t.type === 'recharge_uv')
+    .reduce((s, t) => s + (t.montant || 0) + (t.frais_service || 0), 0);
+  const paid = retraitsTotal + uvSelfSpend;
 
   const card       = document.getElementById('cbc-card');
   const subsType   = document.getElementById('cab-subs-type');
