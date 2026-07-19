@@ -680,6 +680,13 @@ function fmtInput(input) {
 function animateCountUp(el, target, formatter, duration = 800) {
   if (!el) return;
   target = Number(target) || 0;
+  // Sans ce garde-fou, un tableau de bord rafraîchi automatiquement toutes
+  // les quelques secondes (voir le sondage 1s dans admin.js) relançait
+  // l'animation "0 → valeur" à CHAQUE appel, même quand la valeur n'avait
+  // pas changé depuis le dernier rendu — donnant l'impression que les
+  // chiffres (et donc la section) "bougeaient" en permanence.
+  if (el.dataset.animatedTarget === String(target)) return;
+  el.dataset.animatedTarget = String(target);
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   if (reduceMotion) { el.textContent = formatter ? formatter(target) : target; return; }
   const start = performance.now();

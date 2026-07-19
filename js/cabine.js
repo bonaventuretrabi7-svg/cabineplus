@@ -248,19 +248,21 @@ async function boot() {
   renderTopbarUser();
   renderTopbarAvatar();
   startCabPresence();
-  // Dès la connexion, synchronise les commandes depuis le serveur (voir
-  // DB.transactions.refresh(), js/db.js) : le cache local peut être
-  // obsolète (une commande traitée sur un autre appareil pendant que
-  // celui-ci était fermé).
-  await DB.transactions.refresh();
-  // Nécessaire pour que "Total payé" (loadCabBalanceCard()) soit correct
-  // dès l'ouverture, pas seulement après le premier tick de sondage.
-  await DB.retraits.refresh();
-  // Reprend aussi son propre profil (solde compris) dès l'ouverture — une
-  // recharge/un changement de formule fait par l'administration pendant que
-  // l'app était fermée doit apparaître dès la réouverture, sans attendre le
-  // premier cycle de sondage (voir plus bas, toutes les 30s).
-  await DB.users.refreshSelf();
+  // Dès la connexion, synchronise commandes/retraits/profil EN PARALLÈLE
+  // (3 lectures indépendantes qui n'ont pas à s'attendre l'une l'autre) —
+  // sur un réseau lent, ça remplace le cumul de 3 allers-retours successifs
+  // par un seul temps d'attente (le plus lent des 3), et c'est justement
+  // ce délai cumulé qui rendait l'ouverture/l'actualisation de l'espace
+  // cabine perceptiblement lente. Voir DB.transactions.refresh() (cache
+  // local des commandes potentiellement obsolète), DB.retraits.refresh()
+  // (nécessaire pour "Total payé", loadCabBalanceCard()) et
+  // DB.users.refreshSelf() (solde/profil à jour dès l'ouverture, sans
+  // attendre le premier tick de sondage plus bas).
+  await Promise.all([
+    DB.transactions.refresh(),
+    DB.retraits.refresh(),
+    DB.users.refreshSelf(),
+  ]);
   currentUser = Auth.refresh() || currentUser;
   DB.notifications.refresh(currentUser.id).then(updateNotifBadge);
   // Reprend les commandes en attente non assignées (pool "administration")
@@ -289,53 +291,66 @@ async function boot() {
   // même constante partagée que client.js/admin.js, resserrée depuis 30s
   // puis 3s : le meilleur compromis possible sans WebSocket/SSE sur cet
   // hébergement mutualisé, sans le saturer de requêtes).
-  setInterval(async () => {
-    // Signature avant rafraîchissement (voir DB.pollSignature, js/db.js) :
-    // les re-rendus lourds plus bas (liste de commandes, section affichée)
-    // ne se déclenchent que si elle a changé — évite de reconstruire tout
-    // le HTML à chaque tick (coûteux sur Android) quand rien de nouveau ne
-    // s'est produit.
-    const _pollBefore = DB.pollSignature(currentUser.id, 'cabine');
-    await DB.transactions.refresh();
+  setInterval(_cabRefreshCycle, DB.presence.HEARTBEAT_MS);
+}
+
+/* Un seul cycle de resynchronisation, partagé par le sondage automatique
+   (1s) ET le bouton "Actualiser" (voir refreshCabPage() plus bas, qui
+   faisait auparavant un location.reload() complet — beaucoup plus lent
+   qu'une resynchronisation en place : re-téléchargement de toutes les
+   pages/scripts puis nouveau boot() complet, au lieu de juste rejouer ce
+   cycle). Les 3 lectures indépendantes (transactions/retraits/profil)
+   partent EN PARALLÈLE plutôt qu'enchaînées une par une — sur un réseau
+   lent, ça change le temps d'attente total du cumul des 3 allers-retours
+   au plus lent des 3. */
+async function _cabRefreshCycle() {
+  // Signature avant rafraîchissement (voir DB.pollSignature, js/db.js) :
+  // les re-rendus lourds plus bas (liste de commandes, section affichée)
+  // ne se déclenchent que si elle a changé — évite de reconstruire tout
+  // le HTML à chaque tick (coûteux sur Android) quand rien de nouveau ne
+  // s'est produit.
+  const _pollBefore = DB.pollSignature(currentUser.id, 'cabine');
+  await Promise.all([
+    DB.transactions.refresh(),
     // Nécessaire pour que "Total payé" (loadCabBalanceCard()) reflète les
     // retraits/sanctions posés depuis un autre appareil (admin ou soi-même).
-    await DB.retraits.refresh();
-    await DB.business.sweepStaleOrders();
-    await DB.business.sweepAutoUnsuspensions();
+    DB.retraits.refresh(),
     // Reprend son propre profil (solde compris) — une recharge/un
     // changement de formule fait par l'administration doit apparaître ici
     // sans que le partenaire ait besoin de se déconnecter/reconnecter (voir
     // DB.users.refreshSelf(), js/db.js).
-    await DB.users.refreshSelf();
-    currentUser = Auth.refresh();
-    // Compte supprimé entre-temps : déconnexion. Une suspension (auto ou
-    // manuelle) ne déconnecte plus le partenaire — il doit rester connecté
-    // pour voir le bandeau d'alerte sur son tableau de bord (voir
-    // loadCabBalanceCard/_refreshSuspensionBanner) ; la réception de
-    // nouvelles commandes reste bloquée côté serveur simulé (js/db.js).
-    if (!currentUser) { Auth.logout(); return; }
-    // Notifications réelles (voir api/notifications_list.php) — reflète
-    // désormais ce qui se passe partout (recharge admin, remboursement...),
-    // pas seulement ce que cet appareil a lui-même déclenché.
-    await DB.notifications.refresh(currentUser.id);
-    updateNotifBadge();
-    loadCabBalanceCard();
-    loadCabRealtimeStats();
-    _refreshSuspensionBanner(currentUser);
-    const pollChanged = DB.pollSignature(currentUser.id, 'cabine') !== _pollBefore;
-    // Ne pas re-rendre la liste tant qu'une preuve de paiement (facture)
-    // est en cours de sélection/aperçu : un re-rendu complet remplacerait
-    // le <input type="file"> et l'aperçu affiché, faisant perdre au
-    // cabiniste sa sélection avant qu'il ait pu cliquer "Terminer".
-    const hasPendingProof = Object.keys(_facturePendingProofs).length > 0;
-    if (pollChanged && !hasPendingProof && (_cabFilter === 'all' || _cabFilter === 'en_attente')) loadCabOrders(_cabFilter);
-    // Re-rend la section ACTUELLEMENT affichée (voir _cabSectionLoader()
-    // ci-dessus) — couvre automatiquement tous les onglets (retraits,
-    // transferts, réclamations, profil...), pas seulement le tableau de
-    // bord comme avant. 'home' déjà couvert ci-dessus (loadCabBalanceCard/
-    // loadCabRealtimeStats), pas la peine de le rappeler une 2e fois.
-    if (pollChanged && _cabResume.section && _cabResume.section !== 'home') _cabSectionLoader(_cabResume.section)?.();
-  }, DB.presence.HEARTBEAT_MS);
+    DB.users.refreshSelf(),
+  ]);
+  await DB.business.sweepStaleOrders();
+  await DB.business.sweepAutoUnsuspensions();
+  currentUser = Auth.refresh();
+  // Compte supprimé entre-temps : déconnexion. Une suspension (auto ou
+  // manuelle) ne déconnecte plus le partenaire — il doit rester connecté
+  // pour voir le bandeau d'alerte sur son tableau de bord (voir
+  // loadCabBalanceCard/_refreshSuspensionBanner) ; la réception de
+  // nouvelles commandes reste bloquée côté serveur simulé (js/db.js).
+  if (!currentUser) { Auth.logout(); return; }
+  // Notifications réelles (voir api/notifications_list.php) — reflète
+  // désormais ce qui se passe partout (recharge admin, remboursement...),
+  // pas seulement ce que cet appareil a lui-même déclenché.
+  await DB.notifications.refresh(currentUser.id);
+  updateNotifBadge();
+  loadCabBalanceCard();
+  loadCabRealtimeStats();
+  _refreshSuspensionBanner(currentUser);
+  const pollChanged = DB.pollSignature(currentUser.id, 'cabine') !== _pollBefore;
+  // Ne pas re-rendre la liste tant qu'une preuve de paiement (facture)
+  // est en cours de sélection/aperçu : un re-rendu complet remplacerait
+  // le <input type="file"> et l'aperçu affiché, faisant perdre au
+  // cabiniste sa sélection avant qu'il ait pu cliquer "Terminer".
+  const hasPendingProof = Object.keys(_facturePendingProofs).length > 0;
+  if (pollChanged && !hasPendingProof && (_cabFilter === 'all' || _cabFilter === 'en_attente')) loadCabOrders(_cabFilter);
+  // Re-rend la section ACTUELLEMENT affichée (voir _cabSectionLoader()
+  // ci-dessus) — couvre automatiquement tous les onglets (retraits,
+  // transferts, réclamations, profil...), pas seulement le tableau de
+  // bord comme avant. 'home' déjà couvert ci-dessus (loadCabBalanceCard/
+  // loadCabRealtimeStats), pas la peine de le rappeler une 2e fois.
+  if (pollChanged && _cabResume.section && _cabResume.section !== 'home') _cabSectionLoader(_cabResume.section)?.();
 }
 
 /* ── Barre de navigation : masquée pendant le scroll, réapparaît à l'arrêt ── */
@@ -1122,7 +1137,13 @@ function renderCabOrders(txns) {
     const stPillBg  = rc.bg;
     const stPillClr = rc.text;
 
-    return `<div class="cov-card fade-in" id="req-${t.id}" style="border-left-color:${opClr};background:${opBg};border-right:4px solid ${rc.line};">
+    // Sans classe "fade-in" : cette liste est entièrement reconstruite à
+    // chaque rendu (voir list.innerHTML = txns.map(...) ci-dessus), y
+    // compris par le sondage automatique toutes les 1s (js/cabine.js,
+    // setInterval) — une animation d'entrée aurait donc rejoué sur TOUTES
+    // les cartes, neuves ou non, à chaque tick où quoi que ce soit change,
+    // donnant l'impression que la section "bouge" en permanence.
+    return `<div class="cov-card" id="req-${t.id}" style="border-left-color:${opClr};background:${opBg};border-right:4px solid ${rc.line};">
 
       <!-- Ligne statut + ref -->
       <div class="cov-top">
@@ -1528,12 +1549,24 @@ function _refreshCabPauseUI() {
   }
 }
 
-/* ── Actions rapides : actualiser ─────────────────────────────────── */
-function refreshCabPage(btn) {
+/* ── Actions rapides : actualiser ─────────────────────────────────────
+   Rejoue le même cycle de resynchronisation que le sondage automatique
+   (_cabRefreshCycle(), voir boot() plus haut) au lieu d'un rechargement
+   complet de la page — beaucoup plus lent (re-téléchargement de tous les
+   scripts + nouveau boot() entier) pour un résultat identique. */
+async function refreshCabPage(btn) {
   const ico = document.getElementById('cqk-refresh-ico');
   if (ico) ico.classList.add('cqk-spin');
   if (btn) btn.disabled = true;
-  setTimeout(() => location.reload(), 350);
+  try {
+    await _cabRefreshCycle();
+    Toast.success('Données actualisées.');
+  } catch (e) {
+    Toast.error('Échec de l\'actualisation — vérifiez votre connexion.');
+  } finally {
+    if (ico) ico.classList.remove('cqk-spin');
+    if (btn) btn.disabled = false;
+  }
 }
 
 /* ── Recherche par ID ──────────────────────────────────────────── */
@@ -1676,6 +1709,11 @@ const _facturePendingProofs = {};
 function handleFactureProofSelect(txnId, input) {
   const file = input.files && input.files[0];
   if (!file) return;
+  // Sans cette limite, une capture d'écran/photo trop lourde (fréquent sur
+  // les téléphones récents, 5-10 Mo) pouvait dépasser la taille de requête
+  // acceptée par le serveur (voir api/.user.ini) et échouer silencieusement
+  // à l'envoi, sans message clair pour le cabiniste.
+  if (file.size > 5 * 1024 * 1024) { Toast.error('Image trop volumineuse (max 5 Mo) — reprenez la capture en réduisant la qualité.'); input.value = ''; return; }
 
   const reader = new FileReader();
   reader.onload = () => {
@@ -2930,6 +2968,7 @@ function handleReclaFileSelect(reclaId, input) {
   const file = input.files && input.files[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) { Toast.error('Veuillez choisir une image.'); return; }
+  if (file.size > 5 * 1024 * 1024) { Toast.error('Image trop volumineuse (max 5 Mo) — reprenez la capture en réduisant la qualité.'); input.value = ''; return; }
 
   const reader = new FileReader();
   reader.onload = () => {
