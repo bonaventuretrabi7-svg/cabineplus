@@ -5815,26 +5815,15 @@ function openCadeauModal() {
   openModal('modal-cadeau');
 }
 
-function cadeauClaim() {
+async function cadeauClaim() {
   const { canClaim } = _cadeauStats();
   if (!canClaim) return;
   const me = Auth.current();
   if (!me) return;
   if (!_checkOrderCooldown()) return;
 
-  DB.users.updateSolde(me.id, CADEAU_MONTANT);
-  DB.transactions.create({
-    client_id   : me.id,
-    cabine_id   : me.cabine_id || null,
-    type        : 'cadeau_reward',
-    service     : 'Récompense 100 commandes',
-    operateur   : '',
-    montant     : CADEAU_MONTANT,
-    frais_service: 0,
-    statut      : 'terminé',
-    date        : new Date().toISOString(),
-    notes       : `Cadeau KBINE PLUS — récompense pour ${(_cadeauStats().claimed + 1) * CADEAU_GOAL} commandes réalisées`,
-  });
+  const res = await DB.business.claimCadeau();
+  if (!res.ok) { Toast.error(res.error); return; }
 
   _markOrderSubmitted();
   currentUser = Auth.refresh();

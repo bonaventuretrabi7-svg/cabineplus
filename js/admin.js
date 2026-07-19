@@ -2247,7 +2247,7 @@ async function adminChangeAbonnementCabine(cabineId) {
   loadCabines();
 }
 
-function saveUserEdits(id) {
+async function saveUserEdits(id) {
   const u = DB.users.byId(id);
   if (!u) return;
 
@@ -2264,15 +2264,24 @@ function saveUserEdits(id) {
   if (existing && existing.id !== id) { Toast.error('Ce numéro est déjà utilisé par un autre compte de ce type.'); return; }
 
   const updates = { prenom, nom, telephone, email };
+  let limite;
   if (u.role === 'cabine') {
     const limiteEl = document.getElementById('edit-user-limite');
-    const limite = limiteEl ? parseInt(limiteEl.value) : 0;
+    limite = limiteEl ? parseInt(limiteEl.value) : 0;
     updates.limite_commandes = isNaN(limite) || limite <= 0 ? null : limite;
   }
-  DB.users.update(id, updates);
 
-  const delta = nouveauSolde - (u.solde || 0);
-  if (delta !== 0) DB.users.updateSolde(id, delta);
+  // Persisté côté serveur (voir api/admin_update_user.php) — sans ça, ce
+  // formulaire ne modifiait que le cache local de l'admin qui cliquait
+  // (jamais visible d'un autre appareil, ni conservé après rechargement).
+  const res = await ServerAPI.adminUpdateUser({
+    id, prenom, nom, telephone, email,
+    limiteCommandes: u.role === 'cabine' ? updates.limite_commandes : undefined,
+    nouveauSolde,
+  });
+  if (!res.ok) { Toast.error(res.error); return; }
+
+  DB.users.update(id, { ...updates, solde: nouveauSolde });
 
   Toast.success(`Compte de ${prenom} ${nom} mis à jour.`);
   viewUser(id);

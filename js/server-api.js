@@ -201,6 +201,26 @@ const ServerAPI = (() => {
     return { ok: true, profile: data.profile };
   }
 
+  /* Modifie un compte client/cabine (coordonnées + solde) — voir
+     api/admin_update_user.php, même patron que adminUpdateProfile()
+     ci-dessus mais pour client/cabine (admin_update_profile.php est
+     réservé aux comptes admin). */
+  async function adminUpdateUser({ id, prenom, nom, telephone, email, limiteCommandes, nouveauSolde }) {
+    const body = { id };
+    if (prenom !== undefined) body.prenom = prenom;
+    if (nom !== undefined) body.nom = nom;
+    if (telephone !== undefined) body.telephone = telephone;
+    if (email !== undefined) body.email = email;
+    if (limiteCommandes !== undefined) body.limite_commandes = limiteCommandes;
+    if (nouveauSolde !== undefined) body.nouveau_solde = nouveauSolde;
+
+    const { res, data } = await _call('admin_update_user.php', { auth: true, body });
+    if (!res.ok || !data || data.error) {
+      return { ok: false, error: (data && data.error) || 'Échec de la modification du compte.' };
+    }
+    return { ok: true, profile: data.profile };
+  }
+
   /* Lecture/écriture des réglages globaux (voir api/settings_get.php et
      api/settings_update.php, réservée à un jeton admin) — utilisées par
      DB.settings dans js/db.js. Lève une exception en cas d'échec (au lieu
@@ -316,6 +336,13 @@ const ServerAPI = (() => {
     const { res, data, networkError } = await _call('orders_create.php', { auth: true, body: payload });
     if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la création de la commande.' };
+    return { ok: true, transaction: data.transaction };
+  }
+
+  async function cadeauClaim() {
+    const { res, data, networkError } = await _call('cadeau_claim.php', { auth: true });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la réclamation.' };
     return { ok: true, transaction: data.transaction };
   }
 
@@ -688,11 +715,11 @@ const ServerAPI = (() => {
   }
 
   return {
-    login, logout, createAccount, adminCreateAccount, adminUpdateProfile, getSettings, updateSettings, listProfiles,
+    login, logout, createAccount, adminCreateAccount, adminUpdateProfile, adminUpdateUser, getSettings, updateSettings, listProfiles,
     isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
     accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
     maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline,
-    ordersCreate, ordersCreateAdvanced, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
+    ordersCreate, ordersCreateAdvanced, cadeauClaim, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
     cabineSelfRecharge, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,

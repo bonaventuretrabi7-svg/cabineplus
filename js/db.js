@@ -1906,6 +1906,23 @@ const DB = (() => {
       return { ok: true, txn };
     },
 
+    /* Réclame la récompense "100 commandes" — remplace l'ancienne version
+       100% locale de cadeauClaim() (js/client.js) par un appel serveur
+       (voir api/cadeau_claim.php, qui recalcule lui-même l'éligibilité :
+       jamais fiable de faire confiance à un compteur envoyé par le
+       client pour une opération monétaire). */
+    async claimCadeau() {
+      const res = await ServerAPI.cadeauClaim();
+      if (!res.ok) return { ok: false, error: res.error || 'Échec de la réclamation.' };
+
+      const txn = res.transaction;
+      const list = get(KEY.transactions);
+      list.push(txn);
+      set(KEY.transactions, list);
+
+      return { ok: true, txn };
+    },
+
     /* Nombre de commandes actuellement en attente dans l'espace d'une cabine. */
     pendingCountForCabine(cabineId) {
       return transactions.byCabine(cabineId).filter(t => t.statut === 'en_attente').length;
