@@ -197,11 +197,6 @@ function checkQuotaDeadline(PDO $pdo, string $cabineId): bool {
 // (utile pour les notifications post-commit).
 function refundTransactionEffect(PDO $pdo, string $txnId): array {
   $PENALITE_REMBOURSEMENT_TERMINE = 60;
-  // Bonus de dédommagement versé au client à CHAQUE remboursement (en
-  // attente ou déjà terminé) — indépendant de la pénalité cabine
-  // ci-dessus, qui ne s'applique elle que si la commande avait été
-  // faussement marquée "terminée".
-  $BONUS_REMBOURSEMENT_CLIENT = 15;
 
   $txnStmt = $pdo->prepare('SELECT * FROM transactions WHERE id = ? FOR UPDATE');
   $txnStmt->execute([$txnId]);
@@ -231,14 +226,18 @@ function refundTransactionEffect(PDO $pdo, string $txnId): array {
     }
   }
 
-  $creditClient = (int)$txn['montant'] + $BONUS_REMBOURSEMENT_CLIENT;
+  // Le client récupère le montant de la transaction ET le frais de
+  // service qu'il avait payé pour celle-ci (remboursement intégral) — à
+  // CHAQUE remboursement (en attente ou déjà terminé), indépendant de la
+  // pénalité cabine ci-dessus, qui ne s'applique elle que si la commande
+  // avait été faussement marquée "terminée".
+  $creditClient = (int)$txn['montant'] + (int)$txn['frais_service'];
   $pdo->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([$creditClient, $txn['client_id']]);
   $pdo->prepare("UPDATE transactions SET statut='remboursé', date_remboursement=NOW() WHERE id=?")->execute([$txnId]);
 
   // Exposé au retour pour que les appelants (orders_refund.php,
   // orders_process_refund.php) puissent notifier le client avec le
-  // montant réellement crédité (montant + bonus), sans dupliquer la
-  // constante ci-dessus.
+  // montant réellement crédité (montant + frais de service).
   $txn['_credited_amount'] = $creditClient;
   return $txn;
 }

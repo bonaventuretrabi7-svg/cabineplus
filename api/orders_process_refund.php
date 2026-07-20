@@ -39,7 +39,7 @@ try {
   throw $e;
 }
 
-createNotification($txn['client_id'], 'Votre commande de ' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F a été remboursée par l\'administration : ' . number_format((float)$txn['_credited_amount'], 0, ',', ' ') . ' F crédités (montant + dédommagement).', 'success');
+createNotification($txn['client_id'], 'Votre commande de ' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F a été remboursée par l\'administration : ' . number_format((float)$txn['_credited_amount'], 0, ',', ' ') . ' F crédités (montant + frais de service).', 'success');
 createNotification($req['cabine_id'], 'Le remboursement d\'une commande a été validé par l\'administration.', 'success');
 
 echo json_encode(['ok' => true]);
