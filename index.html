@@ -766,30 +766,46 @@
             <div class="tf-slide-hd"><i class="fa-solid fa-credit-card"></i> Choisir le moyen de paiement</div>
             <button class="wz-back-btn" onclick="schedWzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
 
-            <div class="payment-grid" id="sched-payment-grid"><!-- Rendu par JS --></div>
-            <div class="tf-pay-num-wrap" id="sched-pay-num-wrap">
-              <input type="tel" id="sched-pay-phone" maxlength="14"
-                class="tf-pay-num-input" inputmode="numeric"
-                placeholder="XX XX XX XX XX"
-                oninput="schedOnPayPhone(this.value)" disabled />
-              <div class="tf-pay-num-label" id="sched-pay-phone-method">Sélectionnez un moyen ci-dessus</div>
-              <div class="tf-pay-num-bar"></div>
-            </div>
-            <div class="tf-pay-solde-wrap" id="sched-pay-solde-wrap" style="display:none;">
-              <div class="tf-pay-solde-dest-marquee">
-                <i class="fa-solid fa-mobile-screen"></i>
-                <span id="sched-pay-solde-dest">—</span>
+            <!-- PANNEAU 1 : sélection du moyen de paiement -->
+            <div class="tf-pay-panel" id="sched-pay-panel-select">
+              <div class="payment-grid" id="sched-payment-grid"><!-- Rendu par JS --></div>
+              <div class="tf-pay-num-wrap" id="sched-pay-num-wrap">
+                <input type="tel" id="sched-pay-phone" maxlength="14"
+                  class="tf-pay-num-input" inputmode="numeric"
+                  placeholder="XX XX XX XX XX"
+                  oninput="schedOnPayPhone(this.value)" disabled />
+                <div class="tf-pay-num-label" id="sched-pay-phone-method">Sélectionnez un moyen ci-dessus</div>
+                <div class="tf-pay-num-bar"></div>
+              </div>
+              <div class="tf-pay-solde-wrap" id="sched-pay-solde-wrap" style="display:none;">
+                <div class="tf-pay-solde-dest-marquee">
+                  <i class="fa-solid fa-mobile-screen"></i>
+                  <span id="sched-pay-solde-dest">—</span>
+                </div>
               </div>
             </div>
 
-            <div class="sched-hint">
-              <i class="fa-solid fa-circle-info"></i>
-              Le montant + 15 FCFA de frais de service seront débités immédiatement. La commande démarrera automatiquement à l'heure choisie et ne pourra plus être annulée.
-            </div>
+            <!-- PANNEAU 2 : récapitulatif — même modèle que #tf-panel-recap
+                 du tunnel principal (tfBuildInlineRecap()), sans le délai de
+                 30s (pas de raison de presser un client qui programme une
+                 commande future) : voir schedShowRecap()/schedEditPayment()/
+                 schedSubmit() (js/client.js). -->
+            <div class="tf-pay-panel" id="sched-pay-panel-recap" style="display:none">
+              <div class="tf-recap-rows" id="sched-recap-rows"></div>
 
-            <button class="tf-validate-btn" id="sched-submit-btn" onclick="schedSubmit()">
-              <i class="fa-solid fa-circle-check"></i> Programmer et payer
-            </button>
+              <div class="sched-hint">
+                <i class="fa-solid fa-circle-info"></i>
+                Le montant + 15 FCFA de frais de service seront débités immédiatement. La commande démarrera automatiquement à l'heure choisie et ne pourra plus être annulée.
+              </div>
+
+              <button type="button" class="wz-back-btn" onclick="schedEditPayment()" title="Modifier le moyen de paiement" style="margin-bottom:8px;">
+                <i class="fa-solid fa-pen"></i>
+              </button>
+
+              <button class="tf-validate-btn" id="sched-submit-btn" onclick="schedSubmit()">
+                <i class="fa-solid fa-circle-check"></i> Confirmez
+              </button>
+            </div>
           </div>
 
         </div><!-- /#sched-slider-track -->

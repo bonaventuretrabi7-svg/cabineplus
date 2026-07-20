@@ -4216,6 +4216,10 @@ function schedSelectPayment(id, el) {
     if (soldeWrap) soldeWrap.style.display = 'flex';
     const destEl = document.getElementById('sched-pay-solde-dest');
     if (destEl) destEl.textContent = schedState.recipient ? Fmt.phone(schedState.recipient) : '—';
+    // "Solde" n'exige aucun numéro : le récapitulatif peut s'afficher tout
+    // de suite (voir schedOnPayPhone() ci-dessous pour les autres moyens,
+    // qui attendent un numéro valide avant de le montrer).
+    schedShowRecap();
   } else {
     if (numWrap)   numWrap.style.display   = 'flex';
     if (soldeWrap) soldeWrap.style.display = 'none';
@@ -4243,6 +4247,65 @@ function schedOnPayPhone(val) {
   if (payInput) payInput.value = Fmt.phone(clean);
   schedState.payPhone = clean;
   schedSyncStepper();
+  if (/^0[0-9]{9}$/.test(clean)) schedShowRecap();
+}
+
+/* ── Récapitulatif avant confirmation — même modèle que tfShowRecap()/
+   tfBuildInlineRecap() du tunnel principal, sans le délai de 30s (voir
+   commentaire index.html) : affiché dès que le moyen de paiement devient
+   valide, "Modifier" (crayon) permet de revenir choisir un autre moyen. */
+function schedShowRecap() {
+  const payOk = schedState.paymentMethod === 'solde' || /^0[0-9]{9}$/.test(schedState.payPhone);
+  if (!payOk) return;
+  schedBuildRecap();
+  const selectPanel = document.getElementById('sched-pay-panel-select');
+  const recapPanel   = document.getElementById('sched-pay-panel-recap');
+  if (selectPanel) selectPanel.style.display = 'none';
+  if (recapPanel)  recapPanel.style.display  = 'flex';
+  _schedSyncSlideHeight();
+}
+
+function schedEditPayment() {
+  const selectPanel = document.getElementById('sched-pay-panel-select');
+  const recapPanel   = document.getElementById('sched-pay-panel-recap');
+  if (recapPanel)  recapPanel.style.display  = 'none';
+  if (selectPanel) selectPanel.style.display = 'flex';
+  _schedSyncSlideHeight();
+  setTimeout(() => document.getElementById('sched-pay-phone')?.focus(), 60);
+}
+
+function schedBuildRecap() {
+  const pm = PAYMENT_METHODS.find(p => p.id === schedState.paymentMethod);
+  const emojis = { Orange: '🟠', MTN: '🟡', Moov: '🔵' };
+  const montant = schedState.type === 'forfait'
+    ? (schedState.forfait?.prix || 0)
+    : (parseInt(document.getElementById('sched-amount')?.value, 10) || 0);
+  const serviceLbl = schedState.type === 'forfait'
+    ? (schedState.forfait ? `${schedState.forfait.nom} — ${schedState.forfait.detail}` : 'Forfait')
+    : 'Transfert direct';
+  const dateVal = document.getElementById('sched-date')?.value;
+  const timeVal = document.getElementById('sched-time')?.value;
+  const whenLbl = (dateVal && timeVal)
+    ? new Date(`${dateVal}T${timeVal}:00`).toLocaleString('fr-CI', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  const rows = [
+    ['Réseau', (emojis[schedState.operateur] || '') + ' ' + (schedState.operateur || '—'), false],
+    ['Service', serviceLbl, false],
+    ['Programmée le', whenLbl, false],
+    ['Destinataire', Fmt.phone(schedState.recipient), false],
+    ['Paiement', (pm ? pm.nom : '—'), false],
+    ...(schedState.paymentMethod === 'solde' ? [] : [['N° paiement', Fmt.phone(schedState.payPhone), false]]),
+    ['Montant', Fmt.money(montant), false],
+    ['Frais', '15 FCFA', false],
+    ['Total débité', Fmt.money(montant + 15), true],
+  ];
+  const el = document.getElementById('sched-recap-rows');
+  if (el) el.innerHTML = rows.map(([lbl, val, total]) =>
+    `<div class="tf-recap-row${total ? ' tf-recap-row--total' : ''}">
+      <span>${lbl}</span><strong>${val}</strong>
+    </div>`
+  ).join('');
 }
 
 function _schedResetForm() {
@@ -4289,6 +4352,10 @@ function _schedResetForm() {
   if (payMethodLabelEl) payMethodLabelEl.textContent = 'Sélectionnez un moyen ci-dessus';
   document.getElementById('sched-pay-num-wrap').style.display   = 'flex';
   document.getElementById('sched-pay-solde-wrap').style.display = 'none';
+  document.getElementById('sched-pay-panel-select').style.display = 'flex';
+  document.getElementById('sched-pay-panel-recap').style.display  = 'none';
+  const recapRowsEl = document.getElementById('sched-recap-rows');
+  if (recapRowsEl) recapRowsEl.innerHTML = '';
   schedGoToStep(0);
 }
 

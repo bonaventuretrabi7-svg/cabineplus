@@ -39,11 +39,11 @@ const ServerAPI = (() => {
   // changer.
   const _CALL_TIMEOUT_MS = 10000;
 
-  async function _call(path, { body, auth = false } = {}) {
+  async function _call(path, { body, auth = false, timeoutMs = _CALL_TIMEOUT_MS } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (auth && _token) headers['Authorization'] = 'Bearer ' + _token;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), _CALL_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
     // fetch() lui-même peut lever une exception (réseau coupé, CORS, DNS...),
     // contrairement au client Supabase historique qui renvoyait toujours un
     // objet { data, error }. Sans ce try/catch, un tel échec remontait en
@@ -112,7 +112,11 @@ const ServerAPI = (() => {
   // l'appelant doit d'abord mettre de côté le jeton admin courant avant de
   // basculer, pour pouvoir le restaurer à la fin de l'impersonation.
   async function adminImpersonate(targetId) {
-    const { res, data, networkError } = await _call('admin_impersonate.php', { auth: true, body: { target_id: targetId } });
+    // timeoutMs plus généreux que le défaut (10s) : action ponctuelle
+    // déclenchée par un clic, jamais un appel répété par un sondage — pas
+    // de risque d'empilement si la connexion est simplement lente plutôt
+    // que réellement coupée (voir _CALL_TIMEOUT_MS ci-dessus).
+    const { res, data, networkError } = await _call('admin_impersonate.php', { auth: true, body: { target_id: targetId }, timeoutMs: 30000 });
     if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || 'Accès impossible.' };
@@ -152,11 +156,19 @@ const ServerAPI = (() => {
   }
 
   /* Auto-inscription client/cabine (voir api/create_account.php, public) —
-     utilisée par handleAuthGateRegister() dans js/client.js. */
+     utilisée par handleAuthGateRegister() dans js/client.js. timeoutMs
+     généreux (30s, pas les 10s par défaut) : action ponctuelle déclenchée
+     par un clic (jamais un sondage répété), et réutilisée par
+     finishCreateUser() (js/admin.js) pour la création cabine/client
+     depuis l'espace admin — mieux vaut laisser le temps à une connexion
+     lente plutôt que d'échouer sur "Connexion Internet requise" alors
+     que l'appareil est bien en ligne, juste lent. */
   async function createAccount({ role, nom, prenom, telephone, pin, email, cabineNom, parrainTelephone }) {
-    const { res, data } = await _call('create_account.php', {
+    const { res, data, networkError } = await _call('create_account.php', {
       body: { role, nom, prenom, telephone, pin, email: email || null, cabine_nom: cabineNom || null, parrain_telephone: parrainTelephone || null },
+      timeoutMs: 30000,
     });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || 'Échec de la création du compte.' };
     }
@@ -169,11 +181,17 @@ const ServerAPI = (() => {
      permissions/whatsapp/photo/poste/pays/ville/quartier/dateNaissance/docs :
      profil administrateur complet (voir handleCreateUser()) — optionnels,
      sans effet pour un compte client/cabine (colonnes ignorées côté serveur
-     si absentes du corps de la requête). */
+     si absentes du corps de la requête). timeoutMs 30s : le corps peut
+     contenir 3 images (CNI recto/verso + photo) encodées en base64,
+     nettement plus lourd qu'un appel classique — les 10s par défaut sont
+     trop courtes sur une connexion mobile moyenne (voir _CALL_TIMEOUT_MS
+     plus haut), faisant échouer la création avec "Connexion Internet
+     requise" alors que l'envoi était simplement encore en cours. */
   async function adminCreateAccount({ role, nom, prenom, telephone, pin, email, cabineNom, adminLevel,
                                        permissions, whatsapp, photo, poste, pays, ville, quartier, dateNaissance, docs }) {
-    const { res, data } = await _call('admin_create_account.php', {
+    const { res, data, networkError } = await _call('admin_create_account.php', {
       auth: true,
+      timeoutMs: 30000,
       body: {
         role, nom, prenom, telephone: telephone || null, pin,
         email: email || null, cabine_nom: cabineNom || null, admin_level: adminLevel || null,
@@ -182,6 +200,7 @@ const ServerAPI = (() => {
         date_naissance: dateNaissance || null, docs,
       },
     });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
     if (!res.ok || !data || data.error) {
       return { ok: false, error: (data && data.error) || 'Échec de la création du compte.' };
     }
