@@ -42,4 +42,8 @@
          voir js/client.js openContactsPicker / plugin @capacitor-community/contacts). -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <uses-permission android:name="android.permission.WRITE_CONTACTS" />
+    <!-- Notifications push (voir js/push-notifications.js) — obligatoire à
+         partir d'Android 13 (API 33) pour que l'app puisse même demander la
+         permission d'afficher une notification à l'utilisateur. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

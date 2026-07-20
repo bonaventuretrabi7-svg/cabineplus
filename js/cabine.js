@@ -209,6 +209,7 @@ async function boot() {
   await _tryRememberMeRestore();
   currentUser = Auth.require('cabine', { silent: true });
   if (!currentUser) { showCabineLoginGate(); return; }
+  PushNotif.init();
 
   // Mode sombre : source de vérité = le compte (voir
   // api/cabine_update_self.php/toggleCabDarkMode() plus bas) quand déjà

@@ -15,7 +15,8 @@
   "dependencies": {
     "@capacitor-community/contacts": "^6.1.1",
     "@capacitor/android": "^6.1.2",
-    "@capacitor/core": "^6.1.2"
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/push-notifications": "^6.0.5"
   },
   "devDependencies": {
     "@capacitor/cli": "^6.1.2"

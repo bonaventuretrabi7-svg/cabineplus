@@ -511,12 +511,17 @@
     .type-card-lbl { font-size: .74rem; font-weight: 700; color: var(--text); }
 
     /* ── Retour visuel des boutons "Actualiser" ─────────────────────
-       Voir le listener délégué sur .fa-rotate-right dans js/admin.js. */
+       Voir adminRefreshClick() dans js/admin.js : la classe .spinning est
+       posée AVANT l'appel du loader et retirée seulement une fois sa
+       promesse résolue (tourne en continu tant que le rechargement est
+       réellement en cours, pas un simple tic de durée fixe). Couvre les
+       deux familles d'icône utilisées selon les boutons Actualiser. */
     @keyframes refreshSpin { to { transform: rotate(360deg); } }
-    .fa-rotate-right.spinning { display: inline-block; animation: refreshSpin .6s linear; }
+    .fa-rotate-right.spinning, .fa-arrows-rotate.spinning { display: inline-block; animation: refreshSpin .7s linear infinite; }
     @media (prefers-reduced-motion: reduce) {
-      .fa-rotate-right.spinning { animation: none; }
+      .fa-rotate-right.spinning, .fa-arrows-rotate.spinning { animation: none; }
     }
+    button:disabled .fa-rotate-right.spinning, button:disabled .fa-arrows-rotate.spinning { opacity: .7; }
 
     /* ── Tableau de bord — fond animé de bulles discrètes ───────────
        Pur CSS (pas de librairie) : des cercles à contour vide dérivent
@@ -972,7 +977,7 @@
       <button class="topbar-menu-btn" onclick="toggleAdminSidebar()" title="Réduire/déplier le menu"><i class="fa-solid fa-bars"></i></button>
       <span class="topbar-title">Tableau de bord Admin</span>
       <div class="topbar-actions">
-        <button class="topbar-btn" onclick="refreshCurrentAdminView()" title="Actualiser">
+        <button class="topbar-btn" onclick="adminRefreshClick(this, refreshCurrentAdminView)" title="Actualiser">
           <i class="fa-solid fa-rotate-right"></i>
         </button>
         <button class="topbar-btn" onclick="Theme.toggle()" title="Thème">
@@ -1216,7 +1221,7 @@
                   placeholder="Rechercher (nom, téléphone, email…)"
                   oninput="loadClients(this.value)" />
               </div>
-              <button class="btn btn-ghost btn-sm" onclick="loadClients()">
+              <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadClients())">
                 <i class="fa-solid fa-rotate-right"></i> Actualiser
               </button>
               <button class="btn btn-ghost btn-sm" onclick="exportCSV('clients')">
@@ -1257,7 +1262,7 @@
                   placeholder="Rechercher (nom, zone, téléphone…)"
                   oninput="loadCabines(this.value)" />
               </div>
-              <button class="btn btn-ghost btn-sm" onclick="loadCabines()">
+              <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadCabines())">
                 <i class="fa-solid fa-rotate-right"></i> Actualiser
               </button>
               <button class="btn btn-ghost btn-sm" onclick="exportCSV('cabines')">
@@ -1296,7 +1301,7 @@
               <option value="50000">Solde ≥ 50 000 FCFA</option>
               <option value="100000">Solde ≥ 100 000 FCFA</option>
             </select>
-            <button class="btn btn-ghost btn-sm" onclick="loadRetraitsAdmin()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRetraitsAdmin())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1331,7 +1336,7 @@
                   oninput="loadRechargeCabiniste(this.value)" />
               </div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadRechargeCabiniste()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRechargeCabiniste())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1366,7 +1371,7 @@
                   oninput="loadRechargeClient(this.value)" />
               </div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadRechargeClient()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRechargeClient())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1407,7 +1412,7 @@
                 <option value="refusé">Refusés</option>
               </select>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadRechargeUvAdmin()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRechargeUvAdmin())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1448,7 +1453,7 @@
                 <option value="refusé">Refusés</option>
               </select>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadExchangeAdmin()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadExchangeAdmin())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1483,7 +1488,7 @@
                   oninput="searchRetardsAdmin()" />
               </div>
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadRetardsAdmin()">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRetardsAdmin())">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1522,7 +1527,7 @@
               <input type="date" class="form-control" id="rhist-date-fin" title="Date de fin"
                 style="max-width:150px;" onchange="loadRetraitsHistorique(1)" />
             </div>
-            <button class="btn btn-ghost btn-sm" onclick="loadRetraitsHistorique(1)">
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadRetraitsHistorique(1))">
               <i class="fa-solid fa-rotate-right"></i> Actualiser
             </button>
           </div>
@@ -1564,7 +1569,7 @@
                 <option value="en_retard">En retard</option>
                 <option value="refusé">Refusés</option>
               </select>
-              <button class="btn btn-ghost btn-sm" onclick="loadTransactions()">
+              <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadTransactions())">
                 <i class="fa-solid fa-rotate-right"></i> Actualiser
               </button>
               <span id="bulk-reassign-bar" style="display:none;align-items:center;gap:10px;">
@@ -1708,7 +1713,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-handshake" style="color:var(--primary)"></i> Candidatures</span>
-            <button class="btn btn-sm" onclick="loadPartnerRequests()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadPartnerRequests())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1836,7 +1841,7 @@
                 <option value="termine">Appel terminé</option>
               </select>
             </div>
-            <button class="btn btn-sm" onclick="loadZeroTransactionAdmin(document.getElementById('zt-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadZeroTransactionAdmin(document.getElementById('zt-appel-filter').value))" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1864,7 +1869,7 @@
                 <option value="termine">Appel terminé</option>
               </select>
             </div>
-            <button class="btn btn-sm" onclick="loadClientsInactifsAdmin(document.getElementById('ci-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadClientsInactifsAdmin(document.getElementById('ci-appel-filter').value))" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1892,7 +1897,7 @@
                 <option value="termine">Appel terminé</option>
               </select>
             </div>
-            <button class="btn btn-sm" onclick="loadCabinesInactivesAdmin(document.getElementById('cai-appel-filter').value)" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadCabinesInactivesAdmin(document.getElementById('cai-appel-filter').value))" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1911,7 +1916,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-key" style="color:var(--primary)"></i> Demandes en attente</span>
-            <button class="btn btn-sm" onclick="loadResetRequests()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadResetRequests())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1931,7 +1936,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-lock" style="color:var(--primary)"></i> Comptes bloqués</span>
-            <button class="btn btn-sm" onclick="loadComptesBloquesAdmin()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadComptesBloquesAdmin())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1951,7 +1956,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-ban" style="color:var(--primary)"></i> Cabines suspendues</span>
-            <button class="btn btn-sm" onclick="loadCabinesSuspenduesAdmin()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadCabinesSuspenduesAdmin())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1971,7 +1976,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-mobile-screen-button" style="color:var(--primary)"></i> Appareils</span>
-            <button class="btn btn-sm" onclick="loadAppareilsAdmin()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadAppareilsAdmin())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -1990,7 +1995,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-rotate-left" style="color:var(--primary)"></i> Demandes de remboursement</span>
-            <button class="btn btn-sm" onclick="loadRefundRequests()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadRefundRequests())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -2010,7 +2015,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-comments" style="color:var(--primary)"></i> Discussions</span>
-            <button class="btn btn-sm" onclick="loadDiscussionsAdmin()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadDiscussionsAdmin())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -2029,7 +2034,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-user-shield" style="color:var(--primary)"></i> Accès journalisés</span>
-            <button class="btn btn-sm" onclick="loadAccessLogs()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadAccessLogs())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -2049,7 +2054,7 @@
         <div class="card">
           <div class="card-header">
             <span class="card-title"><i class="fa-solid fa-rotate" style="color:var(--primary)"></i> Réabonnements</span>
-            <button class="btn btn-sm" onclick="loadReabonnementCabine()" style="font-size:.65rem;padding:5px 12px;">
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadReabonnementCabine())" style="font-size:.65rem;padding:5px 12px;">
               <i class="fa-solid fa-arrows-rotate"></i> Actualiser
             </button>
           </div>
@@ -2418,7 +2423,7 @@
                   placeholder="Rechercher (nom, téléphone…)"
                   oninput="searchAdminsList()" />
               </div>
-              <button class="btn btn-ghost btn-sm" onclick="loadAdminsList()">
+              <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadAdminsList())">
                 <i class="fa-solid fa-rotate-right"></i> Actualiser
               </button>
             </div>
@@ -2552,7 +2557,7 @@
                   placeholder="Rechercher (nom, zone, téléphone…)"
                   oninput="loadPermissionCabine(this.value)" />
               </div>
-              <button class="btn btn-ghost btn-sm" onclick="loadPermissionCabine()">
+              <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadPermissionCabine())">
                 <i class="fa-solid fa-rotate-right"></i> Actualiser
               </button>
             </div>
@@ -3362,7 +3367,7 @@
 <script src="js/server-config.js"></script>
 <script src="js/server-api.js"></script>
 <script src="js/db.js?v=3"></script>
-<script src="js/auth.js?v=4"></script><script src="js/update-notifier.js?v=1"></script><script src="js/admin.js?v=1"></script>
+<script src="js/auth.js?v=4"></script><script src="js/update-notifier.js?v=1"></script><script src="js/push-notifications.js?v=1"></script><script src="js/admin.js?v=1"></script>
 <script>
   function printReport() {
     const stats = DB.transactions.stats();

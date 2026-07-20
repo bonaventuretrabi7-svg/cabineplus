@@ -319,6 +319,12 @@ const ServerAPI = (() => {
     return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
   }
 
+  // Enregistre le jeton FCM de l'appareil courant — voir js/push-notifications.js.
+  async function pushRegisterToken(token, platform) {
+    const { res, data } = await _call('push_register.php', { auth: true, body: { token, platform } });
+    return (res.ok && data && !data.error) ? { ok: true } : { ok: false };
+  }
+
   async function permissionLogsList() {
     const { res, data } = await _call('permission_logs_list.php', { auth: true });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
@@ -787,7 +793,7 @@ const ServerAPI = (() => {
   return {
     login, logout, createAccount, adminCreateAccount, adminUpdateProfile, adminUpdateUser, adminSetAccountStatus, adminUpdateOwnSound, getSettings, updateSettings, listProfiles,
     isConfigured, getToken, setToken, whoami, favorisList, favorisCreate, favorisRemove,
-    accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate,
+    accessLogsList, accessLogsCreate, permissionLogsList, permissionLogsCreate, pushRegisterToken,
     maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline,
     ordersCreate, ordersCreateAdvanced, cadeauClaim, updateProfilePhoto, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersSweepQuota, ordersList, retardsList,

@@ -90,12 +90,14 @@ function _adminViewLoader(name) {
 
 /* Bouton "Actualiser" de la barre du haut : recharge l'onglet réellement
    affiché (table ci-dessus) au lieu de rester figé sur le tableau de
-   bord quel que soit l'endroit où l'admin se trouve. */
+   bord quel que soit l'endroit où l'admin se trouve. Retourne la promesse
+   du loader (quand il en a une) pour qu'adminRefreshClick() puisse
+   réellement attendre la fin du rechargement avant d'arrêter l'icône. */
 function refreshCurrentAdminView() {
   const view = document.querySelector('.view.active')?.dataset.view;
   const loader = view && _adminViewLoader(view);
-  if (loader) loader();
-  else { loadDashboard(); initCharts(); }
+  if (loader) return loader();
+  loadDashboard(); initCharts();
 }
 
 /* Menu déroulant "⋯" générique pour les actions de ligne des tableaux
@@ -129,18 +131,26 @@ document.addEventListener('click', (e) => {
   if (!e.target.closest('.row-menu') && !e.target.closest('.menu-btn-row')) closeAllRowMenus();
 });
 
-/* Retour visuel sur les boutons "Actualiser" (icône fa-rotate-right) —
-   ces rechargements sont locaux/synchrones (pas d'appel réseau), donc
-   sans ce spin l'utilisateur n'a aucun signal que le clic a été pris en
-   compte. Délégué au document pour couvrir tous les boutons Actualiser
-   du fichier sans devoir toucher chacun de leurs onclick. */
-document.addEventListener('click', (e) => {
-  const icon = e.target.closest('button')?.querySelector('.fa-rotate-right');
-  if (!icon) return;
-  icon.classList.remove('spinning');
-  void icon.offsetWidth;
-  icon.classList.add('spinning');
-});
+/* Retour visuel sur les boutons "Actualiser" — remplace l'ancien listener
+   délégué qui se contentait d'un spin cosmétique de 0.6s indépendant de la
+   vraie durée du rechargement (correct tant que ces rechargements étaient
+   100% locaux, plus le cas depuis que loadTransactions()/loadPartnerRequests()
+   /etc. font un vrai aller-retour serveur). Ici l'icône tourne en continu
+   tant que `fn()` n'est pas résolue — l'admin voit réellement la page en
+   cours d'actualisation, pas juste un tic visuel qui s'arrête avant la fin
+   du chargement. Le bouton est aussi désactivé pendant l'opération pour
+   éviter les double-clics qui dupliqueraient l'appel serveur. */
+async function adminRefreshClick(btn, fn) {
+  const icon = btn?.querySelector('.fa-rotate-right, .fa-arrows-rotate');
+  if (btn) btn.disabled = true;
+  icon?.classList.add('spinning');
+  try {
+    await fn();
+  } finally {
+    icon?.classList.remove('spinning');
+    if (btn) btn.disabled = false;
+  }
+}
 
 /* Actions de ligne pour une transaction — voir loadTransactions(). */
 function toggleTxnRowMenu(btn, txnId) {
@@ -370,6 +380,7 @@ async function boot() {
     if (!Auth.current()) await _tryRememberMeAdminRestore();
     currentUser = Auth.require('admin', { silent: true });
     if (!currentUser) { showAdminLoginGate(); return; }
+    PushNotif.init();
     applyAdminPermissionGating();
     _refreshImpersonationBanner();
     _restoreAdminSidebarCollapsed();

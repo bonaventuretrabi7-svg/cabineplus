@@ -501,6 +501,7 @@ async function boot() {
     PullToRefresh.init();
 
     if (currentUser) {
+      PushNotif.init();
       loadHistory();
       loadWallet();
       loadProfit();

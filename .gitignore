@@ -37,6 +37,12 @@ android/keystore.properties
 # tests-php/README.md) — jamais les vraies infos de prod.
 api/config.php
 
+# Clé de compte de service Firebase (notifications push, voir
+# api/config.example.php / api/push_common.php) — jamais commitée, donne
+# accès à l'envoi de notifications pour tout le projet Firebase. Déposée
+# directement sur l'hébergement (Hostinger File Manager), comme config.php.
+api/firebase-service-account.json
+
 # Suite de tests PHP (tests-php/, voir composer.json) — dépendances
 # Composer et cache PHPUnit, jamais commités (comme node_modules/).
 vendor/

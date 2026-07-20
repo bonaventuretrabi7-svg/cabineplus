@@ -132,13 +132,18 @@ function decodeJsonColumns(array $row, array $columns): array {
   return $row;
 }
 
+require __DIR__ . '/push_common.php';
+
 // Crée une notification pour un utilisateur — équivalent serveur de
 // DB.notifications.create() (js/db.js), utilisé par tous les endpoints du
 // moteur de commandes (Phase 4). Best-effort intentionnel : jamais dans la
 // même transaction PDO qu'une mutation financière (voir orders_accept.php
 // etc.) pour qu'un échec d'écriture de notification ne fasse jamais annuler
-// un débit/crédit déjà validé.
+// un débit/crédit déjà validé. Déclenche aussi une notification push sur
+// le téléphone (voir sendPushToProfile(), api/push_common.php) — même
+// best-effort, un échec d'envoi push ne remonte jamais ici non plus.
 function createNotification(string $userId, string $message, string $type = 'info'): void {
   db()->prepare('INSERT INTO notifications (id, utilisateur_id, message, lu, date, type) VALUES (?, ?, ?, 0, NOW(), ?)')
       ->execute([uuid4(), $userId, $message, $type]);
+  sendPushToProfile($userId, 'KBINE PLUS', $message);
 }

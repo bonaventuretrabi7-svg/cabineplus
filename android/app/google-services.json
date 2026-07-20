@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "531800483432",
+    "project_id": "kbine-plus-358e1",
+    "storage_bucket": "kbine-plus-358e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:531800483432:android:882a93c0d869522d58fddd",
+        "android_client_info": {
+          "package_name": "ci.kbineplus.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA06lTog6EDEueYkkuCfLB0C6D5ZCT3TLs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -452,6 +452,22 @@ CREATE TABLE IF NOT EXISTS devices (
   KEY idx_devices_profile (profile_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Jetons de notification push (Firebase Cloud Messaging) ──────────────
+-- Un jeton identifie un appareil, pas un compte — unique sur `token` :
+-- si le même téléphone se reconnecte avec un AUTRE compte (partage
+-- d'appareil), le jeton est simplement réattribué (voir api/push_register.php),
+-- jamais besoin d'un désenregistrement explicite à la déconnexion.
+CREATE TABLE IF NOT EXISTS push_tokens (
+  id          CHAR(36)     NOT NULL PRIMARY KEY,
+  profile_id  CHAR(36)     NOT NULL,
+  token       VARCHAR(255) NOT NULL,
+  platform    VARCHAR(16)  NOT NULL DEFAULT 'android',
+  created_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY uniq_token (token),
+  KEY idx_push_tokens_profile (profile_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Parrainage (client -> client) ────────────────────────────────────
 -- reward_montant figé à l'inscription (pas de dérive si le taux change
 -- plus tard) ; reward_verse=0 jusqu'à la 1re commande terminée du
