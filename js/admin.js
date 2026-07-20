@@ -1666,6 +1666,7 @@ function _cautoStatusBadge(cp) {
 function loadCommandeAutoAdmin(query = '') {
   const createCard = document.getElementById('cauto-create-card');
   if (createCard) createCard.style.display = currentUser.admin_level === 'super' ? '' : 'none';
+  if (currentUser.admin_level === 'super' && !DB.forfaits.all().length) DB.forfaits.refresh();
 
   let rows = DB.commandesProgrammees.all().sort((a, b) => new Date(b.date_programmee) - new Date(a.date_programmee));
   if (query) {
@@ -1710,26 +1711,76 @@ function searchCommandeAutoAdmin() {
   loadCommandeAutoAdmin(q);
 }
 
+// Réseau/type d'opération présentés en modèles déroulants (<select>), à la
+// demande explicite — même dichotomie Crédit/Forfait que côté client
+// (voir schedOnTypeChange()/schedRenderForfaitOptions(), js/client.js),
+// mais l'admin n'a jamais besoin de définir un moyen/numéro de paiement
+// puisqu'aucun paiement n'est prélevé ici (voir orders_schedule_create_admin.php).
+function cautoOnOpChange(op) {
+  if (document.getElementById('cauto-service').value === 'Forfait') cautoRenderForfaitOptions(op);
+}
+
+function cautoOnTypeChange(type) {
+  document.getElementById('cauto-amount-group').style.display  = type === 'Forfait' ? 'none' : '';
+  document.getElementById('cauto-forfait-group').style.display = type === 'Forfait' ? '' : 'none';
+  if (type === 'Forfait') cautoRenderForfaitOptions(document.getElementById('cauto-op').value);
+}
+
+function cautoRenderForfaitOptions(op) {
+  const sel = document.getElementById('cauto-forfait');
+  if (!sel) return;
+  if (!op) { sel.innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>'; return; }
+  const cats = DB.forfaits.categoriesByOperator(op);
+  const all  = DB.forfaits.byOperator(op);
+  if (!all.length) { sel.innerHTML = '<option value="">Aucun forfait disponible pour ce réseau</option>'; return; }
+  sel.innerHTML = '<option value="">Sélectionner…</option>' + cats.map(cat => `
+    <optgroup label="${cat}">
+      ${all.filter(f => f.categorie === cat).map(f =>
+        `<option value="${f.id}">${f.nom} — ${f.detail} · ${Fmt.money(f.prix)}</option>`
+      ).join('')}
+    </optgroup>`).join('');
+}
+
 async function submitCommandeAutoAdmin(event) {
   event.preventDefault();
   const btn = document.getElementById('cauto-submit-btn');
   const operateur = document.getElementById('cauto-op').value;
-  const service    = document.getElementById('cauto-service').value;
+  const type       = document.getElementById('cauto-service').value;
   const recipient  = document.getElementById('cauto-recipient').value.replace(/\D/g, '').slice(0, 10);
-  const montant    = parseInt(document.getElementById('cauto-amount').value, 10) || 0;
   const dateVal    = document.getElementById('cauto-date').value;
   const timeVal    = document.getElementById('cauto-time').value;
 
   if (!operateur) { Toast.error('Choisissez un réseau.'); return; }
   if (!/^0[0-9]{9}$/.test(recipient)) { Toast.error('Numéro du destinataire invalide (10 chiffres).'); return; }
-  if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+
+  let montant, service, details;
+  if (type === 'Forfait') {
+    const forfaitId = document.getElementById('cauto-forfait').value;
+    const forfait = forfaitId ? DB.forfaits.all().find(f => f.id === forfaitId) : null;
+    if (!forfait) { Toast.error('Choisissez un forfait.'); return; }
+    montant = forfait.prix;
+    service = 'Forfait';
+    details = forfait.ussdTemplate ? {
+      forfait_id: forfait.id, forfait_nom: forfait.nom,
+      ussd_code: forfait.ussdTemplate.replace('{numero_destinataire}', recipient),
+      ussd_verified: forfait.verified !== false,
+    } : null;
+  } else {
+    montant = parseInt(document.getElementById('cauto-amount').value, 10) || 0;
+    if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+    service = 'Transfert direct';
+    details = ['Orange', 'MTN', 'Moov'].includes(operateur)
+      ? { direct_ussd_network: operateur, direct_ussd_numero: recipient }
+      : null;
+  }
+
   if (!dateVal || !timeVal) { Toast.error('Choisissez une date et une heure.'); return; }
   const ts = new Date(`${dateVal}T${timeVal}:00`).getTime();
   if (!ts || ts <= Date.now() + 60000) { Toast.error('La date/heure programmée doit être au moins 1 minute dans le futur.'); return; }
 
   btn.disabled = true;
   const res = await DB.business.scheduleOrderAdmin({
-    operateur, service,
+    operateur, service, details,
     numero_beneficiaire: recipient,
     montant,
     date_programmee: `${dateVal} ${timeVal}:00`,
@@ -1740,6 +1791,9 @@ async function submitCommandeAutoAdmin(event) {
 
   Toast.success('Commande automatique programmée.');
   event.target.reset();
+  document.getElementById('cauto-amount-group').style.display  = '';
+  document.getElementById('cauto-forfait-group').style.display = 'none';
+  document.getElementById('cauto-forfait').innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>';
   await DB.commandesProgrammees.refresh();
   loadCommandeAutoAdmin(document.getElementById('cauto-search')?.value.trim() || '');
 }
@@ -4784,6 +4838,7 @@ async function saveSettings() {
 const MAINTENANCE_SERVICE_LABELS = {
   recharger: 'Recharger', depenses: 'Dépenses', transferer: 'Transférer',
   historique: 'Historique', facture: 'Facture', exchange: 'Exchange',
+  commande_auto: 'Commande automatique',
 };
 
 async function loadMaintenanceAdmin() {

@@ -480,6 +480,7 @@ CREATE TABLE IF NOT EXISTS commandes_programmees (
   montant              BIGINT       NOT NULL DEFAULT 0,
   frais_service        BIGINT       NOT NULL DEFAULT 0,
   service              VARCHAR(64)  NULL,
+  details              JSON         NULL,
   moyen_paiement       VARCHAR(64)  NULL,
   numero_paiement      VARCHAR(64)  NULL,
   date_programmee      DATETIME     NOT NULL,

@@ -17,6 +17,7 @@ $operateur          = (string)($in['operateur'] ?? '');
 $numeroBeneficiaire = (string)($in['numero_beneficiaire'] ?? '');
 $montant             = (int)($in['montant'] ?? 0);
 $service             = isset($in['service']) && $in['service'] !== '' ? (string)$in['service'] : 'Transfert direct';
+$details             = array_key_exists('details', $in) ? json_encode($in['details']) : null;
 $datesProgrammee     = (string)($in['date_programmee'] ?? '');
 
 if ($operateur === '' || $numeroBeneficiaire === '' || $montant <= 0) fail('Paramètres de commande invalides.');
@@ -26,9 +27,9 @@ if ($ts <= time() + 60) fail('La date/heure programmée doit être au moins 1 mi
 
 $cpId = uuid4();
 db()->prepare('INSERT INTO commandes_programmees
-    (id, created_by_admin_id, operateur, numero_beneficiaire, montant, frais_service, service, date_programmee, statut, date_creation)
-    VALUES (?, ?, ?, ?, ?, 0, ?, ?, \'en_attente\', NOW())')
-    ->execute([$cpId, $me['id'], $operateur, $numeroBeneficiaire, $montant, $service, date('Y-m-d H:i:s', $ts)]);
+    (id, created_by_admin_id, operateur, numero_beneficiaire, montant, frais_service, service, details, date_programmee, statut, date_creation)
+    VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, \'en_attente\', NOW())')
+    ->execute([$cpId, $me['id'], $operateur, $numeroBeneficiaire, $montant, $service, $details, date('Y-m-d H:i:s', $ts)]);
 
 $cpStmt = db()->prepare('SELECT * FROM commandes_programmees WHERE id = ?');
 $cpStmt->execute([$cpId]);

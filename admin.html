@@ -1527,7 +1527,7 @@
             <form onsubmit="submitCommandeAutoAdmin(event)">
               <div class="form-group">
                 <label class="form-label">Réseau</label>
-                <select class="form-control" id="cauto-op" required>
+                <select class="form-control" id="cauto-op" required onchange="cautoOnOpChange(this.value)">
                   <option value="">Sélectionner…</option>
                   <option value="Orange">Orange</option>
                   <option value="MTN">MTN</option>
@@ -1536,17 +1536,24 @@
               </div>
               <div class="form-group">
                 <label class="form-label">Type d'opération</label>
-                <select class="form-control" id="cauto-service">
-                  <option value="Transfert direct">Transfert direct</option>
+                <select class="form-control" id="cauto-service" onchange="cautoOnTypeChange(this.value)">
+                  <option value="Transfert direct">Crédit (transfert direct)</option>
+                  <option value="Forfait">Forfait</option>
                 </select>
               </div>
               <div class="form-group">
                 <label class="form-label">Numéro du destinataire</label>
                 <input type="tel" class="form-control" id="cauto-recipient" placeholder="Ex : 07 XX XX XX XX" maxlength="14" required>
               </div>
-              <div class="form-group">
+              <div class="form-group" id="cauto-amount-group">
                 <label class="form-label">Montant (FCFA)</label>
                 <input type="number" class="form-control" id="cauto-amount" min="500" max="100000" required>
+              </div>
+              <div class="form-group" id="cauto-forfait-group" style="display:none;">
+                <label class="form-label">Forfait</label>
+                <select class="form-control" id="cauto-forfait">
+                  <option value="">Choisissez d'abord un réseau…</option>
+                </select>
               </div>
               <div class="form-group" style="display:flex;gap:10px;">
                 <div style="flex:1;">

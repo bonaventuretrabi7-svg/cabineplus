@@ -3726,7 +3726,7 @@ async function repeatTransaction(txnId) {
    serveur répond limitReached:true — redirige alors vers l'assistant
    clientèle existant (handleClientWhatsappClick()) plutôt qu'un simple
    message de blocage, comme demandé. */
-const schedState = { operateur: null, recipient: '' };
+const schedState = { operateur: null, recipient: '', type: 'direct' };
 
 // Empêche de choisir une date passée dans le sélecteur natif — la
 // validation réelle (≥ 1 minute dans le futur) reste faite par le serveur.
@@ -3739,6 +3739,39 @@ function schedSelectOp(op, el) {
   schedState.operateur = op;
   document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
+  if (schedState.type === 'forfait') schedRenderForfaitOptions();
+}
+
+// Type d'opération — Crédit (montant libre) ou Forfait (catalogue réseau,
+// prix fixe) : même dichotomie que le tunnel principal (tf.serviceType),
+// mais présentée en modèle déroulant (<select>) plutôt qu'en onglets, à la
+// demande explicite, cette section restant volontairement compacte.
+function schedOnTypeChange(type) {
+  schedState.type = type;
+  document.getElementById('sched-amount-field').style.display  = type === 'direct'  ? '' : 'none';
+  document.getElementById('sched-forfait-field').style.display = type === 'forfait' ? '' : 'none';
+  if (type === 'forfait') schedRenderForfaitOptions();
+}
+
+function schedRenderForfaitOptions() {
+  const sel = document.getElementById('sched-forfait');
+  if (!sel) return;
+  if (!schedState.operateur) {
+    sel.innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>';
+    return;
+  }
+  const cats = DB.forfaits.categoriesByOperator(schedState.operateur);
+  const all  = DB.forfaits.byOperator(schedState.operateur);
+  if (!all.length) {
+    sel.innerHTML = '<option value="">Aucun forfait disponible pour ce réseau</option>';
+    return;
+  }
+  sel.innerHTML = '<option value="">Sélectionner…</option>' + cats.map(cat => `
+    <optgroup label="${cat}">
+      ${all.filter(f => f.categorie === cat).map(f =>
+        `<option value="${f.id}">${f.nom} — ${f.detail} · ${Fmt.money(f.prix)}</option>`
+      ).join('')}
+    </optgroup>`).join('');
 }
 
 function schedOnRecipient(val) {
@@ -3751,23 +3784,49 @@ function schedOnRecipient(val) {
 function _schedResetForm() {
   schedState.operateur = null;
   schedState.recipient = '';
+  schedState.type = 'direct';
   const recipientEl = document.getElementById('sched-recipient');
   const amountEl     = document.getElementById('sched-amount');
   const dateEl        = document.getElementById('sched-date');
   const timeEl         = document.getElementById('sched-time');
+  const typeEl          = document.getElementById('sched-type');
+  const forfaitEl        = document.getElementById('sched-forfait');
   if (recipientEl) recipientEl.value = '';
   if (amountEl) amountEl.value = '';
   if (dateEl) dateEl.value = '';
   if (timeEl) timeEl.value = '';
+  if (typeEl) typeEl.value = 'direct';
+  if (forfaitEl) forfaitEl.innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>';
+  document.getElementById('sched-amount-field').style.display  = '';
+  document.getElementById('sched-forfait-field').style.display = 'none';
   document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
 }
 
 async function schedSubmit() {
+  if (await isServiceInMaintenance('commande_auto')) { warnMaintenance('La commande automatique est actuellement en maintenance.'); return; }
   if (!schedState.operateur) { Toast.error('Choisissez un réseau.'); return; }
   if (!/^0[0-9]{9}$/.test(schedState.recipient)) { Toast.error('Numéro du bénéficiaire invalide (10 chiffres).'); return; }
 
-  const montant = parseInt(document.getElementById('sched-amount').value, 10) || 0;
-  if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+  let montant, service, details;
+  if (schedState.type === 'forfait') {
+    const forfaitId = document.getElementById('sched-forfait').value;
+    const forfait = forfaitId ? DB.forfaits.all().find(f => f.id === forfaitId) : null;
+    if (!forfait) { Toast.error('Choisissez un forfait.'); return; }
+    montant = forfait.prix;
+    service = 'Forfait';
+    details = forfait.ussdTemplate ? {
+      forfait_id: forfait.id, forfait_nom: forfait.nom,
+      ussd_code: buildUssdCode(forfait.ussdTemplate, schedState.recipient),
+      ussd_verified: forfait.verified !== false,
+    } : null;
+  } else {
+    montant = parseInt(document.getElementById('sched-amount').value, 10) || 0;
+    if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+    service = 'Transfert direct';
+    details = ['Orange', 'MTN', 'Moov'].includes(schedState.operateur)
+      ? { direct_ussd_network: schedState.operateur, direct_ussd_numero: schedState.recipient }
+      : null;
+  }
 
   const dateVal = document.getElementById('sched-date').value;
   const timeVal = document.getElementById('sched-time').value;
@@ -3781,7 +3840,7 @@ async function schedSubmit() {
   const res = await DB.business.scheduleOrder({
     operateur: schedState.operateur,
     numero_beneficiaire: schedState.recipient,
-    montant,
+    montant, service, details,
     date_programmee: `${dateVal} ${timeVal}:00`,
   });
   btn.disabled = false;

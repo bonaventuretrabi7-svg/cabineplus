@@ -18,6 +18,8 @@ $in = body();
 $operateur          = (string)($in['operateur'] ?? '');
 $numeroBeneficiaire = (string)($in['numero_beneficiaire'] ?? '');
 $montant            = (int)($in['montant'] ?? 0);
+$service            = isset($in['service']) && $in['service'] !== '' ? (string)$in['service'] : 'Transfert direct';
+$details            = array_key_exists('details', $in) ? json_encode($in['details']) : null;
 $datesProgrammee    = (string)($in['date_programmee'] ?? '');
 $moyenPaiement      = isset($in['moyen_paiement']) ? (string)$in['moyen_paiement'] : null;
 $numeroPaiement     = isset($in['numero_paiement']) ? (string)$in['numero_paiement'] : null;
@@ -51,9 +53,9 @@ try {
 
   $cpId = uuid4();
   $pdo->prepare('INSERT INTO commandes_programmees
-      (id, client_id, operateur, numero_beneficiaire, montant, frais_service, service, moyen_paiement, numero_paiement, date_programmee, statut, date_creation)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'en_attente\', NOW())')
-      ->execute([$cpId, $me['id'], $operateur, $numeroBeneficiaire, $montant, $FRAIS_SERVICE, 'Transfert direct', $moyenPaiement, $numeroPaiement, date('Y-m-d H:i:s', $ts)]);
+      (id, client_id, operateur, numero_beneficiaire, montant, frais_service, service, details, moyen_paiement, numero_paiement, date_programmee, statut, date_creation)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'en_attente\', NOW())')
+      ->execute([$cpId, $me['id'], $operateur, $numeroBeneficiaire, $montant, $FRAIS_SERVICE, $service, $details, $moyenPaiement, $numeroPaiement, date('Y-m-d H:i:s', $ts)]);
 
   $pdo->commit();
 } catch (Throwable $e) {

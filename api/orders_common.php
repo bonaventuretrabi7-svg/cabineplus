@@ -132,11 +132,11 @@ function triggerScheduledOrder(PDO $pdo, array $cp): array {
   $commission = calcCommission($pdo, (int)$cp['montant']);
   $txnId = uuid4();
   $pdo->prepare('INSERT INTO transactions
-      (id, client_id, cabine_id, operateur, numero_beneficiaire, montant, frais_service, commission, statut, service, moyen_paiement, numero_paiement, date)
-      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, \'en_attente\', ?, ?, ?, NOW())')
+      (id, client_id, cabine_id, operateur, numero_beneficiaire, montant, frais_service, commission, statut, service, details, moyen_paiement, numero_paiement, date)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, \'en_attente\', ?, ?, ?, ?, NOW())')
       ->execute([
         $txnId, $cp['client_id'], $cp['operateur'], $cp['numero_beneficiaire'], $cp['montant'],
-        $cp['frais_service'], $commission, $cp['service'], $cp['moyen_paiement'], $cp['numero_paiement'],
+        $cp['frais_service'], $commission, $cp['service'], $cp['details'] ?? null, $cp['moyen_paiement'], $cp['numero_paiement'],
       ]);
 
   $cab = pickInitialCabine($pdo, $cp['operateur'], null);

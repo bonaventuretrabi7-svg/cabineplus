@@ -546,13 +546,28 @@
       </div>
 
       <div class="sched-field">
+        <label class="sched-label"><i class="fa-solid fa-layer-group"></i> Type d'opération</label>
+        <select class="form-control" id="sched-type" onchange="schedOnTypeChange(this.value)">
+          <option value="direct">Crédit (transfert direct)</option>
+          <option value="forfait">Forfait</option>
+        </select>
+      </div>
+
+      <div class="sched-field">
         <label class="sched-label"><i class="fa-solid fa-mobile-screen"></i> Numéro du bénéficiaire</label>
         <input type="tel" class="form-control" id="sched-recipient" placeholder="XX XX XX XX XX" maxlength="14" inputmode="numeric" oninput="schedOnRecipient(this.value)">
       </div>
 
-      <div class="sched-field">
+      <div class="sched-field" id="sched-amount-field">
         <label class="sched-label"><i class="fa-solid fa-coins"></i> Montant (FCFA)</label>
         <input type="number" class="form-control" id="sched-amount" placeholder="Ex : 3 500" min="500" max="100000">
+      </div>
+
+      <div class="sched-field" id="sched-forfait-field" style="display:none;">
+        <label class="sched-label"><i class="fa-solid fa-box"></i> Forfait</label>
+        <select class="form-control" id="sched-forfait">
+          <option value="">Choisissez d'abord un réseau…</option>
+        </select>
       </div>
 
       <div class="sched-row2">
