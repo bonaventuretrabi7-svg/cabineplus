@@ -209,6 +209,12 @@ function refundTransactionEffect(PDO $pdo, string $txnId): array {
     $cabStmt = $pdo->prepare('SELECT id FROM profiles WHERE id = ?');
     $cabStmt->execute([$txn['cabine_id']]);
     if ($cabStmt->fetch()) {
+      // La commission n'étant plus créditée au solde réel à l'acceptation
+      // (voir api/orders_accept.php), seule la pénalité + le montant sont
+      // débités ici — débiter aussi $commission reviendrait à retirer de
+      // l'argent que la cabine n'a jamais reçu sur son solde.
+      // commissions_total reste néanmoins repris (ce compteur, lui, avait
+      // bien été incrémenté de la commission à l'acceptation).
       $commission = (int)$txn['commission'];
       $sanction = (int)$txn['montant'] + $PENALITE_REMBOURSEMENT_TERMINE;
       $pdo->prepare('UPDATE profiles SET
@@ -217,7 +223,7 @@ function refundTransactionEffect(PDO $pdo, string $txnId): array {
           transferts_total = GREATEST(0, transferts_total - 1),
           remboursements_recus = remboursements_recus + 1
         WHERE id = ?')
-        ->execute([$commission + $sanction, $commission, $txn['cabine_id']]);
+        ->execute([$sanction, $commission, $txn['cabine_id']]);
 
       $pdo->prepare('INSERT INTO retraits (id, cabine_id, montant, statut, methode_retrait, type, motif, date) VALUES (?, ?, ?, \'terminé\', \'Sanction\', \'sanction\', ?, NOW())')
           ->execute([uuid4(), $txn['cabine_id'], $sanction, 'Remboursement commande — montant (' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F) + pénalité (' . $PENALITE_REMBOURSEMENT_TERMINE . ' F)']);

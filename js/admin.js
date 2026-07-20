@@ -958,13 +958,6 @@ function loadCabines(query = '') {
   tbody.innerHTML = cabines.map(c => {
     const doneTxns = DB.transactions.byCabine(c.id).filter(t => t.statut === 'terminé');
     const txnCount = doneTxns.length;
-    // Colonne "Solde" de cette liste : somme des montants des commandes
-    // traitées par la cabine (DB.business.cabineVolumeTraite(), même calcul
-    // que "Montant disponible" dans l'onglet Retraits et "Solde en attente"
-    // côté cabine). Le solde réel/retirable (profiles.solde,
-    // cabineSoldeDisponible()) reste la seule limite appliquée côté serveur
-    // au moment de payer un retrait (api/retraits_create.php).
-    const volumeTraite = doneTxns.reduce((s, t) => s + (t.montant || 0), 0);
     const pending  = DB.transactions.byCabine(c.id).filter(t => t.statut === 'en_attente');
     const retards  = pending.filter(t => nowTs - new Date(t.date).getTime() > DB.RETARD_MS).length;
     const suspendu = c.statut === 'suspendu';
@@ -986,7 +979,7 @@ function loadCabines(query = '') {
     return `<tr>
       <td><div class="user-chip"><div class="avatar" style="background:linear-gradient(135deg,var(--secondary),var(--secondary-dark))">${Fmt.initials(c.nom,c.prenom)}</div><div><div class="name">${c.prenom} ${c.nom}</div><div style="font-size:.72rem;color:var(--gray-400)">${c.zone || 'N/A'}</div></div></div></td>
       <td><code>${Fmt.phone(c.telephone)}</code></td>
-      <td><strong>${Fmt.money(volumeTraite)}</strong></td>
+      <td><strong>${Fmt.money(DB.business.cabineVolumeTraite(c.id))}</strong></td>
       <td><span class="commission-pill">${Fmt.money(c.commissions_total || 0)}</span></td>
       <td><span class="badge badge-info">${txnCount}</span></td>
       <td><span class="badge" style="background:rgba(139,92,246,.12);color:#8B5CF6;">${pending.length}</span></td>
@@ -1259,11 +1252,11 @@ async function confirmProcessRetrait() {
   const montant = parseFloat(document.getElementById('process-retrait-montant').value);
   if (isNaN(montant) || montant <= 0) { Toast.error('Montant invalide.'); return; }
   // Pas de pré-contrôle client ici contre le solde réel : "Montant
-  // disponible" affiche désormais le volume de commandes traitées (à la
-  // demande de l'administration), qui peut dépasser le solde réellement en
-  // caisse. Le serveur (api/retraits_create.php, débit atomique CAS sur
-  // profiles.solde) reste la seule vraie limite et refusera proprement tout
-  // montant réellement indisponible.
+  // disponible" affiche le volume de commandes traitées (à la demande de
+  // l'administration), qui peut dépasser le solde réellement en caisse.
+  // Le serveur (api/retraits_create.php, débit atomique CAS sur
+  // profiles.solde) reste la seule vraie limite et refusera proprement
+  // tout montant réellement indisponible.
   const res = await DB.retraits.process(c.id, montant);
   if (!res.ok) { Toast.error(res.error); return; }
   await refreshUsersFromServer();
@@ -1297,7 +1290,7 @@ function loadRechargeCabiniste(query = '') {
     <tr>
       <td><div class="user-chip"><div class="avatar" style="background:linear-gradient(135deg,var(--secondary),var(--secondary-dark))">${Fmt.initials(c.nom,c.prenom)}</div><div><div class="name">${c.prenom} ${c.nom}</div><div style="font-size:.72rem;color:var(--gray-400)">${c.cabine_nom || c.zone || 'N/A'}</div></div></div></td>
       <td><code>${Fmt.phone(c.telephone)}</code></td>
-      <td><strong>${Fmt.money(DB.business.cabineSoldeDisponible(c))}</strong></td>
+      <td><strong>${Fmt.money(DB.business.cabineVolumeTraite(c.id))}</strong></td>
       <td><span class="badge ${c.statut === 'actif' ? 'badge-success' : 'badge-failed'}">${c.statut}</span></td>
       <td>
         <button class="btn btn-sm btn-secondary" onclick="openRechargeCabinisteModal('${c.id}')" title="Recharger le solde"><i class="fa-solid fa-wallet"></i> Recharger</button>
@@ -1312,7 +1305,13 @@ function openRechargeCabinisteModal(cabineId) {
   if (!c) return;
   _rechargeCabinisteId = cabineId;
   document.getElementById('recharge-cabiniste-label').textContent = `${c.prenom} ${c.nom} (${c.cabine_nom || c.zone || 'N/A'})`;
-  document.getElementById('recharge-cabiniste-solde').textContent = Fmt.money(DB.business.cabineSoldeDisponible(c));
+  // "Solde actuel" = somme des montants des commandes traitées
+  // (DB.business.cabineVolumeTraite()), MAIS "Solde après recharge" reste
+  // basé sur le vrai solde du portefeuille (DB.business.cabineSoldeDisponible()) :
+  // c'est bien ce dernier qui est réellement crédité par la recharge — un
+  // aperçu basé sur le volume de commandes ne correspondrait jamais au
+  // solde réel une fois l'opération effectuée.
+  document.getElementById('recharge-cabiniste-solde').textContent = Fmt.money(DB.business.cabineVolumeTraite(cabineId));
   document.getElementById('recharge-cabiniste-apres').textContent = Fmt.money(DB.business.cabineSoldeDisponible(c));
   document.getElementById('recharge-cabiniste-montant').value = '';
   openModal('modal-recharge-cabiniste');

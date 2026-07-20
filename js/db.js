@@ -2076,25 +2076,28 @@ const DB = (() => {
     },
 
     /* Solde réel/retirable d'une cabine (colonne profiles.solde) — utilisé
-       par viewUser(), les modales de recharge et l'export CSV (js/admin.js).
-       Ne diminue qu'après un retrait réellement payé (api/retraits_create.php,
-       débit atomique CAS sur solde >= ? — seule vraie limite financière,
-       toujours appliquée côté serveur quoi que ce module affiche). */
+       par viewUser(), la modale "Solde après recharge" et l'export CSV
+       (js/admin.js). Augmente avec chaque recharge, diminue avec chaque
+       retrait/remboursement/sanction — depuis que la commission ne
+       crédite plus ce solde à l'acceptation d'une commande (voir
+       api/orders_accept.php), reste à jour uniquement via ces opérations,
+       toujours calculé côté serveur (débit atomique CAS sur solde >= ?,
+       voir api/retraits_create.php), jamais recalculé côté client. */
     cabineSoldeDisponible(user) {
       return (user && user.solde) || 0;
     },
 
-    /* "Montant disponible" (onglet Retraits, loadRetraitsAdmin()/
-       openProcessRetraitModal(), js/admin.js) et "Solde en attente"
-       (loadCabBalanceCard()/_renderCabColorPreview(), js/cabine.js) —
-       somme des montants des commandes TERMINÉES traitées par la cabine,
-       à la demande explicite de l'administration. Ne diminue PAS après un
-       retrait payé (contrairement à cabineSoldeDisponible() ci-dessus) :
-       un même montant peut donc réapparaître "disponible" juste après
-       avoir été payé — accepté sciemment, le débit réel reste protégé
-       côté serveur (CAS sur profiles.solde, voir api/retraits_create.php),
-       qui refuse toujours un retrait au-delà de l'argent réellement en
-       caisse quel que soit ce que cet affichage suggère. */
+    /* "Portefeuille" de la cabine — somme des MONTANTS (pas des
+       commissions) de ses commandes TERMINÉES, à la demande explicite de
+       l'administration. Utilisé comme LA source unique de "Solde actuel"
+       (Recharge cabiniste), "Montant disponible" (Retraits), "Solde en
+       attente" (espace cabine) et "Solde" (Gestion des cabines), voir
+       js/admin.js/js/cabine.js. Distinct de cabineSoldeDisponible()
+       ci-dessus : ne diminue jamais après un retrait ou une commande
+       remboursée — accepté sciemment, le débit réel (profiles.solde)
+       reste protégé côté serveur (CAS, voir api/retraits_create.php), qui
+       refuse toujours un retrait au-delà de l'argent réellement en caisse
+       quel que soit ce que cet affichage suggère. */
     cabineVolumeTraite(cabineId) {
       return transactions.byCabine(cabineId)
         .filter(t => t.statut === 'terminé')

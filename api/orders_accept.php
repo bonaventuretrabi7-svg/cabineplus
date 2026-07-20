@@ -36,9 +36,14 @@ try {
   $txnStmt->execute([$txnId]);
   $txn = $txnStmt->fetch();
 
+  // La commission n'est PLUS créditée au solde réel (choix explicite de
+  // l'administration) — seule une recharge manuelle fait désormais
+  // augmenter le solde disponible d'une cabine. commissions_total continue
+  // néanmoins d'être suivi normalement, seul repère utilisé pour le quota
+  // d'abonnement (voir plus bas) et les statistiques admin.
   $commission = (int)$txn['commission'];
-  $pdo->prepare('UPDATE profiles SET solde = solde + ?, commissions_total = commissions_total + ?, transferts_total = transferts_total + 1 WHERE id = ?')
-      ->execute([$commission, $commission, $me['id']]);
+  $pdo->prepare('UPDATE profiles SET commissions_total = commissions_total + ?, transferts_total = transferts_total + 1 WHERE id = ?')
+      ->execute([$commission, $me['id']]);
 
   // Relu APRÈS le crédit ci-dessus : commissions_total reflète déjà cette
   // commission (l'UPDATE a déjà tourné) — ne jamais l'ajouter une seconde
@@ -66,7 +71,7 @@ try {
 }
 
 createNotification($txn['client_id'], 'Votre transfert de ' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F (' . $txn['operateur'] . ' ' . $txn['numero_beneficiaire'] . ') est terminé !', 'success');
-createNotification($me['id'], 'Commission de ' . number_format((float)$commission, 0, ',', ' ') . ' F créditée.', 'commission');
+createNotification($me['id'], 'Commission de ' . number_format((float)$commission, 0, ',', ' ') . ' F enregistrée.', 'commission');
 if ($quotaReached) {
   createNotification($me['id'], 'Quota de commission du forfait ' . $plan . ' atteint (' . number_format((float)$quota, 0, ',', ' ') . ' F). Votre abonnement a pris fin.', 'warning');
 }
