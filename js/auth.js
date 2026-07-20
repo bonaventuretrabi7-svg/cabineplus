@@ -297,7 +297,14 @@ const Auth = (() => {
     return JSON.parse(sessionStorage.getItem(IMPERSONATION_STACK_KEY) || '[]');
   }
 
-  function startImpersonation(targetUserId) {
+  // Asynchrone depuis la correction du bug "Accès refusé pour ce rôle" :
+  // obtient désormais un VRAI jeton de session au nom du compte visité
+  // (voir api/admin_impersonate.php) avant de basculer — auparavant,
+  // seul currentUser (local) changeait, mais le jeton serveur restait
+  // celui de l'admin, faisant échouer toute action réservée par rôle
+  // (ex. cabine_update_self.php, requireAuth(['cabine'])) pendant une
+  // impersonation, même si l'écran affichait bien le profil de la cible.
+  async function startImpersonation(targetUserId) {
     const admin = get();
     if (!admin || admin.role !== 'admin') return { ok: false, error: 'Accès réservé à l\'administration.' };
     const target = DB.users.byId(targetUserId);
@@ -309,10 +316,15 @@ const Auth = (() => {
     }
     // Accès direct vers un autre administrateur : réservé au super admin,
     // et seulement vers un administrateur simple (jamais super → super).
+    // Revérifié aussi côté serveur (api/admin_impersonate.php), seule
+    // source de vérité pour l'émission du jeton.
     if (targetIsAdmin) {
       if (admin.admin_level !== 'super') return { ok: false, error: 'Seul le super administrateur peut accéder à l\'espace d\'un autre administrateur.' };
       if (target.admin_level === 'super') return { ok: false, error: 'Accès direct impossible vers un autre super administrateur.' };
     }
+
+    const res = await ServerAPI.adminImpersonate(target.id);
+    if (!res.ok) return { ok: false, error: res.error };
 
     const adminName  = `${admin.prenom} ${admin.nom}`.trim();
     const targetName = `${target.prenom} ${target.nom}`.trim();
@@ -320,12 +332,15 @@ const Auth = (() => {
     const stack = _impersonationStack();
     stack.push({
       returnSession: admin,
+      returnToken: ServerAPI.getToken(),
       admin_id: admin.id, admin_name: adminName,
       target_id: target.id, target_role: target.role, target_name: targetName,
       started_at: new Date().toISOString(),
     });
     sessionStorage.setItem(IMPERSONATION_STACK_KEY, JSON.stringify(stack));
-    save(target);
+
+    ServerAPI.setToken(res.token);
+    save(DB.users.cacheFromServer(res.profile));
 
     DB.accessLogs.create({
       admin_id: admin.id, admin_name: adminName,
@@ -356,6 +371,10 @@ const Auth = (() => {
     const top = stack.pop();
     if (stack.length) sessionStorage.setItem(IMPERSONATION_STACK_KEY, JSON.stringify(stack));
     else sessionStorage.removeItem(IMPERSONATION_STACK_KEY);
+    // Restaure le jeton serveur mis de côté par startImpersonation() —
+    // sans quoi les requêtes suivantes continueraient d'utiliser le
+    // jeton de la cible qu'on vient de quitter.
+    if (top.returnToken) ServerAPI.setToken(top.returnToken);
     save(top.returnSession);
     return top.returnSession;
   }

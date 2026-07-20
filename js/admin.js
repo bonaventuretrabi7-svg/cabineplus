@@ -2140,9 +2140,9 @@ function quickSetOwnAdminPhoto(input) {
 /* Accès direct sans mot de passe à l'espace cabine/client d'un compte —
    voir Auth.startImpersonation() dans js/auth.js (journalisé dans
    DB.accessLogs, onglet admin "Journal des accès"). */
-function impersonateUser(id, name) {
+async function impersonateUser(id, name) {
   if (!confirm(`Se connecter directement en tant que ${name}, sans mot de passe ? Cet accès sera journalisé.`)) return;
-  const res = Auth.startImpersonation(id);
+  const res = await Auth.startImpersonation(id);
   if (!res.ok) { Toast.error(res.error); return; }
   window.location.href = res.role === 'cabine' ? 'cabine.html' : res.role === 'admin' ? 'admin.html' : 'client.html';
 }

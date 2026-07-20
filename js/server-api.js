@@ -105,6 +105,21 @@ const ServerAPI = (() => {
     return { ok: true, profile: data.profile };
   }
 
+  // Émet un vrai jeton de session au nom du compte visité (client/cabine/
+  // administrateur simple) pour l'impersonation admin — voir
+  // api/admin_impersonate.php et Auth.startImpersonation() (js/auth.js).
+  // Ne pose PAS le jeton ici (contrairement à adminMagicLogin() ci-dessus) :
+  // l'appelant doit d'abord mettre de côté le jeton admin courant avant de
+  // basculer, pour pouvoir le restaurer à la fin de l'impersonation.
+  async function adminImpersonate(targetId) {
+    const { res, data, networkError } = await _call('admin_impersonate.php', { auth: true, body: { target_id: targetId } });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
+    if (!res.ok || !data || data.error) {
+      return { ok: false, error: (data && data.error) || 'Accès impossible.' };
+    }
+    return { ok: true, profile: data.profile, token: data.token };
+  }
+
   /* Jeton actuellement actif (voir Auth._applyDeviceBookkeeping, js/auth.js)
      — persisté en localStorage sous "rester connecté" pour permettre une
      reprise de session vérifiée par le serveur au prochain démarrage
@@ -799,7 +814,7 @@ const ServerAPI = (() => {
     ordersSweep, ordersSweepUnsuspend, ordersSweepQuota, ordersList, retardsList,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
     cabineSelfRecharge, cabineUpdateSelf, cabineUpdatePin, ordersHold, cabineResubscribe, adminSetAbonnement, cabineTransfer, clientTransfer, clientLookup, clientLoginLookup,
-    adminCreateLoginLink, adminMagicLogin,
+    adminCreateLoginLink, adminMagicLogin, adminImpersonate,
     forfaitsList, forfaitsCreate, forfaitsUpdate, forfaitsRemove, commissionsList, commissionsUpdateRate,
     reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,
     reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,
