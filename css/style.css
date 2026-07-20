@@ -1516,6 +1516,20 @@ body.dark .tf-step-body { border-color: var(--dark-border); }
 .op-card--mtn.active    .op-name-pill { color: #CA8A04; }
 .op-card--moov.active   .op-name-pill { color: #0066CC; }
 
+/* Cartes "Chap Chap" (renderChapChap(), js/client.js) — même carte réseau
+   (.op-card--orange/mtn/moov, couleur/fond/rayon inchangés) mais avec le
+   numéro du destinataire et le type d'opération affichés directement
+   dessus (pas seulement au survol, invisible au toucher sur téléphone). */
+.ccp-card { justify-content: flex-start; gap: 6px; }
+.ccp-type {
+  font-size: .54rem; font-weight: 800; color: rgba(255,255,255,.6);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.ccp-num {
+  font-size: .7rem; font-weight: 700; color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+
 /* â”€â”€ Service Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Deux cartes (Crédit/Transfert direct, Forfait/Internet-appels-SMS) —
    même traitement que .fcat-btn/.fsub-btn : inactif en gris neutre,

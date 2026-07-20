@@ -3682,12 +3682,14 @@ function renderChapChap() {
     const opClass = CHAPCHAP_OP_CLASS[t.operateur] || 'op-card--orange';
     const opEmoji = CHAPCHAP_OP_EMOJI[t.operateur] || '📱';
     const opLogo  = CHAPCHAP_OP_LOGO[t.operateur];
-    return `<div class="op-card ${opClass}" onclick="repeatTransaction('${t.id}')" title="Répéter : ${Fmt.phone(t.numero_beneficiaire)} · ${Fmt.money(t.montant)}">
+    return `<div class="op-card ccp-card ${opClass}" onclick="repeatTransaction('${t.id}')" title="Répéter : ${Fmt.phone(t.numero_beneficiaire)} · ${Fmt.money(t.montant)}">
+      <div class="ccp-type">Transfert direct</div>
       <div class="op-logo-sq">
         ${opLogo
           ? `<img class="op-logo-img" src="img/logos/${opLogo}" alt="${t.operateur}" onerror="this.outerHTML='<span class=op-emoji-fb>${opEmoji}</span>'">`
           : `<span class="op-emoji-fb">${opEmoji}</span>`}
       </div>
+      <div class="ccp-num">${Fmt.phone(t.numero_beneficiaire)}</div>
       <div class="op-name-pill">${Fmt.money(t.montant)}</div>
     </div>`;
   }).join('');
