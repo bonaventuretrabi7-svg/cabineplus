@@ -2512,11 +2512,15 @@
 
         <div class="card" style="margin-top:20px;">
           <div class="card-header">
-            <span class="card-title"><i class="fa-solid fa-hashtag" style="color:var(--primary)"></i> Modèles USSD — transfert direct MTN/Moov</span>
+            <span class="card-title"><i class="fa-solid fa-hashtag" style="color:var(--primary)"></i> Modèles USSD — transfert direct par réseau</span>
           </div>
           <div class="card-body">
-            <p style="font-size:.75rem;color:var(--gray-500);margin-bottom:16px;">S'appliquent aux recharges "Transfert direct" (crédit simple, hors forfaits) MTN et Moov. Le texte "{numero_destinataire}" est remplacé automatiquement par le numéro du destinataire à la commande. Les forfaits Orange ont leur propre modèle USSD, géré dans le catalogue ci-dessus.</p>
+            <p style="font-size:.75rem;color:var(--gray-500);margin-bottom:16px;">S'appliquent aux recharges "Transfert direct" (crédit simple, hors forfaits), un seul modèle par réseau quel que soit le montant. Le texte "{numero_destinataire}" est remplacé automatiquement par le numéro du destinataire à la commande. Les forfaits (Orange comme MTN/Moov) ont chacun leur propre modèle USSD, géré dans le catalogue ci-dessus — sans lien avec ces modèles.</p>
             <form onsubmit="saveUssdTemplates(event)">
+              <div class="form-group">
+                <label class="form-label">Orange</label>
+                <input type="text" class="form-control" id="ussdtpl-orange" placeholder="#161*{numero_destinataire}*...#">
+              </div>
               <div class="form-group">
                 <label class="form-label">MTN</label>
                 <input type="text" class="form-control" id="ussdtpl-mtn" placeholder="*133*6*2*{numero_destinataire}#">

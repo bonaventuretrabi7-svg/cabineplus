@@ -2306,12 +2306,13 @@ async function dialCabNumber(txnId) {
 }
 
 /* Code USSD affichable/composable d'une commande, quel que soit le type :
-   - Forfait Orange : déjà calculé à la commande (voir _tfForfaitDetails()
-     dans js/client.js) — un seul modèle par réseau, rien à choisir ici.
-   - Transfert direct MTN/Moov : construit à la volée à partir du modèle
-     courant (settings.ussd_templates, modifiable par le super admin dans
-     Admin › Forfaits) — ainsi une commande déjà passée reflète toujours le
-     modèle actuel plutôt qu'une valeur figée à la création.
+   - Forfait (Orange/MTN/Moov) : déjà calculé à la commande (voir
+     _tfForfaitDetails() dans js/client.js) — un seul modèle par réseau,
+     rien à choisir ici.
+   - Transfert direct (Orange/MTN/Moov) : construit à la volée à partir du
+     modèle courant (settings.ussd_templates, modifiable par le super admin
+     dans Admin › Forfaits) — ainsi une commande déjà passée reflète toujours
+     le modèle actuel plutôt qu'une valeur figée à la création.
    Dans les deux cas, le cabiniste peut désactiver le composeur auto pour
    un réseau donné (voir toggleUssdNetwork()/currentUser.ussd_enabled,
    section Préférences du profil) : le lien "tel:" disparaît alors, sans
@@ -2329,6 +2330,9 @@ async function getOrderUssdCode(t) {
   if (t.details.direct_ussd_network && t.details.direct_ussd_numero) {
     const templates = (await DB.settings.get()).ussd_templates || {};
     const numero = t.details.direct_ussd_numero;
+    if (t.details.direct_ussd_network === 'Orange' && enabled.orange !== false && templates.orange) {
+      return templates.orange.replace('{numero_destinataire}', numero);
+    }
     if (t.details.direct_ussd_network === 'MTN' && enabled.mtn !== false && templates.mtn) {
       return templates.mtn.replace('{numero_destinataire}', numero);
     }

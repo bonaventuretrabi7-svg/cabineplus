@@ -2097,14 +2097,16 @@ function buildUssdCode(template, recipient) {
 }
 
 /* Détails USSD rattachés à la commande, selon le type de service :
-   - Forfait Orange : le code final est calculé ici (numéro injecté), le
-     préfixe #161/#154 restant appliqué à l'affichage (voir buildUssdCode()).
-   - Transfert direct MTN/Moov : seuls le réseau et le numéro sont stockés
-     ({numero_destinataire} n'est pas encore résolu) — le code exact dépend
-     du modèle USSD courant et, pour Moov, de la préférence du cabiniste
-     assigné (ni l'un ni l'autre connus à la commande) ; construit à
-     l'affichage par getOrderUssdCode() dans js/cabine.js. Orange en
-     "Transfert direct" n'a pas de code USSD (non demandé). */
+   - Forfait (Orange/MTN/Moov) : le code final est calculé ici (numéro
+     injecté), le préfixe #161/#154 restant appliqué à l'affichage (voir
+     buildUssdCode()).
+   - Transfert direct (Orange/MTN/Moov) : seuls le réseau et le numéro sont
+     stockés ({numero_destinataire} n'est pas encore résolu) — le code
+     exact dépend du modèle USSD courant du réseau et, pour Moov, de la
+     préférence du cabiniste assigné (ni l'un ni l'autre connus à la
+     commande) ; construit à l'affichage par getOrderUssdCode() dans
+     js/cabine.js. Un seul modèle par réseau, valable quel que soit le
+     montant (settings.ussd_templates, Admin › Forfaits). */
 function _tfForfaitDetails() {
   if (tf.serviceType === 'forfait' && tf.forfait && tf.forfait.ussdTemplate) {
     return {
@@ -2114,7 +2116,7 @@ function _tfForfaitDetails() {
       ussd_verified: tf.forfait.verified !== false,
     };
   }
-  if (tf.serviceType === 'direct' && (tf.operator === 'MTN' || tf.operator === 'Moov')) {
+  if (tf.serviceType === 'direct' && (tf.operator === 'Orange' || tf.operator === 'MTN' || tf.operator === 'Moov')) {
     return { direct_ussd_network: tf.operator, direct_ussd_numero: tf.recipient };
   }
   return null;

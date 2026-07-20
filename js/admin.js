@@ -2647,12 +2647,14 @@ function updateForfaitUssdPlaceholders(op) {
   if (f1) f1.placeholder = FORFAIT_USSD_PLACEHOLDERS[op] || FORFAIT_USSD_PLACEHOLDERS.Orange;
 }
 
-/* Modèle USSD "transfert direct" MTN/Moov (settings.ussd_templates) —
-   distinct du catalogue de forfaits Orange ci-dessus, qui a son propre
-   ussdTemplate par forfait (voir addForfait()/editForfait()). */
+/* Modèle USSD "transfert direct" par réseau (settings.ussd_templates) —
+   distinct du catalogue de forfaits ci-dessus, qui a son propre
+   ussdTemplate par forfait (voir addForfait()/editForfait()). Un seul
+   modèle par réseau, valable quel que soit le montant transféré. */
 async function loadUssdTemplates() {
   const t = (await DB.settings.get()).ussd_templates || {};
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.value = v || ''; };
+  set('ussdtpl-orange', t.orange);
   set('ussdtpl-mtn', t.mtn);
   set('ussdtpl-moov-marchand', t.moov_marchand);
 }
@@ -2661,12 +2663,13 @@ async function saveUssdTemplates(event) {
   event.preventDefault();
   if (currentUser.admin_level !== 'super') { Toast.error('Seul le super administrateur peut modifier ces modèles.'); return; }
 
-  const mtn          = document.getElementById('ussdtpl-mtn').value.trim();
-  const moovMarchand  = document.getElementById('ussdtpl-moov-marchand').value.trim();
+  const orange        = document.getElementById('ussdtpl-orange').value.trim();
+  const mtn            = document.getElementById('ussdtpl-mtn').value.trim();
+  const moovMarchand   = document.getElementById('ussdtpl-moov-marchand').value.trim();
 
-  if (!mtn || !moovMarchand) { Toast.error('Veuillez remplir les 2 modèles.'); return; }
+  if (!orange || !mtn || !moovMarchand) { Toast.error('Veuillez remplir les 3 modèles.'); return; }
 
-  await DB.settings.update({ ussd_templates: { mtn, moov_marchand: moovMarchand } });
+  await DB.settings.update({ ussd_templates: { orange, mtn, moov_marchand: moovMarchand } });
   Toast.success('Modèles USSD enregistrés.');
 }
 
