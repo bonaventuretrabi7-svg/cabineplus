@@ -1711,11 +1711,12 @@ function searchCommandeAutoAdmin() {
   loadCommandeAutoAdmin(q);
 }
 
-// Réseau/type d'opération présentés en modèles déroulants (<select>), à la
-// demande explicite — même dichotomie Crédit/Forfait que côté client
-// (voir schedOnTypeChange()/schedRenderForfaitOptions(), js/client.js),
-// mais l'admin n'a jamais besoin de définir un moyen/numéro de paiement
-// puisqu'aucun paiement n'est prélevé ici (voir orders_schedule_create_admin.php).
+// Réseau/type d'opération présentés en modèles déroulants (<select>) côté
+// admin — même dichotomie Crédit/Forfait que côté client (voir
+// schedSetType()/schedRenderForfaitOptions(), js/client.js, qui utilise
+// plutôt les onglets .service-toggle du tunnel principal), mais l'admin
+// n'a jamais besoin de définir un moyen/numéro de paiement puisqu'aucun
+// paiement n'est prélevé ici (voir orders_schedule_create_admin.php).
 function cautoOnOpChange(op) {
   if (document.getElementById('cauto-service').value === 'Forfait') cautoRenderForfaitOptions(op);
 }

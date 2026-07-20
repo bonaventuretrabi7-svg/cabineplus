@@ -248,8 +248,27 @@
     <span id="prev-dest-label"    style="display:none"></span>
     <span id="prev-pay-label"     style="display:none"></span>
 
+    <!-- ── Je passe ma commande : bascule Maintenant (tunnel temps réel +
+         Chap Chap) / Plus tard (commande automatique programmée) — un
+         seul des deux blocs visible à la fois, voir setOrderMode()
+         (js/client.js). Même composant que le toggle Crédit/Forfait
+         (.service-toggle/.svc-tab). ── -->
+    <div class="tf-layout" id="order-mode-section">
+      <div class="tf-slide-hd"><i class="fa-solid fa-paper-plane"></i> Je passe ma commande</div>
+      <div class="service-toggle">
+        <button type="button" class="svc-tab active" id="order-mode-now" onclick="setOrderMode('now')">
+          <span class="svc-tab-title">Maintenant</span>
+          <span class="svc-tab-sub">Commande immédiate</span>
+        </button>
+        <button type="button" class="svc-tab" id="order-mode-later" onclick="setOrderMode('later')">
+          <span class="svc-tab-title">Plus tard</span>
+          <span class="svc-tab-sub">Commande automatique</span>
+        </button>
+      </div>
+    </div>
+
     <!-- 3. Tunnel de commande -->
-    <div class="tf-layout">
+    <div class="tf-layout" id="tf-order-now">
 
       <!-- ? Message d'instruction -->
       <div class="tf-order-intro">
@@ -520,76 +539,262 @@
          totalement indépendant (schedState) pour ne jamais interférer
          avec tf.*/tfSelectOp() du tunnel principal. ── -->
     <div class="tf-layout" id="sched-section">
-      <div class="tf-slide-hd"><i class="fa-solid fa-clock"></i> Commande automatique</div>
-      <div class="op-row" id="sched-op-row">
-        <div class="op-card op-card--orange" data-op="Orange" onclick="schedSelectOp('Orange',this)">
-          <div class="op-check"><i class="fa-solid fa-check"></i></div>
-          <div class="op-logo-sq">
-            <img class="op-logo-img" src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span class=op-emoji-fb>🟠</span>'">
+
+      <!-- Même identité visuelle que "Passez votre commande" du tunnel
+           principal ci-dessus (.tf-order-intro/.tf-stepper-card/.wzc-*) —
+           le stepper reflète la progression du formulaire au fil de la
+           saisie (voir schedSyncStepper(), js/client.js), sans navigation
+           par glissement (ce formulaire reste sur une seule page). -->
+      <div class="tf-order-intro">
+        <div class="tf-oi-left">
+          <div class="tf-oi-title">Commande <span>automatique</span></div>
+          <div class="tf-oi-sub">Sélectionnez votre <span>réseau</span>, le <span>type d'opération</span>, le <span>numéro du destinataire</span> et programmez le paiement à l'avance.</div>
+        </div>
+        <div class="tf-oi-badge"><img src="img/logo.png" alt="KBINE PLUS" style="width:100%;height:100%;object-fit:cover;border-radius:50%;"></div>
+      </div>
+
+      <div class="tf-stepper-card">
+        <div class="wzc-bar">
+          <div class="wzc-step" id="sched-wz-ind-1">
+            <div class="wzc-bubble">
+              <span class="wzc-num">1</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Réseau</span>
           </div>
-          <div class="op-name-pill">Orange</div>
-        </div>
-        <div class="op-card op-card--mtn" data-op="MTN" onclick="schedSelectOp('MTN',this)">
-          <div class="op-check"><i class="fa-solid fa-check"></i></div>
-          <div class="op-logo-sq">
-            <img class="op-logo-img" src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span class=op-emoji-fb>🟡</span>'">
+
+          <div class="wzc-line" id="sched-wz-line-1"></div>
+
+          <div class="wzc-step" id="sched-wz-ind-2">
+            <div class="wzc-bubble">
+              <span class="wzc-num">2</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Type d'opération</span>
           </div>
-          <div class="op-name-pill">MTN</div>
-        </div>
-        <div class="op-card op-card--moov" data-op="Moov" onclick="schedSelectOp('Moov',this)">
-          <div class="op-check"><i class="fa-solid fa-check"></i></div>
-          <div class="op-logo-sq">
-            <img class="op-logo-img" src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span class=op-emoji-fb>🔵</span>'">
+
+          <div class="wzc-line" id="sched-wz-line-2"></div>
+
+          <div class="wzc-step" id="sched-wz-ind-3">
+            <div class="wzc-bubble">
+              <span class="wzc-num">3</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Date &amp; heure</span>
           </div>
-          <div class="op-name-pill">Moov</div>
+
+          <div class="wzc-line" id="sched-wz-line-3"></div>
+
+          <div class="wzc-step" id="sched-wz-ind-4">
+            <div class="wzc-bubble">
+              <span class="wzc-num">4</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Numéro du destinataire</span>
+          </div>
+
+          <div class="wzc-line" id="sched-wz-line-4"></div>
+
+          <div class="wzc-step" id="sched-wz-ind-5">
+            <div class="wzc-bubble">
+              <span class="wzc-num">5</span>
+              <svg class="wzc-check" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <span class="wzc-lbl">Paiement</span>
+          </div>
         </div>
       </div>
 
-      <div class="sched-field">
-        <label class="sched-label"><i class="fa-solid fa-layer-group"></i> Type d'opération</label>
-        <select class="form-control" id="sched-type" onchange="schedOnTypeChange(this.value)">
-          <option value="direct">Crédit (transfert direct)</option>
-          <option value="forfait">Forfait</option>
-        </select>
-      </div>
+      <!-- Slider horizontal par étape — même mécanisme que .tf-slider-wrap/
+           .tf-slider-track du tunnel principal (translateX, une seule étape
+           visible à la fois) : chaque étape avance automatiquement vers la
+           droite dès que son champ devient valide, exactement comme
+           tfAfterAmountSet()/tfUpdateRecipient() plus haut le font déjà
+           pour le tunnel principal — voir schedGoToStep()/schedWzBack()
+           (js/client.js). Classe .sched-slide dédiée (pas .tf-slide) pour
+           ne jamais hériter des surcharges .tf-slide .form-control (icône
+           en overlay) qui ne s'appliquent pas à la structure de ces champs. -->
+      <div class="tf-slider-wrap" id="sched-slider-wrap">
+        <div class="tf-slider-track" id="sched-slider-track">
 
-      <div class="sched-field">
-        <label class="sched-label"><i class="fa-solid fa-mobile-screen"></i> Numéro du bénéficiaire</label>
-        <input type="tel" class="form-control" id="sched-recipient" placeholder="XX XX XX XX XX" maxlength="14" inputmode="numeric" oninput="schedOnRecipient(this.value)">
-      </div>
+          <div class="sched-slide tf-slide" id="sched-step-op">
+            <div class="tf-slide-hd"><i class="fa-solid fa-tower-broadcast"></i> Choisissez votre réseau</div>
+            <div class="op-row" id="sched-op-row">
+              <div class="op-card op-card--orange" data-op="Orange" onclick="schedSelectOp('Orange',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span class=op-emoji-fb>🟠</span>'">
+                </div>
+                <div class="op-name-pill">Orange</div>
+              </div>
+              <div class="op-card op-card--mtn" data-op="MTN" onclick="schedSelectOp('MTN',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span class=op-emoji-fb>🟡</span>'">
+                </div>
+                <div class="op-name-pill">MTN</div>
+              </div>
+              <div class="op-card op-card--moov" data-op="Moov" onclick="schedSelectOp('Moov',this)">
+                <div class="op-check"><i class="fa-solid fa-check"></i></div>
+                <div class="op-logo-sq">
+                  <img class="op-logo-img" src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span class=op-emoji-fb>🔵</span>'">
+                </div>
+                <div class="op-name-pill">Moov</div>
+              </div>
+            </div>
+          </div>
 
-      <div class="sched-field" id="sched-amount-field">
-        <label class="sched-label"><i class="fa-solid fa-coins"></i> Montant (FCFA)</label>
-        <input type="number" class="form-control" id="sched-amount" placeholder="Ex : 3 500" min="500" max="100000">
-      </div>
+          <div class="sched-slide tf-slide" id="sched-step-type">
+            <div class="tf-slide-hd"><i class="fa-solid fa-layer-group"></i> Type d'opération</div>
+            <div class="tf-svc-row">
+              <button class="wz-back-btn" onclick="schedWzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+              <div class="service-toggle">
+                <button type="button" class="svc-tab active" id="sched-svc-direct" onclick="schedSetType('direct')">
+                  <span class="svc-tab-title">Crédit</span>
+                  <span class="svc-tab-sub">Transfert direct</span>
+                </button>
+                <button type="button" class="svc-tab" id="sched-svc-forfait" onclick="schedSetType('forfait')">
+                  <span class="svc-tab-title">Forfait</span>
+                  <span class="svc-tab-sub">Internet, appels, SMS</span>
+                </button>
+              </div>
+            </div>
+            <div id="sched-amount-field">
+              <div style="font-size:.6rem;font-weight:600;color:var(--gray-500);margin-top:14px;margin-bottom:5px;">Montants rapides</div>
+              <div class="amount-tiles">
+                <div class="amount-tile" id="sched-tile-500" onclick="schedSelectAmount(500,this)"><div class="tile-val">500</div></div>
+                <div class="amount-tile" id="sched-tile-2000" onclick="schedSelectAmount(2000,this)"><div class="tile-val">2 000</div></div>
+                <div class="amount-tile" id="sched-tile-10000" onclick="schedSelectAmount(10000,this)"><div class="tile-val">10 000</div></div>
+              </div>
+              <div style="font-size:.6rem;font-weight:600;color:var(--gray-500);margin-bottom:5px;">Autre montant</div>
+              <div class="amount-custom-wrap">
+                <span class="amount-custom-icon"><i class="fa-solid fa-coins"></i></span>
+                <input type="number" class="form-control" id="sched-amount" placeholder="Ex : 3 500" min="500" max="100000" oninput="schedCustomAmount(this.value)">
+                <span class="amount-custom-suffix">FCFA</span>
+              </div>
+              <div class="form-hint">Min. 500 FCFA · Max. 100 000 FCFA</div>
+            </div>
+            <div class="sched-field" id="sched-forfait-field" style="display:none;">
+              <label class="sched-label"><i class="fa-solid fa-box"></i> Forfait</label>
+              <div class="forfait-cats" id="sched-forfait-cats"></div>
+              <div class="forfait-subcats" id="sched-forfait-subcats" style="display:none;"></div>
+              <div class="forfait-grid" id="sched-forfait-list">
+                <div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gray-400);font-size:.85rem;">
+                  Sélectionnez d'abord un réseau.
+                </div>
+              </div>
+            </div>
+          </div>
 
-      <div class="sched-field" id="sched-forfait-field" style="display:none;">
-        <label class="sched-label"><i class="fa-solid fa-box"></i> Forfait</label>
-        <select class="form-control" id="sched-forfait">
-          <option value="">Choisissez d'abord un réseau…</option>
-        </select>
-      </div>
+          <div class="sched-slide tf-slide" id="sched-step-date">
+            <div class="tf-slide-hd"><i class="fa-solid fa-calendar-day"></i> Date &amp; heure</div>
+            <button class="wz-back-btn" onclick="schedWzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
 
-      <div class="sched-row2">
-        <div class="sched-field">
-          <label class="sched-label"><i class="fa-solid fa-calendar-day"></i> Date</label>
-          <input type="date" class="form-control" id="sched-date">
-        </div>
-        <div class="sched-field">
-          <label class="sched-label"><i class="fa-solid fa-clock"></i> Heure</label>
-          <input type="time" class="form-control" id="sched-time">
-        </div>
-      </div>
+            <div style="font-size:.6rem;font-weight:600;color:var(--gray-500);margin-bottom:5px;">Raccourcis rapides</div>
+            <div class="sched-date-tiles" id="sched-date-tiles">
+              <div class="sched-date-tile" onclick="schedPickQuickDate('1h',this)">
+                <span class="sdt-label">Dans 1h</span>
+              </div>
+              <div class="sched-date-tile" onclick="schedPickQuickDate('soir',this)">
+                <span class="sdt-label">Ce soir</span>
+                <span class="sdt-sub">20h</span>
+              </div>
+              <div class="sched-date-tile" onclick="schedPickQuickDate('demain',this)">
+                <span class="sdt-label">Demain</span>
+                <span class="sdt-sub">8h</span>
+              </div>
+            </div>
 
-      <div class="sched-hint">
-        <i class="fa-solid fa-circle-info"></i>
-        Le montant + 15 FCFA de frais de service seront débités immédiatement. La commande démarrera automatiquement à l'heure choisie et ne pourra plus être annulée.
-      </div>
+            <button type="button" class="sched-date-custom-toggle" id="sched-date-custom-toggle" onclick="schedToggleCustomDate()">
+              <i class="fa-solid fa-calendar-week"></i> Choisir une date précise
+            </button>
 
-      <button class="tf-validate-btn" id="sched-submit-btn" onclick="schedSubmit()">
-        <i class="fa-solid fa-circle-check"></i> Programmer et payer
-      </button>
-    </div>
+            <div class="sched-row2" id="sched-date-custom-fields" style="display:none;">
+              <div class="sched-field">
+                <label class="sched-label"><i class="fa-solid fa-calendar-day"></i> Date</label>
+                <input type="date" class="form-control" id="sched-date" onchange="schedOnCustomDateChange()">
+              </div>
+              <div class="sched-field">
+                <label class="sched-label"><i class="fa-solid fa-clock"></i> Heure</label>
+                <input type="time" class="form-control" id="sched-time" onchange="schedOnCustomDateChange()">
+              </div>
+            </div>
+          </div>
+
+          <div class="sched-slide tf-slide" id="sched-step-dest">
+            <div class="tf-slide-hd"><i class="fa-solid fa-mobile-screen"></i> Numéro du bénéficiaire</div>
+            <div class="tf-dest-row">
+              <button class="wz-back-btn" onclick="schedWzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+              <div class="recipient-wrap">
+                <span class="rcp-flag" id="sched-rcp-flag">🇨🇮</span>
+                <input type="tel" class="form-control" id="sched-recipient"
+                  placeholder="XX XX XX XX XX" maxlength="14"
+                  inputmode="numeric" oninput="schedOnRecipient(this.value)" />
+                <button type="button" class="contacts-btn"
+                  onclick="openContactsPicker(schedPickContact)" title="Répertoire du téléphone">
+                  <i class="fa-solid fa-address-book"></i>
+                </button>
+              </div>
+              <button type="button" class="tf-paste-btn" onclick="schedPasteRecipient()" title="Coller depuis le presse-papiers">
+                <i class="fa-solid fa-paste"></i>
+              </button>
+            </div>
+            <div class="rcp-status" id="sched-rcp-status"></div>
+            <div class="tf-recipient-warning">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+              <span>Vérifiez bien le numéro du bénéficiaire avant de valider — en cas d'erreur de saisie, aucun remboursement ne sera possible.</span>
+            </div>
+          </div>
+
+          <!-- Paiement — même modèle que #step-pay du tunnel principal
+               (.payment-grid/.tf-pay-num-wrap/.tf-pay-solde-wrap), sans le
+               récapitulatif à délai de 30s (spécifique au paiement en
+               temps réel) : ici, valider revient directement à programmer
+               et payer, voir schedSelectPayment()/schedOnPayPhone()/
+               schedSubmit() (js/client.js). -->
+          <div class="sched-slide tf-slide" id="sched-step-pay">
+            <div class="tf-slide-hd"><i class="fa-solid fa-credit-card"></i> Choisir le moyen de paiement</div>
+            <button class="wz-back-btn" onclick="schedWzBack()" title="Retour"><i class="fa-solid fa-arrow-left"></i></button>
+
+            <div class="payment-grid" id="sched-payment-grid"><!-- Rendu par JS --></div>
+            <div class="tf-pay-num-wrap" id="sched-pay-num-wrap">
+              <input type="tel" id="sched-pay-phone" maxlength="14"
+                class="tf-pay-num-input" inputmode="numeric"
+                placeholder="XX XX XX XX XX"
+                oninput="schedOnPayPhone(this.value)" disabled />
+              <div class="tf-pay-num-label" id="sched-pay-phone-method">Sélectionnez un moyen ci-dessus</div>
+              <div class="tf-pay-num-bar"></div>
+            </div>
+            <div class="tf-pay-solde-wrap" id="sched-pay-solde-wrap" style="display:none;">
+              <div class="tf-pay-solde-dest-marquee">
+                <i class="fa-solid fa-mobile-screen"></i>
+                <span id="sched-pay-solde-dest">—</span>
+              </div>
+            </div>
+
+            <div class="sched-hint">
+              <i class="fa-solid fa-circle-info"></i>
+              Le montant + 15 FCFA de frais de service seront débités immédiatement. La commande démarrera automatiquement à l'heure choisie et ne pourra plus être annulée.
+            </div>
+
+            <button class="tf-validate-btn" id="sched-submit-btn" onclick="schedSubmit()">
+              <i class="fa-solid fa-circle-check"></i> Programmer et payer
+            </button>
+          </div>
+
+        </div><!-- /#sched-slider-track -->
+      </div><!-- /#sched-slider-wrap -->
+    </div><!-- /#sched-section -->
 
     <!-- -- 3a. Réclamation & Service clients -------------------- -->
     <div class="home-section home-only">

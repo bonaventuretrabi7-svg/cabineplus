@@ -1542,11 +1542,88 @@ body.dark .tf-step-body { border-color: var(--dark-border); }
 #chapchap-section .ccp-num { font-size: .58rem; }
 #chapchap-section .op-name-pill { font-size: .6rem; padding: 4px 9px; }
 
+/* "Je passe ma commande" (#order-mode-section) — carte autonome, coins
+   entièrement arrondis (comme n'importe quelle .tf-layout), fond gris
+   neutre plutôt que le dégradé sombre par défaut (demande explicite) —
+   le bandeau titre et les onglets Maintenant/Plus tard portent chacun
+   déjà leur propre fond (orange / blanc), donc rien d'autre à retoucher. */
+#order-mode-section {
+  border-radius: var(--radius-lg);
+  /* Même fond que .tf-layout par défaut ("Commande automatique" juste en
+     dessous) plutôt qu'une teinte unie propre à cette carte. */
+  background: linear-gradient(145deg, #0F0A2E 0%, #1A1040 55%, #0D0820 100%);
+  border-color: rgba(138,99,255,.2);
+  padding: 12px 12px 14px;
+  margin-top: 8px;
+}
+#order-mode-section .tf-slide-hd { padding: 8px 12px; margin-bottom: 10px; font-size: .62rem; gap: 7px; }
+#order-mode-section .tf-slide-hd i { font-size: .7rem; }
+#order-mode-section .service-toggle { gap: 8px; margin-bottom: 0; }
+#order-mode-section .svc-tab { padding: 10px 8px; border-radius: 11px; gap: 3px; }
+#order-mode-section .svc-tab-title { font-size: .74rem; }
+#order-mode-section .svc-tab-sub { font-size: .58rem; }
+
+/* "Passez votre commande" (#tf-order-now) et "Commande automatique"
+   (#sched-section) — format réduit sur les deux, à l'identique (demande
+   explicite), aucune couleur retouchée : accroche/stepper/bandeau/cartes
+   réseau simplement rétrécis, exactement les mêmes teintes qu'avant. */
+#tf-order-now,
+#sched-section { padding: 12px 12px 20px; }
+#tf-order-now .tf-order-intro,
+#sched-section .tf-order-intro { padding: 9px 11px; margin-bottom: 10px; gap: 8px; }
+#tf-order-now .tf-oi-title,
+#sched-section .tf-oi-title { font-size: .88rem; }
+#tf-order-now .tf-oi-sub,
+#sched-section .tf-oi-sub { font-size: .6rem; line-height: 1.4; }
+#tf-order-now .tf-oi-badge,
+#sched-section .tf-oi-badge { width: 38px; height: 38px; }
+#tf-order-now .tf-stepper-card,
+#sched-section .tf-stepper-card { padding: 10px 8px; margin-bottom: 10px; }
+#tf-order-now .wzc-bubble,
+#sched-section .wzc-bubble { width: 22px; height: 22px; }
+#tf-order-now .wzc-step.wz-active .wzc-bubble,
+#sched-section .wzc-step.wz-active .wzc-bubble { width: 26px; height: 26px; }
+#tf-order-now .wzc-num,
+#sched-section .wzc-num { font-size: .56rem; }
+#tf-order-now .wzc-check,
+#sched-section .wzc-check { width: 11px; height: 11px; }
+#tf-order-now .wzc-lbl,
+#sched-section .wzc-lbl { font-size: .44rem; }
+#tf-order-now .wzc-line,
+#sched-section .wzc-line { margin-top: 11px; }
+#tf-order-now .tf-slide-hd,
+#sched-section .tf-slide-hd { padding: 7px 11px; margin-bottom: 12px; font-size: .6rem; gap: 6px; }
+#tf-order-now .tf-slide-hd i,
+#sched-section .tf-slide-hd i { font-size: .68rem; }
+#tf-order-now .op-row,
+#sched-section .op-row { gap: 8px; }
+#tf-order-now .op-logo-sq,
+#sched-section .op-logo-sq { width: 44px; height: 44px; }
+#tf-order-now .op-name-pill,
+#sched-section .op-name-pill { font-size: .68rem; padding: 5px 12px; }
+#tf-order-now .op-check,
+#sched-section .op-check { top: 16px; right: 16px; }
+
 /* Section "Commande automatique" (client, index.html #sched-section) —
-   même carte réseau .op-card et même bandeau .tf-slide-hd que le tunnel
-   de commande, avec un formulaire compact (numéro/montant/date/heure) en
-   dessous. Voir schedSelectOp()/schedSubmit() (js/client.js). */
-#sched-section { margin-top: 14px; }
+   même identité visuelle ET même taille que "Passez votre commande" du
+   tunnel principal : chaque slide porte désormais AUSSI la classe .tf-slide
+   (en plus de .sched-slide, qui ne fixe que la géométrie 25%/padding,
+   identique) pour hériter de toutes les surcharges "fond sombre" déjà
+   écrites pour le tunnel principal (.recipient-wrap/.amount-custom-wrap/
+   .amount-tile/.svc-tab/.forfait-cats .fcat-btn — voir plus bas dans ce
+   fichier) plutôt que de les dupliquer ici. Seule exception : #sched-date/
+   #sched-time (voir plus bas) n'ont pas d'icône en overlay contrairement
+   aux champs du tunnel principal, donc pas le padding-left 38px que
+   `.tf-slide .form-control` suppose. */
+/* 5 slides désormais (Réseau/Type/Date/Numéro/Paiement) — #sched-slider-track
+   doit donc faire 500% (5 × 100% de la largeur visible) et non les 400%
+   génériques de .tf-slider-track (qui reste, lui, à 4 slides pour le
+   tunnel principal) ; chaque .sched-slide occupe 1/5e de ce track, soit
+   20%, pas 25%. Sans cette correction, flex-shrink réduisait toutes les
+   slides pour les faire tenir dans un track resté à 400%, laissant la
+   slide suivante déborder visiblement dans le cadre. */
+#sched-slider-track { width: 500%; }
+.sched-slide { width: 20%; padding: 14px 14px 28px; box-sizing: border-box; flex-shrink: 0; }
 .sched-field { margin-top: 14px; }
 .sched-label {
   display: flex; align-items: center; gap: 6px;
@@ -1565,6 +1642,43 @@ body.dark .tf-step-body { border-color: var(--dark-border); }
 }
 .sched-hint i { color: rgba(255,255,255,.6); font-size: .7rem; margin-top: 1px; flex-shrink: 0; }
 #sched-section .tf-validate-btn { margin-top: 16px; }
+#sched-date, #sched-time { padding: 9px 14px !important; }
+
+/* Étape "Date & heure" — raccourcis rapides (même esprit que
+   .amount-tiles, mais pilules rectangulaires plutôt que ronds : le
+   libellé ("Ce soir 20h") est trop long pour un cercle) + un bouton
+   "Autre date" qui révèle les champs date/heure existants. Voir
+   schedPickQuickDate()/schedToggleCustomDate() (js/client.js). */
+.sched-date-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.sched-date-tile {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  border: 1.5px solid rgba(255,255,255,.1); border-radius: 14px;
+  background: rgba(255,255,255,.04); color: rgba(255,255,255,.8);
+  padding: 10px 6px; cursor: pointer; font-family: inherit;
+  transition: all .2s ease;
+}
+.sched-date-tile:hover { border-color: color-mix(in srgb, var(--op-clr, var(--primary)) 55%, transparent); transform: translateY(-2px); }
+.sched-date-tile .sdt-label { font-size: .64rem; font-weight: 800; }
+.sched-date-tile .sdt-sub { font-size: .5rem; font-weight: 600; color: rgba(255,255,255,.5); }
+.sched-date-tile.selected {
+  background: linear-gradient(150deg, color-mix(in srgb, var(--op-clr, var(--primary)) 75%, white 25%), var(--op-clr, var(--primary)));
+  border-color: transparent; color: var(--op-clr-text, #fff);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--op-clr, var(--primary)) 40%, transparent);
+}
+.sched-date-tile.selected .sdt-sub { color: var(--op-clr-text, #fff); opacity: .8; }
+
+.sched-date-custom-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; margin-top: 10px;
+  border: 1.5px dashed rgba(255,255,255,.15); border-radius: 12px;
+  background: rgba(255,255,255,.03); color: rgba(255,255,255,.65);
+  padding: 10px 14px; cursor: pointer; font-family: inherit;
+  font-size: .64rem; font-weight: 700;
+  transition: all .2s ease;
+}
+.sched-date-custom-toggle:hover { border-color: var(--op-clr, var(--primary)); color: #fff; }
+.sched-date-custom-toggle i { color: var(--op-clr, var(--primary)); font-size: .72rem; }
+#sched-date-custom-fields { margin-top: 12px; }
 
 /* â”€â”€ Service Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Deux cartes (Crédit/Transfert direct, Forfait/Internet-appels-SMS) —

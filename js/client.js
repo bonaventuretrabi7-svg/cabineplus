@@ -475,6 +475,8 @@ async function boot() {
     renderSoldeSection();
     initPinRows();
     tfRenderPaymentMethods();
+    schedRenderPaymentMethods();
+    setOrderMode('now');
     renderAndroidProfileButton();
 
     // QR "invité" (générique, avant connexion) — voir renderMyQrCode()
@@ -1439,9 +1441,13 @@ function tfInitView() {
   setStep('step-service', 'locked');
   setStep('step-dest',    'locked');
   setStep('step-pay',     'locked');
-  document.querySelectorAll('.op-card').forEach(c => c.classList.remove('active'));
-  document.querySelectorAll('.amount-tile').forEach(t => t.classList.remove('selected'));
-  document.querySelectorAll('.forfait-card').forEach(c => c.classList.remove('selected'));
+  // Scopés à #tf-order-now (jamais document.querySelectorAll('.op-card')
+  // global) — depuis "Commande automatique" (#sched-section), qui a ses
+  // propres cartes réseau/tuiles montant/cartes forfait, réinitialiser le
+  // tunnel principal ne doit jamais toucher aux sélections faites là-bas.
+  document.querySelectorAll('#tf-order-now .op-card').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#tf-order-now .amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .forfait-card').forEach(c => c.classList.remove('selected'));
   document.querySelectorAll('.pm-chip').forEach(c => c.classList.remove('selected'));
   const rcpEl  = document.getElementById('tf-recipient');
   if (rcpEl) { rcpEl.value = ''; rcpEl.classList.remove('rcp-valid'); }
@@ -1554,9 +1560,18 @@ async function tfSelectOp(op, el) {
   tf.operator     = op;
   tf.forfait      = null;
   tf.directAmount = 0;
-  document.querySelectorAll('.op-card').forEach(c => c.classList.remove('active'));
+  // Scopé à #step-op (pas document.querySelectorAll('.op-card') global) —
+  // depuis l'ajout de "Je passe ma commande"/"Commande automatique",
+  // plusieurs .op-card coexistent sur la page (tunnel principal + sched-
+  // section) ; sans ce scope, choisir un réseau ici désélectionnait aussi
+  // la carte réseau de la section "Commande automatique", et vice versa.
+  document.querySelectorAll('#step-op .op-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
-  const layout = document.querySelector('.tf-layout');
+  // Idem : #tf-order-now précisément (pas document.querySelector('.tf-layout'),
+  // qui matchait #order-mode-section — le premier '.tf-layout' du document
+  // depuis son ajout — et posait --op-clr/--op-clr-text sur le mauvais
+  // élément, teintant à tort les onglets Maintenant/Plus tard).
+  const layout = document.getElementById('tf-order-now');
   if (layout) {
     const theme = OP_THEME[op] || OP_THEME.Orange;
     layout.style.setProperty('--op-clr', theme.clr);
@@ -1572,8 +1587,8 @@ async function tfSelectOp(op, el) {
   }
   setStep('step-op',      'complete');
   setStep('step-service', 'active');
-  document.querySelectorAll('.amount-tile').forEach(t => t.classList.remove('selected'));
-  document.querySelectorAll('.forfait-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .forfait-card').forEach(c => c.classList.remove('selected'));
   const custEl = document.getElementById('tf-amount-custom');
   if (custEl) custEl.value = '';
   document.getElementById('prev-service-label').textContent = '—';
@@ -1617,8 +1632,8 @@ function tfSetService(type, silent = false) {
   document.getElementById('svc-forfait').classList.toggle('active', type === 'forfait');
   document.getElementById('panel-direct').style.display  = type === 'direct'  ? 'block' : 'none';
   document.getElementById('panel-forfait').style.display = type === 'forfait' ? 'block' : 'none';
-  document.querySelectorAll('.amount-tile').forEach(t => t.classList.remove('selected'));
-  document.querySelectorAll('.forfait-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .forfait-card').forEach(c => c.classList.remove('selected'));
   const custEl = document.getElementById('tf-amount-custom');
   if (custEl) custEl.value = '';
   document.getElementById('prev-service-label').textContent = '—';
@@ -1637,7 +1652,7 @@ function tfSetService(type, silent = false) {
 /* ── Étape 2b : Montant direct ─────────────────────────────────── */
 function tfSelectAmount(amount, el) {
   tf.directAmount = amount;
-  document.querySelectorAll('.amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .amount-tile').forEach(t => t.classList.remove('selected'));
   el.classList.add('selected');
   const custEl = document.getElementById('tf-amount-custom');
   if (custEl) custEl.value = '';
@@ -1648,7 +1663,7 @@ function tfSelectAmount(amount, el) {
 function tfCustomAmount(val) {
   const amount = parseInt(val) || 0;
   tf.directAmount = amount;
-  document.querySelectorAll('.amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .amount-tile').forEach(t => t.classList.remove('selected'));
   if (amount >= 500) {
     document.getElementById('prev-service-label').textContent = Fmt.money(amount) + ' · direct';
     tfAfterAmountSet();
@@ -1803,20 +1818,32 @@ function tfRenderForfaits() {
    auquel cas plus aucun step n'est 'active' alors que cette slide reste
    bien la slide visible à resynchroniser. */
 function _tfSyncSlideHeight() {
-  requestAnimationFrame(() => {
+  const sync = () => {
     const track = document.getElementById('tf-slider-track');
     const wrap  = document.querySelector('.tf-slider-wrap');
     if (!track || !wrap) return;
     const m = /translateX\((-?[\d.]+)%\)/.exec(track.style.transform || '');
     const curIdx = m ? Math.round(-parseFloat(m[1]) / 25) : 0;
     const slide = document.querySelectorAll('.tf-slide')[curIdx];
-    if (slide) wrap.style.height = slide.scrollHeight + 'px';
-  });
+    // scrollHeight vaut 0 tant que .tf-layout est display:none (section
+    // "Maintenant" pas encore affichée, voir setOrderMode()) — jamais
+    // écrire une hauteur figée à 0 dans ce cas, elle sera recalculée dès
+    // que la section redevient visible (setOrderMode() rappelle déjà
+    // cette fonction à ce moment-là).
+    if (slide && slide.scrollHeight > 0) wrap.style.height = slide.scrollHeight + 'px';
+  };
+  // Un second passage légèrement différé rattrape le contenu qui finit de
+  // se mettre en page après le premier frame (ex : grille de forfaits
+  // encore en train de s'étendre, image de logo pas encore chargée) —
+  // sans ça, la hauteur peut rester figée trop courte ou trop haute selon
+  // ce qui a fini de se peindre au moment du premier requestAnimationFrame.
+  requestAnimationFrame(sync);
+  setTimeout(sync, 200);
 }
 
 function tfSelectForfait(id, el) {
   tf.forfait = DB.forfaits.all().find(f => f.id === id) || null;
-  document.querySelectorAll('.forfait-card').forEach(c => c.classList.remove('selected'));
+  document.querySelectorAll('#tf-order-now .forfait-card').forEach(c => c.classList.remove('selected'));
   el.classList.add('selected');
   document.getElementById('prev-service-label').textContent =
     tf.forfait ? tf.forfait.detail + ' · ' + Fmt.money(tf.forfait.prix) : '—';
@@ -3608,7 +3635,11 @@ function _contactsPlugin() {
     : undefined;
 }
 
-async function openContactsPicker() {
+// onPick(numero) : par défaut tfPickContact (tunnel principal) — la
+// section "Commande automatique" passe schedPickContact pour cibler son
+// propre champ (voir index.html #sched-step-dest), sans dupliquer toute
+// la logique de sélection (permission Capacitor, repli navigateur...).
+async function openContactsPicker(onPick = tfPickContact) {
   if (!currentUser) {
     Toast.info('Connectez-vous pour accéder à votre répertoire.');
     return;
@@ -3620,7 +3651,7 @@ async function openContactsPicker() {
       const { contact } = await plugin.pickContact({ projection: { name: true, phones: true } });
       const numero = contact?.phones?.find(p => p.number)?.number;
       if (!numero) { Toast.error('Ce contact ne possède aucun numéro de téléphone.'); return; }
-      tfPickContact(numero);
+      onPick(numero);
     } catch (e) {
       // Sélection annulée ou permission refusée — rien à afficher.
     }
@@ -3635,7 +3666,7 @@ async function openContactsPicker() {
       const [contact] = await navigator.contacts.select(['tel'], { multiple: false });
       const numero = contact?.tel?.[0];
       if (!numero) { Toast.error('Ce contact ne possède aucun numéro de téléphone.'); return; }
-      tfPickContact(numero);
+      onPick(numero);
     } catch (e) {
       // Sélection annulée.
     }
@@ -3649,6 +3680,34 @@ function tfPickContact(numero) {
   document.getElementById('tf-recipient').value = numero;
   tfUpdateRecipient(numero);
   Toast.info(`Numéro ${Fmt.phone(numero)} sélectionné.`);
+}
+
+/* ================================================================
+   JE PASSE MA COMMANDE — bascule Maintenant / Plus tard
+   ================================================================
+   Un seul des deux blocs visible à la fois : "Maintenant" révèle le
+   tunnel de commande en temps réel (+ Chap Chap, qui lui reste régi par
+   sa propre logique de présence de données — voir renderChapChap()
+   ci-dessous, simplement contrainte à ne jamais s'afficher hors du mode
+   "Maintenant") ; "Plus tard" révèle la section "Commande automatique"
+   (#sched-section). Choix non persistant : toujours "Maintenant" par
+   défaut à l'ouverture (voir boot()). */
+let orderMode = 'now';
+function setOrderMode(mode) {
+  orderMode = mode;
+  document.getElementById('order-mode-now')?.classList.toggle('active', mode === 'now');
+  document.getElementById('order-mode-later')?.classList.toggle('active', mode === 'later');
+  const wizard = document.getElementById('tf-order-now');
+  const sched  = document.getElementById('sched-section');
+  if (wizard) wizard.style.display = mode === 'now' ? '' : 'none';
+  if (sched)  sched.style.display  = mode === 'later' ? '' : 'none';
+  renderChapChap();
+  // La section qui redevient visible ici a pu être mesurée à 0 (scrollHeight
+  // nul tant qu'un ancêtre est display:none) pendant qu'elle était masquée
+  // — la resynchroniser maintenant qu'elle est affichée évite un vide sous
+  // son contenu (voir _tfSyncSlideHeight()/_schedSyncSlideHeight()).
+  if (mode === 'now') _tfSyncSlideHeight();
+  else _schedSyncSlideHeight();
 }
 
 /* ================================================================
@@ -3677,7 +3736,7 @@ function renderChapChap() {
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 3);
 
-  if (!txns.length) { section.style.display = 'none'; return; }
+  if (!txns.length || orderMode !== 'now') { section.style.display = 'none'; return; }
   section.style.display = 'block';
 
   list.innerHTML = txns.map(t => {
@@ -3705,13 +3764,13 @@ function renderChapChap() {
 async function repeatTransaction(txnId) {
   const t = DB.transactions.byId(txnId);
   if (!t) return;
-  const opEl = document.querySelector(`.op-card[data-op="${t.operateur}"]`);
+  const opEl = document.querySelector(`#step-op .op-card[data-op="${t.operateur}"]`);
   if (!opEl) return;
   await tfSelectOp(t.operateur, opEl);
   tfSetService('direct', true);
   tfCustomAmount(String(t.montant));
   tfUpdateRecipient(t.numero_beneficiaire || '');
-  document.querySelector('.tf-layout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('tf-order-now')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /* ================================================================
@@ -3726,52 +3785,366 @@ async function repeatTransaction(txnId) {
    serveur répond limitReached:true — redirige alors vers l'assistant
    clientèle existant (handleClientWhatsappClick()) plutôt qu'un simple
    message de blocage, comme demandé. */
-const schedState = { operateur: null, recipient: '', type: 'direct' };
+const schedState = {
+  operateur: null, recipient: '', type: 'direct', step: 0,
+  forfait: null, forfaitCat: null, forfaitSubCat: null, forfaitSubRequired: false,
+  paymentMethod: null, payPhone: '',
+};
+
+// 5 étapes, une slide chacune (voir #sched-slider-track, index.html) —
+// même ordre que le stepper .wzc-* : Réseau, Type d'opération, Date &
+// heure, Numéro du destinataire (déplacé en dernier, demande explicite),
+// Paiement (même modèle que #step-pay du tunnel principal).
+const SCHED_STEPS = ['sched-step-op', 'sched-step-type', 'sched-step-date', 'sched-step-dest', 'sched-step-pay'];
 
 // Empêche de choisir une date passée dans le sélecteur natif — la
 // validation réelle (≥ 1 minute dans le futur) reste faite par le serveur.
 function _schedInitDateMin() {
   const dateEl = document.getElementById('sched-date');
   if (dateEl) dateEl.min = new Date().toISOString().slice(0, 10);
+  _schedSyncSlideHeight();
+  schedSyncStepper();
 }
 
-function schedSelectOp(op, el) {
+// Déplace le slider vers l'étape ciblée — même mécanisme que translateX()
+// sur #tf-slider-track pour le tunnel principal (voir syncWizardBar()),
+// mais piloté directement par schedState.step plutôt que déduit d'une
+// classe .active posée sur chaque slide (plus simple ici, un seul état
+// scalaire suffit puisqu'il n'y a jamais qu'un seul formulaire actif).
+// autoAdvance=false par défaut : un déplacement direct (retour, reset) ne
+// doit jamais se faire aussitôt ré-avancer par schedSyncStepper() au
+// prétexte que l'étape ciblée est déjà valide (ex : revenir en arrière sur
+// un réseau déjà choisi renvoyait aussitôt à l'étape suivante — bouton
+// "Retour" en apparence cassé). Seul l'avancement automatique déclenché
+// par schedSyncStepper() lui-même (saisie qui vient de devenir valide)
+// passe explicitement autoAdvance=true, pour permettre l'enchaînement sur
+// plusieurs étapes déjà valides à la suite.
+function schedGoToStep(idx, autoAdvance = false) {
+  schedState.step = Math.max(0, Math.min(SCHED_STEPS.length - 1, idx));
+  const track = document.getElementById('sched-slider-track');
+  // Pourcentage de la largeur du TRACK (pas de l'écran) : #sched-slider-track
+  // fait 500% (5 slides × 100% visible chacune, voir css/style.css), donc
+  // chaque étape correspond à 100/5 = 20% du track, pas 25% (qui suppose 4
+  // slides, comme le tunnel principal). Garder ce calcul et la largeur du
+  // track synchronisés avec SCHED_STEPS.length si de nouvelles étapes
+  // s'ajoutent encore.
+  const stepPct = 100 / SCHED_STEPS.length;
+  if (track) track.style.transform = `translateX(-${schedState.step * stepPct}%)`;
+  _schedSyncSlideHeight();
+  schedSyncStepper(autoAdvance);
+}
+
+// Équivalent de _tfSyncSlideHeight() (tunnel principal) pour ce slider —
+// #sched-slider-wrap n'a pas de hauteur propre (les 4 slides sont côte à
+// côte dans un track en display:flex) : sans ceci, sa hauteur resterait
+// celle de la slide la PLUS HAUTE des 4 plutôt que celle réellement
+// affichée, laissant un vide sous les slides plus courtes.
+function _schedSyncSlideHeight() {
+  const sync = () => {
+    const wrap  = document.getElementById('sched-slider-wrap');
+    const slide = document.querySelectorAll('.sched-slide')[schedState.step];
+    // scrollHeight vaut 0 tant que #sched-section est display:none
+    // (section "Plus tard" pas encore affichée, voir setOrderMode()) —
+    // jamais écrire une hauteur figée à 0, elle sera recalculée dès que
+    // la section redevient visible (setOrderMode() rappelle déjà cette
+    // fonction à ce moment-là).
+    if (wrap && slide && slide.scrollHeight > 0) wrap.style.height = slide.scrollHeight + 'px';
+  };
+  // Second passage différé : rattrape le contenu qui finit de se mettre
+  // en page après le premier frame (grille de forfaits, logo réseau...).
+  requestAnimationFrame(sync);
+  setTimeout(sync, 200);
+}
+
+function schedWzBack() {
+  if (schedState.step > 0) schedGoToStep(schedState.step - 1);
+}
+
+/* ── Étape Date & heure : raccourcis rapides ────────────────────────
+   Écrivent directement dans #sched-date/#sched-time — schedSyncStepper()
+   relit toujours ces deux champs, aucun autre état à dupliquer. */
+const SCHED_DATE_PRESETS = {
+  '1h': () => new Date(Date.now() + 60 * 60000),
+  soir: () => {
+    const d = new Date(); d.setHours(20, 0, 0, 0);
+    if (d.getTime() <= Date.now() + 60000) d.setDate(d.getDate() + 1);
+    return d;
+  },
+  demain: () => {
+    const d = new Date(); d.setDate(d.getDate() + 1); d.setHours(8, 0, 0, 0);
+    return d;
+  },
+};
+
+function schedPickQuickDate(key, el) {
+  const d = SCHED_DATE_PRESETS[key]();
+  const pad = n => String(n).padStart(2, '0');
+  const dateEl = document.getElementById('sched-date');
+  const timeEl = document.getElementById('sched-time');
+  if (dateEl) dateEl.value = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  if (timeEl) timeEl.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  document.querySelectorAll('#sched-date-tiles .sched-date-tile').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  // Un raccourci et la case "Autre date" sont mutuellement exclusifs.
+  const customFields = document.getElementById('sched-date-custom-fields');
+  if (customFields) customFields.style.display = 'none';
+  _schedSyncSlideHeight();
+  schedSyncStepper();
+}
+
+function schedToggleCustomDate() {
+  document.querySelectorAll('#sched-date-tiles .sched-date-tile').forEach(t => t.classList.remove('selected'));
+  const fields = document.getElementById('sched-date-custom-fields');
+  if (fields) fields.style.display = fields.style.display === 'none' ? '' : 'none';
+  _schedSyncSlideHeight();
+}
+
+function schedOnCustomDateChange() {
+  document.querySelectorAll('#sched-date-tiles .sched-date-tile').forEach(t => t.classList.remove('selected'));
+  schedSyncStepper();
+}
+
+// Fait vivre le stepper numéroté (même identité visuelle que "Passez votre
+// commande" du tunnel principal — .wzc-*, voir index.html) ET, si
+// autoAdvance (par défaut true — seul schedGoToStep() le passe à false
+// pour un retour/reset explicite), avance automatiquement le slider dès
+// qu'une étape devient valide — exactement le même comportement que
+// tfAfterAmountSet()/tfUpdateRecipient() plus haut pour le tunnel
+// principal (jamais de bouton "Suivant" explicite).
+function schedSyncStepper(autoAdvance = true) {
+  const montantOk = schedState.type === 'forfait'
+    ? !!schedState.forfait
+    : (parseInt(document.getElementById('sched-amount')?.value, 10) || 0) >= 500;
+  const dateVal = document.getElementById('sched-date')?.value;
+  const timeVal = document.getElementById('sched-time')?.value;
+  const dtOk = !!dateVal && !!timeVal && new Date(`${dateVal}T${timeVal}:00`).getTime() > Date.now() + 60000;
+
+  const payOk = schedState.paymentMethod === 'solde'
+    ? true
+    : (!!schedState.paymentMethod && /^0[0-9]{9}$/.test(schedState.payPhone));
+
+  const stepValid = [
+    !!schedState.operateur,
+    !!schedState.operateur && montantOk,
+    dtOk,
+    /^0[0-9]{9}$/.test(schedState.recipient),
+    payOk,
+  ];
+
+  stepValid.forEach((valid, i) => {
+    const ind  = document.getElementById('sched-wz-ind-' + (i + 1));
+    const line = document.getElementById('sched-wz-line-' + (i + 1));
+    if (!ind) return;
+    ind.classList.toggle('wz-complete', valid && i < schedState.step);
+    ind.classList.toggle('wz-active', i === schedState.step);
+    if (line) line.classList.toggle('wz-done', valid && i < schedState.step);
+  });
+
+  // Avance automatiquement d'une étape si celle en cours vient de devenir
+  // valide — jamais déclenché par un retour/reset (schedGoToStep() y passe
+  // autoAdvance=false), seulement par la saisie elle-même. autoAdvance=true
+  // est repropagé pour permettre d'enchaîner plusieurs étapes déjà valides
+  // à la suite (ex : retour puis re-sélection d'un réseau déjà utilisé
+  // alors que date/heure et numéro étaient déjà remplis).
+  if (autoAdvance && stepValid[schedState.step] && schedState.step < SCHED_STEPS.length - 1) {
+    schedGoToStep(schedState.step + 1, true);
+  }
+}
+
+async function schedSelectOp(op, el) {
+  if (await isNetworkInMaintenance(op)) { warnMaintenance(`Le réseau ${op} est actuellement en maintenance.`); return; }
   schedState.operateur = op;
   document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');
-  if (schedState.type === 'forfait') schedRenderForfaitOptions();
+  // Même thème dynamique --op-clr/--op-clr-text que tfSelectOp() (couleur
+  // de marque appliquée aux boutons/cartes des étapes suivantes).
+  const section = document.getElementById('sched-section');
+  if (section) {
+    const theme = OP_THEME[op] || OP_THEME.Orange;
+    section.style.setProperty('--op-clr', theme.clr);
+    section.style.setProperty('--op-clr-text', theme.text);
+  }
+  // Même disposition que tfSelectOp() : préfixe réseau injecté dans le
+  // champ destinataire, logo réseau affiché à la place du drapeau.
+  applyNetworkPrefix('sched-recipient', op);
+  const emojis = { Orange: '🟠', MTN: '🟡', Moov: '🔵' };
+  const opLogos = { Orange: 'orange.png', MTN: 'mtn.jpg', Moov: 'moov.jpg' };
+  const flagEl = document.getElementById('sched-rcp-flag');
+  if (flagEl) {
+    flagEl.innerHTML = `<img src="img/logos/${opLogos[op]}" alt="${op}" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.parentElement.textContent='${emojis[op]}'">`;
+  }
+  if (schedState.type === 'forfait') schedRenderCats();
+  schedSyncStepper();
 }
 
 // Type d'opération — Crédit (montant libre) ou Forfait (catalogue réseau,
-// prix fixe) : même dichotomie que le tunnel principal (tf.serviceType),
-// mais présentée en modèle déroulant (<select>) plutôt qu'en onglets, à la
-// demande explicite, cette section restant volontairement compacte.
-function schedOnTypeChange(type) {
+// prix fixe) : même dichotomie ET même identité visuelle que le tunnel
+// principal (.service-toggle/.svc-tab, voir tfSetService()) — deux onglets
+// cliquables, pas un menu déroulant.
+function schedSetType(type) {
   schedState.type = type;
+  schedState.forfait = null;
+  document.getElementById('sched-svc-direct').classList.toggle('active', type === 'direct');
+  document.getElementById('sched-svc-forfait').classList.toggle('active', type === 'forfait');
   document.getElementById('sched-amount-field').style.display  = type === 'direct'  ? '' : 'none';
   document.getElementById('sched-forfait-field').style.display = type === 'forfait' ? '' : 'none';
-  if (type === 'forfait') schedRenderForfaitOptions();
+  document.querySelectorAll('#sched-amount-field .amount-tile').forEach(t => t.classList.remove('selected'));
+  const custEl = document.getElementById('sched-amount');
+  if (custEl) custEl.value = '';
+  if (type === 'forfait') schedRenderCats();
+  _schedSyncSlideHeight();
+  schedSyncStepper();
 }
 
-function schedRenderForfaitOptions() {
-  const sel = document.getElementById('sched-forfait');
-  if (!sel) return;
+/* Montant rapide (.amount-tiles) / montant libre (.amount-custom-wrap) —
+   même disposition que panel-direct du tunnel principal (tfSelectAmount()/
+   tfCustomAmount()) : les tuiles écrivent directement dans #sched-amount
+   (schedSyncStepper() n'a pas d'état séparé pour le montant, il relit
+   toujours ce champ), donc aucune autre logique à dupliquer ici que la
+   sélection visuelle des tuiles. */
+function schedSelectAmount(amount, el) {
+  document.querySelectorAll('#sched-amount-field .amount-tile').forEach(t => t.classList.remove('selected'));
+  el.classList.add('selected');
+  const custEl = document.getElementById('sched-amount');
+  if (custEl) custEl.value = amount;
+  schedSyncStepper();
+}
+
+function schedCustomAmount(val) {
+  document.querySelectorAll('#sched-amount-field .amount-tile').forEach(t => t.classList.remove('selected'));
+  schedSyncStepper();
+}
+
+/* ── Forfait : catégories → sous-catégories (Orange) → grille ─────
+   Reproduit exactement le même modèle que le tunnel principal
+   (tfRenderCats()/tfSetCat()/tfRenderSubCats()/tfSetSubCat()/
+   tfRenderForfaits()/tfSelectForfait()) — mêmes classes CSS (.fcat-btn/
+   .fsub-btn/.forfait-card...), même comportement, mais dans schedState
+   plutôt que tf.*, et ciblant #sched-forfait-cats/-subcats/-list. */
+function schedRenderCats() {
+  const container = document.getElementById('sched-forfait-cats');
+  if (!container) return;
+  const cats = DB.forfaits.categoriesByOperator(schedState.operateur).filter(c => c !== 'Mixtes');
+  const all  = DB.forfaits.all().filter(f => f.operateur === schedState.operateur);
+  schedState.forfaitCat = null;
+  schedState.forfaitSubCat = null;
+  container.innerHTML = cats.map(cat => `
+    <button type="button" class="fcat-btn" onclick="schedSetCat('${cat}',this)">
+      <span class="fcat-btn-title"><i class="fa-solid ${FORFAIT_CAT_ICONS[cat] || 'fa-earth-africa'}"></i> ${cat}</span>
+      <span class="fcat-btn-count">${all.filter(f => f.categorie === cat).length} forfaits</span>
+    </button>`).join('');
+  const subContainer = document.getElementById('sched-forfait-subcats');
+  if (subContainer) { subContainer.style.display = 'none'; subContainer.innerHTML = ''; }
+  schedRenderForfaits();
+}
+
+function schedSetCat(cat, el) {
+  schedState.forfaitCat = cat;
+  schedState.forfait    = null;
+  document.querySelectorAll('#sched-forfait-cats .fcat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  schedRenderSubCats();
+}
+
+function schedRenderSubCats() {
+  const container = document.getElementById('sched-forfait-subcats');
+  if (!container) return;
+  const items = DB.forfaits.all().filter(f => f.operateur === schedState.operateur && f.categorie === schedState.forfaitCat);
+  const subs = [];
+  items.forEach(f => { if (f.sousCategorie && !subs.includes(f.sousCategorie)) subs.push(f.sousCategorie); });
+
+  if (!subs.length) {
+    schedState.forfaitSubCat = null;
+    schedState.forfaitSubRequired = false;
+    container.style.display = 'none';
+    container.innerHTML = '';
+    schedRenderForfaits();
+    return;
+  }
+
+  schedState.forfaitSubCat = null;
+  schedState.forfaitSubRequired = true;
+  container.style.display = 'grid';
+  container.innerHTML = subs.map(s => {
+    const count = items.filter(f => f.sousCategorie === s).length;
+    return `
+    <button type="button" class="fsub-btn" onclick="schedSetSubCat('${s}',this)">
+      <span class="fsub-btn-title">${s}</span>
+      <span class="fsub-btn-count">${count} forfaits</span>
+    </button>`;
+  }).join('');
+  schedRenderForfaits();
+}
+
+function schedSetSubCat(sub, el) {
+  schedState.forfaitSubCat = sub;
+  schedState.forfait = null;
+  document.querySelectorAll('#sched-forfait-subcats .fsub-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  schedRenderForfaits();
+}
+
+function schedRenderForfaits() {
+  const container = document.getElementById('sched-forfait-list');
+  if (!container) return;
   if (!schedState.operateur) {
-    sel.innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>';
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gray-400);font-size:.85rem;">Sélectionnez d\'abord un réseau.</div>';
+    _schedSyncSlideHeight();
     return;
   }
-  const cats = DB.forfaits.categoriesByOperator(schedState.operateur);
-  const all  = DB.forfaits.byOperator(schedState.operateur);
-  if (!all.length) {
-    sel.innerHTML = '<option value="">Aucun forfait disponible pour ce réseau</option>';
+  if (!schedState.forfaitCat) { container.innerHTML = ''; _schedSyncSlideHeight(); return; }
+  if (schedState.forfaitSubRequired && !schedState.forfaitSubCat) { container.innerHTML = ''; _schedSyncSlideHeight(); return; }
+
+  const list = DB.forfaits.all().filter(f =>
+    f.operateur === schedState.operateur && f.categorie === schedState.forfaitCat &&
+    (!schedState.forfaitSubRequired || f.sousCategorie === schedState.forfaitSubCat));
+  if (!list.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gray-400);">Aucun forfait disponible.</div>';
+    _schedSyncSlideHeight();
     return;
   }
-  sel.innerHTML = '<option value="">Sélectionner…</option>' + cats.map(cat => `
-    <optgroup label="${cat}">
-      ${all.filter(f => f.categorie === cat).map(f =>
-        `<option value="${f.id}">${f.nom} — ${f.detail} · ${Fmt.money(f.prix)}</option>`
-      ).join('')}
-    </optgroup>`).join('');
+
+  const opClass = { Orange: 'op-orange', MTN: 'op-mtn', Moov: 'op-moov' }[schedState.operateur] || 'op-orange';
+  const opLogo  = { Orange: 'orange.png', MTN: 'mtn.jpg', Moov: 'moov.jpg' }[schedState.operateur];
+  const opEmoji = { Orange: '🟠', MTN: '🟡', Moov: '🔵' }[schedState.operateur] || '📱';
+  const isIntl = schedState.forfaitSubCat === 'International';
+  let lastGroup = null;
+  container.innerHTML = list.map(f => {
+    const sel = schedState.forfait?.id === f.id;
+    let groupHtml = '';
+    let title = f.nom;
+    if (isIntl) {
+      const group = f.nom.replace(/\s+[\d\s]+F$/, '');
+      if (group !== lastGroup) {
+        groupHtml = `<div class="forfait-group-hd"><span class="forfait-group-badge ${opClass}">${group}</span></div>`;
+        lastGroup = group;
+      }
+      title = Fmt.money(f.prix);
+    }
+    return `${groupHtml}
+    <div class="forfait-card ${opClass} ${sel ? 'selected' : ''}" onclick="schedSelectForfait('${f.id}',this)">
+      <div class="fc-check"><i class="fa-solid fa-check"></i></div>
+      <div class="fc-top">
+        <div class="fc-icon ${opClass}"><img class="fc-icon-img" src="img/logos/${opLogo}" alt="${schedState.operateur}" onerror="this.outerHTML='<span>${opEmoji}</span>'"></div>
+        <div class="fc-title">${title}</div>
+      </div>
+      <div class="fc-sep"></div>
+      <div class="fc-adv-section ${opClass}"><div class="fc-adv-lbl">Les avantages du pass</div></div>
+      <div class="fc-adv-val">${f.detail}</div>
+      <div class="fc-val-lbl">Validité</div>
+      <div class="fc-val-val">${f.duree}</div>
+    </div>`;
+  }).join('');
+  _schedSyncSlideHeight();
+  schedSyncStepper();
+}
+
+function schedSelectForfait(id, el) {
+  schedState.forfait = DB.forfaits.all().find(f => f.id === id) || null;
+  document.querySelectorAll('#sched-forfait-list .forfait-card').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+  _schedSyncSlideHeight();
+  schedSyncStepper();
 }
 
 function schedOnRecipient(val) {
@@ -3779,27 +4152,144 @@ function schedOnRecipient(val) {
   const input = document.getElementById('sched-recipient');
   if (input) input.value = Fmt.phone(clean);
   schedState.recipient = clean;
+
+  // Même disposition que tfUpdateRecipient() : message de validité sous le
+  // champ + halo vert (rcp-valid) une fois le format correct.
+  const statusEl = document.getElementById('sched-rcp-status');
+  if (/^0[0-9]{9}$/.test(clean)) {
+    if (statusEl) statusEl.innerHTML = '<span class="rcp-msg ok"><i class="fa-solid fa-circle-check"></i> Numéro valide</span>';
+    if (input) input.classList.add('rcp-valid');
+  } else {
+    if (statusEl) statusEl.innerHTML = '';
+    if (input) input.classList.remove('rcp-valid');
+  }
+
+  schedSyncStepper();
+}
+
+async function schedPasteRecipient() {
+  if (!navigator.clipboard?.readText) { Toast.error('Collage non disponible sur cet appareil.'); return; }
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text.replace(/\D/g, '')) { Toast.error('Presse-papiers vide ou invalide.'); return; }
+    schedOnRecipient(text);
+  } catch {
+    Toast.error('Impossible de lire le presse-papiers.');
+  }
+}
+
+function schedPickContact(numero) {
+  document.getElementById('sched-recipient').value = numero;
+  schedOnRecipient(numero);
+  Toast.info(`Numéro ${Fmt.phone(numero)} sélectionné.`);
+}
+
+/* ── Étape Paiement — même modèle que #step-pay du tunnel principal
+   (tfRenderPaymentMethods()/tfSelectPayment()/tfOnPayPhone()), sans le
+   récapitulatif à délai de 30s : valider "Programmer et payer" suffit
+   directement, pas de re-confirmation chronométrée. Réutilise le même
+   catalogue PAYMENT_METHODS, jamais dupliqué. */
+function schedRenderPaymentMethods() {
+  const container = document.getElementById('sched-payment-grid');
+  if (!container || container.childElementCount > 0) return;
+  container.innerHTML = PAYMENT_METHODS.map(pm => `
+    <div class="pm-row" id="sched-pm-${pm.id}" onclick="schedSelectPayment('${pm.id}',this)"
+         style="--pm-clr:${pm.color};--pm-glow:${pm.glow}">
+      <div class="pm-row-check"><i class="fa-solid fa-check"></i></div>
+      <div class="pm-row-logo">${pm.logo}</div>
+      <div class="pm-row-name">${pm.l1}</div>
+    </div>`).join('');
+}
+
+function schedSelectPayment(id, el) {
+  schedState.paymentMethod = id;
+  schedState.payPhone = '';
+  const pm = PAYMENT_METHODS.find(p => p.id === id);
+  document.querySelectorAll('#sched-payment-grid .pm-row').forEach(c => c.classList.remove('selected'));
+  el.classList.add('selected');
+
+  const numWrap   = document.getElementById('sched-pay-num-wrap');
+  const soldeWrap = document.getElementById('sched-pay-solde-wrap');
+
+  if (id === 'solde') {
+    if (numWrap)   numWrap.style.display   = 'none';
+    if (soldeWrap) soldeWrap.style.display = 'flex';
+    const destEl = document.getElementById('sched-pay-solde-dest');
+    if (destEl) destEl.textContent = schedState.recipient ? Fmt.phone(schedState.recipient) : '—';
+  } else {
+    if (numWrap)   numWrap.style.display   = 'flex';
+    if (soldeWrap) soldeWrap.style.display = 'none';
+    const methodLabel = document.getElementById('sched-pay-phone-method');
+    if (methodLabel) methodLabel.textContent = pm ? 'Numéro ' + pm.nom : '';
+    const phoneEl = document.getElementById('sched-pay-phone');
+    if (phoneEl) {
+      phoneEl.disabled = false;
+      phoneEl.value = '';
+      // Préfixe auto si le moyen choisi correspond à un réseau mobile
+      // money (Orange/MTN/Moov) — voir NETWORK_PREFIX, js/auth.js.
+      const payNetwork = { orange: 'Orange', mtn: 'MTN', moov: 'Moov' }[id];
+      if (payNetwork) applyNetworkPrefix('sched-pay-phone', payNetwork);
+      setTimeout(() => phoneEl.focus(), 60);
+    }
+  }
+
+  _schedSyncSlideHeight();
+  schedSyncStepper();
+}
+
+function schedOnPayPhone(val) {
+  const clean = val.replace(/\D/g, '').slice(0, 10);
+  const payInput = document.getElementById('sched-pay-phone');
+  if (payInput) payInput.value = Fmt.phone(clean);
+  schedState.payPhone = clean;
+  schedSyncStepper();
 }
 
 function _schedResetForm() {
   schedState.operateur = null;
   schedState.recipient = '';
   schedState.type = 'direct';
+  schedState.forfait = null;
+  schedState.forfaitCat = null;
+  schedState.forfaitSubCat = null;
+  schedState.forfaitSubRequired = false;
+  schedState.paymentMethod = null;
+  schedState.payPhone = '';
   const recipientEl = document.getElementById('sched-recipient');
   const amountEl     = document.getElementById('sched-amount');
   const dateEl        = document.getElementById('sched-date');
   const timeEl         = document.getElementById('sched-time');
-  const typeEl          = document.getElementById('sched-type');
-  const forfaitEl        = document.getElementById('sched-forfait');
-  if (recipientEl) recipientEl.value = '';
+  if (recipientEl) { recipientEl.value = ''; recipientEl.classList.remove('rcp-valid'); }
   if (amountEl) amountEl.value = '';
   if (dateEl) dateEl.value = '';
   if (timeEl) timeEl.value = '';
-  if (typeEl) typeEl.value = 'direct';
-  if (forfaitEl) forfaitEl.innerHTML = '<option value="">Choisissez d\'abord un réseau…</option>';
+  document.getElementById('sched-svc-direct')?.classList.add('active');
+  document.getElementById('sched-svc-forfait')?.classList.remove('active');
+  document.querySelectorAll('#sched-amount-field .amount-tile').forEach(t => t.classList.remove('selected'));
+  document.querySelectorAll('#sched-date-tiles .sched-date-tile').forEach(t => t.classList.remove('selected'));
+  const customFieldsEl = document.getElementById('sched-date-custom-fields');
+  if (customFieldsEl) customFieldsEl.style.display = 'none';
+  const flagEl = document.getElementById('sched-rcp-flag');
+  if (flagEl) flagEl.textContent = '🇨🇮';
+  const statusEl = document.getElementById('sched-rcp-status');
+  if (statusEl) statusEl.innerHTML = '';
+  const catsEl = document.getElementById('sched-forfait-cats');
+  const subsEl = document.getElementById('sched-forfait-subcats');
+  const listEl = document.getElementById('sched-forfait-list');
+  if (catsEl) catsEl.innerHTML = '';
+  if (subsEl) { subsEl.innerHTML = ''; subsEl.style.display = 'none'; }
+  if (listEl) listEl.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:20px;color:var(--gray-400);font-size:.85rem;">Sélectionnez d\'abord un réseau.</div>';
   document.getElementById('sched-amount-field').style.display  = '';
   document.getElementById('sched-forfait-field').style.display = 'none';
   document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#sched-payment-grid .pm-row').forEach(c => c.classList.remove('selected'));
+  const payPhoneEl = document.getElementById('sched-pay-phone');
+  if (payPhoneEl) { payPhoneEl.value = ''; payPhoneEl.disabled = true; }
+  const payMethodLabelEl = document.getElementById('sched-pay-phone-method');
+  if (payMethodLabelEl) payMethodLabelEl.textContent = 'Sélectionnez un moyen ci-dessus';
+  document.getElementById('sched-pay-num-wrap').style.display   = 'flex';
+  document.getElementById('sched-pay-solde-wrap').style.display = 'none';
+  schedGoToStep(0);
 }
 
 async function schedSubmit() {
@@ -3809,8 +4299,7 @@ async function schedSubmit() {
 
   let montant, service, details;
   if (schedState.type === 'forfait') {
-    const forfaitId = document.getElementById('sched-forfait').value;
-    const forfait = forfaitId ? DB.forfaits.all().find(f => f.id === forfaitId) : null;
+    const forfait = schedState.forfait;
     if (!forfait) { Toast.error('Choisissez un forfait.'); return; }
     montant = forfait.prix;
     service = 'Forfait';
@@ -3835,6 +4324,11 @@ async function schedSubmit() {
   const ts = new Date(`${dateVal}T${timeVal}:00`).getTime();
   if (!ts || ts <= Date.now() + 60000) { Toast.error('La date/heure programmée doit être au moins 1 minute dans le futur.'); return; }
 
+  if (!schedState.paymentMethod) { Toast.error('Choisissez un moyen de paiement.'); return; }
+  if (schedState.paymentMethod !== 'solde' && !/^0[0-9]{9}$/.test(schedState.payPhone)) {
+    Toast.error('Numéro de paiement invalide (10 chiffres).'); return;
+  }
+
   const btn = document.getElementById('sched-submit-btn');
   btn.disabled = true;
   const res = await DB.business.scheduleOrder({
@@ -3842,6 +4336,8 @@ async function schedSubmit() {
     numero_beneficiaire: schedState.recipient,
     montant, service, details,
     date_programmee: `${dateVal} ${timeVal}:00`,
+    moyen_paiement: schedState.paymentMethod,
+    numero_paiement: schedState.paymentMethod === 'solde' ? '' : schedState.payPhone,
   });
   btn.disabled = false;
 
