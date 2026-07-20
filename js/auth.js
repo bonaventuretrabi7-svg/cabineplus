@@ -554,6 +554,17 @@ const Fmt = {
   // domaine transactions, ex. DB.retraits).
   rowColors: (t) => STATUS_COLORS[Fmt.isLate(t) ? 'en_retard' : t.statut]
     || { line: '#9CA3AF', bg: 'rgba(156,163,175,.12)', text: '#374151' },
+  // Badge de statut d'une commande, en retard pris en compte — variante de
+  // Fmt.status() qui prend la transaction entière (pas juste son statut)
+  // pour pouvoir afficher "En retard" à la place de "En attente" quand
+  // Fmt.isLate() est vrai, avec la couleur en_retard de STATUS_COLORS.
+  statusBadge: (t) => {
+    if (Fmt.isLate(t)) {
+      const c = STATUS_COLORS['en_retard'];
+      return `<span class="badge" style="background:${c.bg};color:${c.text};"><i class="fa-solid fa-triangle-exclamation"></i> En retard</span>`;
+    }
+    return Fmt.status(t.statut);
+  },
   operator: (op) => ({
     'Orange': '<span style="color:#FF6200;font-weight:700"><i class="fa-solid fa-signal"></i> Orange</span>',
     'MTN':    '<span style="color:#FFCC00;font-weight:700"><i class="fa-solid fa-signal"></i> MTN</span>',

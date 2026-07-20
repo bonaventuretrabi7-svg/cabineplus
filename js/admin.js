@@ -1483,7 +1483,7 @@ function loadExchangeAdmin(query = '', statusFilter = 'all') {
       <td>${Fmt.operator(d.debit_network || '')} <code>${Fmt.phone(d.debit_numero) || ''}</code></td>
       <td>${Fmt.operator(d.recep_network || t.operateur || '')} <code>${Fmt.phone(d.recep_numero || t.numero_beneficiaire) || ''}</code></td>
       <td><strong>${Fmt.money(t.montant)}</strong></td>
-      <td>${Fmt.status(t.statut)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
+      <td>${Fmt.statusBadge(t)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
       <td>${Fmt.datetime(t.date)}</td>
       <td>${(canReassign || canRefund || canSuspend || canReactivate || canDelete) ? `<button class="menu-btn-row" onclick="toggleTxnRowMenu(this,'${t.id}')" title="Actions"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '<span style="color:var(--gray-400);font-size:.7rem;">—</span>'}</td>
     </tr>`;
@@ -1516,7 +1516,7 @@ function renderCommandeRow(t) {
     <td>${Fmt.operator(t.operateur || '')}</td>
     <td><code>${Fmt.phone(t.numero_beneficiaire) || ''}</code></td>
     <td><strong>${Fmt.money(t.montant)}</strong></td>
-    <td>${Fmt.status(t.statut)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
+    <td>${Fmt.statusBadge(t)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
     <td>${Fmt.datetime(t.date)}</td>
     <td>${(client || canReassign || canRefund || canSuspend || canReactivate || canDelete) ? `<button class="menu-btn-row" onclick="toggleCommandeRowMenu(this,'${t.id}')" title="Actions"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '<span style="color:var(--gray-400);font-size:.7rem;">—</span>'}</td>
   </tr>`;
@@ -1598,7 +1598,11 @@ function loadTransactions(query = '', statusFilter = 'all') {
     txnBadge.style.display = (pendingCount > 0 && !_isNavActive('transactions')) ? 'inline-flex' : 'none';
   }
   let txns = DB.transactions.all().sort((a,b) => new Date(b.date)-new Date(a.date));
-  if (statusFilter !== 'all') txns = txns.filter(t => t.statut === statusFilter);
+  // "en_retard" n'est pas un statut stocké en base (voir Fmt.isLate) : c'est
+  // un sous-ensemble de "en_attente" dérivé de la date d'assignation — filtre
+  // dédié plutôt qu'une simple égalité de statut comme les autres valeurs.
+  if (statusFilter === 'en_retard') txns = txns.filter(t => Fmt.isLate(t));
+  else if (statusFilter !== 'all') txns = txns.filter(t => t.statut === statusFilter);
   if (query) txns = txns.filter(t =>
     t.id.includes(query) ||
     Fmt.ref(t.id).toLowerCase().includes(query.toLowerCase()) ||
@@ -1659,7 +1663,7 @@ function loadTransactions(query = '', statusFilter = 'all') {
         <strong>${Fmt.money(t.montant)}</strong>
         ${t.statut === 'terminé' ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;">Commission ${Fmt.money(t.commission)}</div>` : ''}
       </td>
-      <td>${Fmt.status(t.statut)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
+      <td>${Fmt.statusBadge(t)}${t.statut === 'suspendue' && t.motif_suspension ? `<div style="font-size:.62rem;color:var(--gray-400);margin-top:2px;font-style:italic;">${t.motif_suspension}</div>` : ''}</td>
       <td>${Fmt.datetime(t.date)}</td>
       <td>${hasActions ? `<button class="menu-btn-row" onclick="toggleTxnRowMenu(this,'${t.id}')" title="Actions"><i class="fa-solid fa-ellipsis-vertical"></i></button>` : '<span style="color:var(--gray-400);font-size:.7rem;">—</span>'}</td>
     </tr>`;
