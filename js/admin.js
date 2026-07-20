@@ -3894,6 +3894,11 @@ async function refuseReset(reqId) {
 function loadComptesBloquesAdmin() {
   const all  = DB.users.all().filter(u => u.statut === 'bloqué');
   const list = currentUser.admin_level === 'super' ? all : all.filter(u => u.role !== 'admin');
+  // Même patron que txn-badge/partner-badge/reset-badge/refund-badge :
+  // nombre de comptes en attente de déblocage, indépendant de la vue
+  // actuellement affichée.
+  const badge = document.getElementById('blocked-badge');
+  if (badge) { badge.textContent = list.length; badge.style.display = list.length > 0 ? 'inline-flex' : 'none'; }
   const el   = document.getElementById('comptes-bloques-list');
   if (!el) return;
 

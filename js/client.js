@@ -1018,8 +1018,12 @@ function refreshSoldeNumbers() {
 function updateNotifBadge() {
   if (!currentUser) return;
   const count = DB.notifications.unread(currentUser.id);
-  const sidebarBadge = document.getElementById('csb-notif-badge');
-  if (sidebarBadge) { sidebarBadge.textContent = count; sidebarBadge.style.display = count ? 'inline-block' : 'none'; }
+  // Pastille sur l'onglet "Profil" du bas (voir index.html) — même patron
+  // que notif-badge/recla-badge côté cabine (js/cabine.js) et
+  // txn-badge/etc. côté admin (js/admin.js) : une notification non lue
+  // reste visible tant qu'on n'a pas ouvert le panneau qui la contient.
+  const navBadge = document.getElementById('client-notif-badge');
+  if (navBadge) { navBadge.textContent = count; navBadge.style.display = count ? 'block' : 'none'; }
   const profileCount = document.getElementById('pc-notif-count');
   if (profileCount) profileCount.textContent = count ? `${count} nouvelle${count > 1 ? 's' : ''} notification${count > 1 ? 's' : ''}` : 'Aucune nouvelle notification';
 }
