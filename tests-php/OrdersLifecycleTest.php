@@ -65,7 +65,7 @@ final class OrdersLifecycleTest extends ApiTestCase
         $this->assertTrue($res->ok(), $res->raw);
 
         $updatedCabine = Fixtures::fetchProfile($cabine['profile']['id']);
-        $this->assertSame(100, (int)$updatedCabine['solde']);
+        $this->assertSame(0, (int)$updatedCabine['solde'], 'la commission ne doit plus être créditée au solde réel');
         $this->assertSame(100, (int)$updatedCabine['commissions_total'], 'pas de double comptage (voir bug historique corrigé)');
         $this->assertSame(1, (int)$updatedCabine['transferts_total']);
 

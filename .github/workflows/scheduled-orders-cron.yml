@@ -1,0 +1,33 @@
+name: Déclenchement des commandes automatiques
+
+# Filet de sécurité INDÉPENDANT du sondage habituel des 3 espaces (client/
+# cabine/admin, voir DB.business.sweepScheduled(), js/db.js) — appelle
+# api/orders_sweep_scheduled.php toutes les 5 minutes même si aucun
+# appareil n'a l'app ouverte au moment prévu, pour garantir le
+# déclenchement des commandes programmées (voir api/orders_common.php,
+# triggerScheduledOrder()). Idempotent (CAS sur commandes_programmees.statut
+# côté serveur) — aucun risque de double déclenchement si ce workflow
+# tourne en même temps qu'un sondage d'appareil, ou sur les deux dépôts
+# GitHub (origin/tbvh) s'il est présent sur les deux.
+#
+# Nécessite le secret de dépôt "CRON_SECRET" (Settings > Secrets and
+# variables > Actions > New repository secret), avec EXACTEMENT la même
+# valeur que la constante CRON_SECRET définie dans api/config.php sur
+# l'hébergement (voir api/config.example.php). Tant que ce secret n'est
+# pas configuré, ce workflow échoue silencieusement sans rien casser — la
+# programmation continue de fonctionner via le sondage habituel des 3
+# espaces tant qu'un appareil est ouvert.
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Déclencher les commandes automatiques arrivées à échéance
+        run: |
+          curl -sf -X POST 'https://kbineplus.com/api/orders_sweep_scheduled.php' \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            -o /dev/stderr -w '\nHTTP %{http_code}\n'

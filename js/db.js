@@ -33,6 +33,7 @@ const DB = (() => {
     partnerApplications: PREFIX + 'partner_applications',
     partnerDevicesServer: PREFIX + 'partner_devices_server',
     referrals: PREFIX + 'referrals',
+    commandesProgrammees: PREFIX + 'commandes_programmees',
   };
 
   /* Les 6 méthodes de retrait disponibles pour verser sa commission
@@ -1098,6 +1099,26 @@ const DB = (() => {
       if (!ServerAPI.isConfigured || !Net.isOnline()) return;
       const res = await ServerAPI.retardsList();
       if (res.ok) set(KEY.retards, res.retards);
+    },
+  };
+
+  /* ── Commandes automatiques programmées ───────────────────────────────
+     Une ligne par commande programmée par un client (payée à la
+     programmation, voir business.scheduleOrder) ou par le super admin
+     (sans paiement, voir business.scheduleOrderAdmin) — se déclenche à
+     l'heure prévue en une vraie ligne `transactions` (voir
+     triggerScheduledOrder(), api/orders_common.php), suivie ici jusqu'à
+     son déclenchement (statut, cabine assignée, temps de traitement —
+     voir api/orders_schedule_list.php). Source de vérité serveur, comme
+     `retards` ci-dessus : remplacement total du cache local au refresh. */
+  const commandesProgrammees = {
+    all: () => get(KEY.commandesProgrammees),
+    byClient: (cid) => get(KEY.commandesProgrammees).filter(c => c.client_id === cid).sort((a,b) => new Date(b.date_programmee)-new Date(a.date_programmee)),
+
+    async refresh() {
+      if (!ServerAPI.isConfigured || !Net.isOnline()) return;
+      const res = await ServerAPI.ordersScheduleList();
+      if (res.ok) set(KEY.commandesProgrammees, res.commandes);
     },
   };
 
@@ -2330,6 +2351,38 @@ const DB = (() => {
       return { suspendedCount: res.suspendedCount };
     },
 
+    /* Programme une commande automatique côté client — payée immédiatement
+       (voir api/orders_schedule_create.php), déclenchée plus tard à
+       l'heure choisie (voir sweepScheduled ci-dessous). `res.limitReached`
+       signale les 20 commandes en attente déjà atteintes (voir
+       handleClientWhatsappClick() côté appelant, js/client.js). */
+    async scheduleOrder(payload) {
+      const res = await ServerAPI.ordersScheduleCreate(payload);
+      if (res.ok) await users.refreshSelf();
+      return res;
+    },
+
+    /* Équivalent super admin, sans paiement (voir
+       api/orders_schedule_create_admin.php) — accessible depuis l'onglet
+       admin "Commande automatique". */
+    async scheduleOrderAdmin(payload) {
+      return ServerAPI.ordersScheduleCreateAdmin(payload);
+    },
+
+    /* Déclenche les commandes automatiques arrivées à échéance (voir
+       api/orders_sweep_scheduled.php) — appelée par le sondage périodique
+       des trois espaces, comme sweepAutoUnsuspensions/sweepQuotaDeadlines
+       ci-dessus. Rafraîchit transactions (une nouvelle a pu apparaître,
+       assignée ou non) ; commandesProgrammees.refresh() n'est PAS appelé
+       ici (api/orders_schedule_list.php est réservé aux administrateurs —
+       un client/une cabine y recevrait un 403) : c'est js/admin.js qui le
+       rafraîchit explicitement pour l'onglet "Commande automatique". */
+    async sweepScheduled() {
+      const res = await ServerAPI.ordersSweepScheduled();
+      if (res.ok && res.triggeredCount > 0) await transactions.refresh();
+      return { triggeredCount: res.triggeredCount };
+    },
+
     /* Suspension automatique 24h (retards, renvois répétés, demandes de
        remboursement répétées) — helper commun réutilisé par les 3
        déclencheurs pour poser les mêmes champs de façon cohérente.
@@ -2448,7 +2501,7 @@ const DB = (() => {
   };
 
   /* â”€â”€ Public API â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, partnerApplications, referrals, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue, pollSignature };
+  return { init, users, transactions, retraits, retards, transferts_cabine, notifications, commissions, settings, reclamations, refundRequests, resetRequests, partnerApplications, referrals, commandesProgrammees, accessLogs, permissionLogs, maintenanceLogs, resubscriptions, favoris, forfaits, business, uid, now, SUBSCRIPTION_QUOTAS, SUBSCRIPTION_PRICES, presence, partnerDevices, RETARD_MS, TRANSFERT_CABINE_FRAIS, normalizeContact, suspensionLogs, Net, syncQueue, drainSyncQueue, pollSignature };
 })();
 
 /* ── Maintenance (service/réseau) — fonctions globales (non namespacées

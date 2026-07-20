@@ -278,6 +278,7 @@ async function boot() {
   await DB.business.sweepStaleOrders();
   await DB.business.sweepAutoUnsuspensions();
   await DB.business.sweepQuotaDeadlines();
+  await DB.business.sweepScheduled();
   updateNotifBadge();
   loadCabHome();
   restoreCabState();
@@ -333,6 +334,7 @@ async function _cabRefreshCycle() {
     DB.business.sweepStaleOrders(),
     DB.business.sweepAutoUnsuspensions(),
     DB.business.sweepQuotaDeadlines(),
+    DB.business.sweepScheduled(),
     // Notifications réelles (voir api/notifications_list.php) — reflète
     // désormais ce qui se passe partout (recharge admin, remboursement...),
     // pas seulement ce que cet appareil a lui-même déclenché.

@@ -510,6 +510,72 @@
       <div class="op-row" id="chapchap-list"></div>
     </div>
 
+    <!-- ── Commande automatique : le client programme un transfert direct
+         futur (réseau/numéro/montant/date+heure), payé immédiatement à la
+         programmation, qui se déclenche seul à l'heure choisie et n'est
+         plus annulable une fois créé — voir schedSelectOp()/schedSubmit()
+         (js/client.js) et api/orders_schedule_create.php. Même identité
+         visuelle que le tunnel de commande/Chap Chap ci-dessus
+         (.tf-layout/.tf-slide-hd/.op-row/.op-card), mais état JS
+         totalement indépendant (schedState) pour ne jamais interférer
+         avec tf.*/tfSelectOp() du tunnel principal. ── -->
+    <div class="tf-layout" id="sched-section">
+      <div class="tf-slide-hd"><i class="fa-solid fa-clock"></i> Commande automatique</div>
+      <div class="op-row" id="sched-op-row">
+        <div class="op-card op-card--orange" data-op="Orange" onclick="schedSelectOp('Orange',this)">
+          <div class="op-check"><i class="fa-solid fa-check"></i></div>
+          <div class="op-logo-sq">
+            <img class="op-logo-img" src="img/logos/orange.png" alt="Orange" onerror="this.outerHTML='<span class=op-emoji-fb>🟠</span>'">
+          </div>
+          <div class="op-name-pill">Orange</div>
+        </div>
+        <div class="op-card op-card--mtn" data-op="MTN" onclick="schedSelectOp('MTN',this)">
+          <div class="op-check"><i class="fa-solid fa-check"></i></div>
+          <div class="op-logo-sq">
+            <img class="op-logo-img" src="img/logos/mtn.jpg" alt="MTN" onerror="this.outerHTML='<span class=op-emoji-fb>🟡</span>'">
+          </div>
+          <div class="op-name-pill">MTN</div>
+        </div>
+        <div class="op-card op-card--moov" data-op="Moov" onclick="schedSelectOp('Moov',this)">
+          <div class="op-check"><i class="fa-solid fa-check"></i></div>
+          <div class="op-logo-sq">
+            <img class="op-logo-img" src="img/logos/moov.jpg" alt="Moov" onerror="this.outerHTML='<span class=op-emoji-fb>🔵</span>'">
+          </div>
+          <div class="op-name-pill">Moov</div>
+        </div>
+      </div>
+
+      <div class="sched-field">
+        <label class="sched-label"><i class="fa-solid fa-mobile-screen"></i> Numéro du bénéficiaire</label>
+        <input type="tel" class="form-control" id="sched-recipient" placeholder="XX XX XX XX XX" maxlength="14" inputmode="numeric" oninput="schedOnRecipient(this.value)">
+      </div>
+
+      <div class="sched-field">
+        <label class="sched-label"><i class="fa-solid fa-coins"></i> Montant (FCFA)</label>
+        <input type="number" class="form-control" id="sched-amount" placeholder="Ex : 3 500" min="500" max="100000">
+      </div>
+
+      <div class="sched-row2">
+        <div class="sched-field">
+          <label class="sched-label"><i class="fa-solid fa-calendar-day"></i> Date</label>
+          <input type="date" class="form-control" id="sched-date">
+        </div>
+        <div class="sched-field">
+          <label class="sched-label"><i class="fa-solid fa-clock"></i> Heure</label>
+          <input type="time" class="form-control" id="sched-time">
+        </div>
+      </div>
+
+      <div class="sched-hint">
+        <i class="fa-solid fa-circle-info"></i>
+        Le montant + 15 FCFA de frais de service seront débités immédiatement. La commande démarrera automatiquement à l'heure choisie et ne pourra plus être annulée.
+      </div>
+
+      <button class="tf-validate-btn" id="sched-submit-btn" onclick="schedSubmit()">
+        <i class="fa-solid fa-circle-check"></i> Programmer et payer
+      </button>
+    </div>
+
     <!-- -- 3a. Réclamation & Service clients -------------------- -->
     <div class="home-section home-only">
       <div class="rcp-policy-box">

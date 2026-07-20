@@ -507,6 +507,7 @@ async function boot() {
       loadProfit();
       loadRecentRecap();
       renderChapChap();
+      _schedInitDateMin();
       renderLockedSections(false);
       startClientPresence();
       // Cache local affiché immédiatement ci-dessus ; resynchronise ses
@@ -640,6 +641,7 @@ function startClientPresence() {
     DB.business.sweepStaleOrders();
     DB.business.sweepAutoUnsuspensions();
     DB.business.sweepQuotaDeadlines();
+    DB.business.sweepScheduled();
     // Notifications réelles (voir api/notifications_list.php) — la cloche
     // reflète désormais ce qui se passe partout, pas seulement ce que cet
     // appareil a lui-même déclenché.
@@ -3710,6 +3712,93 @@ async function repeatTransaction(txnId) {
   tfCustomAmount(String(t.montant));
   tfUpdateRecipient(t.numero_beneficiaire || '');
   document.querySelector('.tf-layout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+/* ================================================================
+   COMMANDE AUTOMATIQUE — programmation d'un transfert direct futur
+   ================================================================
+   Le client configure réseau/numéro/montant/date+heure puis paie
+   IMMÉDIATEMENT (voir api/orders_schedule_create.php) — la commande se
+   déclenche seule à l'heure choisie et n'est plus jamais annulable une
+   fois créée. État totalement indépendant du tunnel principal (schedState,
+   jamais tf.operator ni tfSelectOp) pour ne jamais interférer avec une commande en
+   cours de saisie juste au-dessus. Au-delà de 20 commandes en attente, le
+   serveur répond limitReached:true — redirige alors vers l'assistant
+   clientèle existant (handleClientWhatsappClick()) plutôt qu'un simple
+   message de blocage, comme demandé. */
+const schedState = { operateur: null, recipient: '' };
+
+// Empêche de choisir une date passée dans le sélecteur natif — la
+// validation réelle (≥ 1 minute dans le futur) reste faite par le serveur.
+function _schedInitDateMin() {
+  const dateEl = document.getElementById('sched-date');
+  if (dateEl) dateEl.min = new Date().toISOString().slice(0, 10);
+}
+
+function schedSelectOp(op, el) {
+  schedState.operateur = op;
+  document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function schedOnRecipient(val) {
+  const clean = val.replace(/\D/g, '').slice(0, 10);
+  const input = document.getElementById('sched-recipient');
+  if (input) input.value = Fmt.phone(clean);
+  schedState.recipient = clean;
+}
+
+function _schedResetForm() {
+  schedState.operateur = null;
+  schedState.recipient = '';
+  const recipientEl = document.getElementById('sched-recipient');
+  const amountEl     = document.getElementById('sched-amount');
+  const dateEl        = document.getElementById('sched-date');
+  const timeEl         = document.getElementById('sched-time');
+  if (recipientEl) recipientEl.value = '';
+  if (amountEl) amountEl.value = '';
+  if (dateEl) dateEl.value = '';
+  if (timeEl) timeEl.value = '';
+  document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
+}
+
+async function schedSubmit() {
+  if (!schedState.operateur) { Toast.error('Choisissez un réseau.'); return; }
+  if (!/^0[0-9]{9}$/.test(schedState.recipient)) { Toast.error('Numéro du bénéficiaire invalide (10 chiffres).'); return; }
+
+  const montant = parseInt(document.getElementById('sched-amount').value, 10) || 0;
+  if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+
+  const dateVal = document.getElementById('sched-date').value;
+  const timeVal = document.getElementById('sched-time').value;
+  if (!dateVal || !timeVal) { Toast.error('Choisissez une date et une heure.'); return; }
+
+  const ts = new Date(`${dateVal}T${timeVal}:00`).getTime();
+  if (!ts || ts <= Date.now() + 60000) { Toast.error('La date/heure programmée doit être au moins 1 minute dans le futur.'); return; }
+
+  const btn = document.getElementById('sched-submit-btn');
+  btn.disabled = true;
+  const res = await DB.business.scheduleOrder({
+    operateur: schedState.operateur,
+    numero_beneficiaire: schedState.recipient,
+    montant,
+    date_programmee: `${dateVal} ${timeVal}:00`,
+  });
+  btn.disabled = false;
+
+  if (!res.ok) {
+    if (res.limitReached) {
+      Toast.error('Limite de 20 commandes programmées atteinte — vous allez être mis(e) en relation avec l\'assistant clientèle.');
+      handleClientWhatsappClick();
+      return;
+    }
+    Toast.error(res.error || 'Échec de la programmation.');
+    return;
+  }
+
+  const when = new Date(ts).toLocaleString('fr-CI', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  Toast.success(`Commande programmée et payée — elle démarrera automatiquement le ${when}.`);
+  _schedResetForm();
 }
 
 /* ================================================================

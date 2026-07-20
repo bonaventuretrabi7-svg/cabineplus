@@ -847,6 +847,10 @@
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span class="nav-label">Commandes en retard</span>
       </div>
+      <div class="nav-item" data-view="commande-auto-admin" onclick="loadCommandeAutoAdmin()">
+        <i class="fa-solid fa-clock"></i>
+        <span class="nav-label">Commande automatique</span>
+      </div>
       <div class="nav-item" data-view="partner-requests" onclick="loadPartnerRequests()">
         <i class="fa-solid fa-handshake"></i>
         <span class="nav-label">Demandes de partenariat</span>
@@ -1494,6 +1498,98 @@
               </thead>
               <tbody id="retards-admin-tbody">
                 <tr><td colspan="6" style="text-align:center;padding:24px">Chargement…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── COMMANDE AUTOMATIQUE ─────────────────────────────────────
+           Création (super admin uniquement, sans paiement — voir
+           api/orders_schedule_create_admin.php) + suivi de TOUTES les
+           commandes programmées, client ou admin (visible par tout
+           administrateur autorisé, super ou simple — voir
+           api/orders_schedule_list.php et loadCommandeAutoAdmin(),
+           js/admin.js). Le formulaire de création (#cauto-create-card)
+           est masqué par JS pour un admin simple. ── -->
+      <div class="view" data-view="commande-auto-admin">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Commande automatique</span></div>
+          <h2>Commande automatique</h2>
+          <p>Programmez une commande à déclenchement différé et suivez le statut de toutes les commandes programmées (client ou administrateur).</p>
+        </div>
+
+        <div class="card" id="cauto-create-card" style="margin-bottom:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-plus" style="color:var(--primary)"></i> Programmer une commande</span>
+          </div>
+          <div class="card-body">
+            <form onsubmit="submitCommandeAutoAdmin(event)">
+              <div class="form-group">
+                <label class="form-label">Réseau</label>
+                <select class="form-control" id="cauto-op" required>
+                  <option value="">Sélectionner…</option>
+                  <option value="Orange">Orange</option>
+                  <option value="MTN">MTN</option>
+                  <option value="Moov">Moov</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Type d'opération</label>
+                <select class="form-control" id="cauto-service">
+                  <option value="Transfert direct">Transfert direct</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Numéro du destinataire</label>
+                <input type="tel" class="form-control" id="cauto-recipient" placeholder="Ex : 07 XX XX XX XX" maxlength="14" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Montant (FCFA)</label>
+                <input type="number" class="form-control" id="cauto-amount" min="500" max="100000" required>
+              </div>
+              <div class="form-group" style="display:flex;gap:10px;">
+                <div style="flex:1;">
+                  <label class="form-label">Date</label>
+                  <input type="date" class="form-control" id="cauto-date" required>
+                </div>
+                <div style="flex:1;">
+                  <label class="form-label">Heure</label>
+                  <input type="time" class="form-control" id="cauto-time" required>
+                </div>
+              </div>
+              <div class="form-hint" style="margin-bottom:12px;">
+                Aucun paiement n'est prélevé. Une fois déclenchée à l'heure programmée, cette commande est traitée exactement comme une commande réelle (cabine assignée, commission et quota comptés normalement).
+              </div>
+              <button type="submit" class="btn btn-primary" id="cauto-submit-btn">
+                <i class="fa-solid fa-circle-check"></i> Confirmer
+              </button>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-list-check" style="color:var(--primary)"></i> Commandes programmées</span>
+            <div class="filter-bar">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="cauto-search"
+                  placeholder="Numéro, cabine…"
+                  oninput="searchCommandeAutoAdmin()" />
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-sm" onclick="adminRefreshClick(this, () => loadCommandeAutoAdmin())">
+              <i class="fa-solid fa-rotate-right"></i> Actualiser
+            </button>
+          </div>
+          <div class="table-wrapper">
+            <table>
+              <thead>
+                <tr><th>Programmée pour</th><th>Origine</th><th>Réseau</th><th>Numéro</th><th>Montant</th><th>Statut</th><th>Cabine</th><th>Temps de traitement</th></tr>
+              </thead>
+              <tbody id="cauto-tbody">
+                <tr><td colspan="8" style="text-align:center;padding:24px">Chargement…</td></tr>
               </tbody>
             </table>
           </div>

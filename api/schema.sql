@@ -468,6 +468,29 @@ CREATE TABLE IF NOT EXISTS push_tokens (
   KEY idx_push_tokens_profile (profile_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- ── Commandes automatiques programmées (client ou super admin) ─────────
+-- Payée à la programmation (client) ou sans paiement (admin, traitement
+-- réel identique une fois déclenchée) — voir api/orders_sweep_scheduled.php.
+CREATE TABLE IF NOT EXISTS commandes_programmees (
+  id                   CHAR(36)     NOT NULL PRIMARY KEY,
+  client_id            CHAR(36)     NULL,
+  created_by_admin_id  CHAR(36)     NULL,
+  operateur            VARCHAR(32)  NOT NULL,
+  numero_beneficiaire  VARCHAR(32)  NOT NULL,
+  montant              BIGINT       NOT NULL DEFAULT 0,
+  frais_service        BIGINT       NOT NULL DEFAULT 0,
+  service              VARCHAR(64)  NULL,
+  moyen_paiement       VARCHAR(64)  NULL,
+  numero_paiement      VARCHAR(64)  NULL,
+  date_programmee      DATETIME     NOT NULL,
+  statut               VARCHAR(32)  NOT NULL DEFAULT 'en_attente',
+  transaction_id       CHAR(36)     NULL,
+  date_creation        DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  date_declenchement   DATETIME     NULL,
+  KEY idx_cp_client (client_id),
+  KEY idx_cp_statut_date (statut, date_programmee)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- ── Parrainage (client -> client) ────────────────────────────────────
 -- reward_montant figé à l'inscription (pas de dérive si le taux change
 -- plus tard) ; reward_verse=0 jusqu'à la 1re commande terminée du

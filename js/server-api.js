@@ -398,6 +398,42 @@ const ServerAPI = (() => {
     return { ok: true, transaction: data.transaction };
   }
 
+  // Commande automatique programmée (client, payée à la programmation) —
+  // voir api/orders_schedule_create.php. `limitReached` distingue le
+  // dépassement des 20 commandes en attente (js/client.js redirige alors
+  // vers l'assistant WhatsApp) d'une autre erreur (solde insuffisant, etc.).
+  async function ordersScheduleCreate(payload) {
+    const { res, data, networkError } = await _call('orders_schedule_create.php', { auth: true, body: payload });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la programmation.', limitReached: !!(data && data.limitReached) };
+    return { ok: true, commande: data.commande };
+  }
+
+  // Commande automatique programmée par le super admin, sans paiement —
+  // voir api/orders_schedule_create_admin.php.
+  async function ordersScheduleCreateAdmin(payload) {
+    const { res, data, networkError } = await _call('orders_schedule_create_admin.php', { auth: true, body: payload });
+    if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la programmation.' };
+    return { ok: true, commande: data.commande };
+  }
+
+  // Liste de toutes les commandes programmées (admin) — voir
+  // api/orders_schedule_list.php.
+  async function ordersScheduleList() {
+    const { res, data } = await _call('orders_schedule_list.php', { auth: true });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, commandes: data.commandes };
+  }
+
+  // Déclenche les commandes programmées arrivées à échéance — voir
+  // api/orders_sweep_scheduled.php, appelé par le même sondage périodique
+  // que ordersSweep()/ordersSweepUnsuspend()/ordersSweepQuota().
+  async function ordersSweepScheduled() {
+    const { res, data } = await _call('orders_sweep_scheduled.php', { auth: true });
+    return (res.ok && data && !data.error) ? { ok: true, triggeredCount: data.triggeredCount } : { ok: false, triggeredCount: 0 };
+  }
+
   async function updateProfilePhoto(photo) {
     const { res, data, networkError } = await _call('client_update_photo.php', { auth: true, body: { photo } });
     if (networkError) return { ok: false, networkError: true, error: 'Connexion Internet requise.' };
@@ -830,6 +866,7 @@ const ServerAPI = (() => {
     maintenanceLogsList, maintenanceLogsCreate, presencePing, presenceOnline, networksStatus,
     ordersCreate, ordersCreateAdvanced, cadeauClaim, updateProfilePhoto, ordersAccept, ordersRefuse, ordersAssignPending, ordersReassign,
     ordersSweep, ordersSweepUnsuspend, ordersSweepQuota, ordersList, retardsList,
+    ordersScheduleCreate, ordersScheduleCreateAdmin, ordersScheduleList, ordersSweepScheduled,
     ordersRecharge, ordersRefund, ordersSuspend, ordersReactivate, ordersDelete, cabineSuspendManual,
     cabineSelfRecharge, cabineUpdateSelf, cabineUpdatePin, ordersHold, cabineResubscribe, adminSetAbonnement, cabineTransfer, cabineLookupByName, clientTransfer, clientLookup, clientLoginLookup,
     adminCreateLoginLink, adminMagicLogin, adminImpersonate,

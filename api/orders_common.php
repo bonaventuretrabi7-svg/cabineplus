@@ -118,6 +118,41 @@ function calcCommission(PDO $pdo, int $montant): int {
   return (int)round($montant * ((float)$pct / 100));
 }
 
+// Déclenche une commande programmée arrivée à échéance (voir
+// api/orders_sweep_scheduled.php) : crée la VRAIE ligne `transactions` et
+// l'assigne, exactement comme api/orders_create.php le fait pour une
+// commande en temps réel (même pickInitialCabine(), même calcCommission()) —
+// aucune divergence de traitement une fois déclenchée, qu'elle vienne d'un
+// client (déjà payée à la programmation, voir orders_schedule_create.php)
+// ou du super admin (jamais payée, voir orders_schedule_create_admin.php ;
+// la cabine qui l'accepte est quand même créditée normalement, choix
+// explicite de l'administration — orders_accept.php n'a besoin d'aucune
+// distinction). $cp doit avoir été lue avec FOR UPDATE par l'appelant.
+function triggerScheduledOrder(PDO $pdo, array $cp): array {
+  $commission = calcCommission($pdo, (int)$cp['montant']);
+  $txnId = uuid4();
+  $pdo->prepare('INSERT INTO transactions
+      (id, client_id, cabine_id, operateur, numero_beneficiaire, montant, frais_service, commission, statut, service, moyen_paiement, numero_paiement, date)
+      VALUES (?, ?, NULL, ?, ?, ?, ?, ?, \'en_attente\', ?, ?, ?, NOW())')
+      ->execute([
+        $txnId, $cp['client_id'], $cp['operateur'], $cp['numero_beneficiaire'], $cp['montant'],
+        $cp['frais_service'], $commission, $cp['service'], $cp['moyen_paiement'], $cp['numero_paiement'],
+      ]);
+
+  $cab = pickInitialCabine($pdo, $cp['operateur'], null);
+  if ($cab) {
+    $pdo->prepare("UPDATE transactions SET cabine_id = ?, date_assignation = NOW() WHERE id = ? AND cabine_id IS NULL AND statut = 'en_attente'")
+        ->execute([$cab['id'], $txnId]);
+  }
+
+  $pdo->prepare("UPDATE commandes_programmees SET statut = 'déclenchée', transaction_id = ?, date_declenchement = NOW() WHERE id = ?")
+      ->execute([$txnId, $cp['id']]);
+
+  $txnStmt = $pdo->prepare('SELECT * FROM transactions WHERE id = ?');
+  $txnStmt->execute([$txnId]);
+  return ['txn' => $txnStmt->fetch(), 'cabine' => $cab];
+}
+
 // Suspension automatique 24h (retards, renvois répétés, remboursements
 // répétés) — voir DB.business.suspendCabineAuto (js/db.js). suspendu_by
 // NULL signale une suspension automatique, débloquable par n'importe quel

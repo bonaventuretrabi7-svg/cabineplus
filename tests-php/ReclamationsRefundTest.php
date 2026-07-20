@@ -46,11 +46,13 @@ final class ReclamationsRefundTest extends ApiTestCase
         $this->assertSame('remboursé', $updatedTxn['statut']);
 
         $updatedClient = Fixtures::fetchProfile($client['profile']['id']);
-        $this->assertSame(2000, (int)$updatedClient['solde'], 'le client récupère le montant');
+        $this->assertSame(2000 + 15, (int)$updatedClient['solde'], 'remboursement intégral : montant + frais de service (15 F)');
 
         $updatedCabine = Fixtures::fetchProfile($cabine['profile']['id']);
-        // solde: 100 - (commission 100 + montant 2000 + pénalité 60) = -2060
-        $this->assertSame(100 - (100 + 2000 + 60), (int)$updatedCabine['solde']);
+        // solde: 100 - (montant 2000 + pénalité 60) = -1960 — la commission
+        // n'est plus débitée ici (elle n'a jamais été créditée au solde réel
+        // à l'acceptation, voir orders_accept.php / refundTransactionEffect()).
+        $this->assertSame(100 - (2000 + 60), (int)$updatedCabine['solde']);
         $this->assertSame(0, (int)$updatedCabine['commissions_total'], 'GREATEST(0, ...) : ne doit jamais passer sous zéro');
         $this->assertSame(0, (int)$updatedCabine['transferts_total']);
         $this->assertSame(1, (int)$updatedCabine['remboursements_recus']);

@@ -2,9 +2,12 @@
 declare(strict_types=1);
 
 // api/orders_delete.php — suppression définitive réservée au super admin,
-// bloquée pour une commande 'terminé' (effet financier valide en cours,
-// doit d'abord être remboursée), cascade sur réclamation/messages/demande
-// de remboursement/retards pour ne laisser aucune référence orpheline.
+// autorisée même pour une commande 'terminé' (choix explicite de
+// l'administration — la commission créditée et le débit client ne sont pas
+// annulés, seule la trace de la commande disparaît ; orders_refund.php reste
+// le moyen d'annuler réellement les effets financiers avant suppression),
+// cascade sur réclamation/messages/demande de remboursement/retards pour ne
+// laisser aucune référence orpheline.
 final class OrdersDeleteTest extends ApiTestCase
 {
     public function testSuperAdminCanDeletePendingTransaction(): void
@@ -29,14 +32,14 @@ final class OrdersDeleteTest extends ApiTestCase
         $this->assertTrue($res2->ok(), $res2->raw);
     }
 
-    public function testCannotDeleteCompletedTransactionWithoutRefundingFirst(): void
+    public function testSuperAdminCanDeleteCompletedTransactionDirectly(): void
     {
         $superAdmin = Fixtures::createProfile('admin', ['admin_level' => 'super']);
         $txn = Fixtures::createTransaction(['statut' => 'terminé']);
 
         $res = ApiClient::post('/orders_delete.php', ['transaction_id' => $txn['id']], $superAdmin['token']);
-        $this->assertFalse($res->ok());
-        $this->assertNotNull(Fixtures::fetchTransaction($txn['id']), 'la commande terminée doit rester intacte');
+        $this->assertTrue($res->ok(), $res->raw);
+        $this->assertNull(Fixtures::fetchTransaction($txn['id']));
     }
 
     public function testRegularAdminCannotDeleteTransaction(): void

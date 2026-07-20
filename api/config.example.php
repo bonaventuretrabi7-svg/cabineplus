@@ -18,3 +18,16 @@ define('DB_PASS', 'REMPLACE-MOI');
 // restent uniquement visibles dans l'app (aucune erreur, best-effort, voir
 // api/push_common.php).
 define('FCM_SERVICE_ACCOUNT_FILE', __DIR__ . '/firebase-service-account.json');
+
+// Secret partagé pour le déclenchement des commandes automatiques
+// programmées (voir api/orders_sweep_scheduled.php et requireAuthOrCron(),
+// bootstrap.php) — permet à une tâche planifiée EXTERNE (GitHub Actions,
+// voir .github/workflows/scheduled-orders-cron.yml) d'appeler cet endpoint
+// sans qu'aucun appareil n'ait l'app ouverte. Choisis une longue chaîne
+// aléatoire (ex. 40+ caractères) et renseigne EXACTEMENT la même valeur
+// dans le secret GitHub "CRON_SECRET" (Settings > Secrets and variables >
+// Actions). Tant que cette constante est vide, la programmation continue
+// de fonctionner normalement via le sondage habituel des trois espaces —
+// ce secret ne fait qu'ajouter une garantie de déclenchement même si
+// aucun appareil n'est ouvert au moment prévu.
+define('CRON_SECRET', '');

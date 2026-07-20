@@ -1542,6 +1542,30 @@ body.dark .tf-step-body { border-color: var(--dark-border); }
 #chapchap-section .ccp-num { font-size: .58rem; }
 #chapchap-section .op-name-pill { font-size: .6rem; padding: 4px 9px; }
 
+/* Section "Commande automatique" (client, index.html #sched-section) —
+   même carte réseau .op-card et même bandeau .tf-slide-hd que le tunnel
+   de commande, avec un formulaire compact (numéro/montant/date/heure) en
+   dessous. Voir schedSelectOp()/schedSubmit() (js/client.js). */
+#sched-section { margin-top: 14px; }
+.sched-field { margin-top: 14px; }
+.sched-label {
+  display: flex; align-items: center; gap: 6px;
+  font-size: .68rem; font-weight: 700; color: rgba(255,255,255,.7);
+  text-transform: uppercase; letter-spacing: .03em;
+  margin-bottom: 6px;
+}
+.sched-row2 { display: flex; gap: 10px; }
+.sched-row2 .sched-field { flex: 1; margin-top: 14px; }
+.sched-hint {
+  display: flex; align-items: flex-start; gap: 6px;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 10px; padding: 9px 11px; margin-top: 14px;
+  font-size: .64rem; font-weight: 500; color: rgba(255,255,255,.75);
+  line-height: 1.5;
+}
+.sched-hint i { color: rgba(255,255,255,.6); font-size: .7rem; margin-top: 1px; flex-shrink: 0; }
+#sched-section .tf-validate-btn { margin-top: 16px; }
+
 /* â”€â”€ Service Toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 /* Deux cartes (Crédit/Transfert direct, Forfait/Internet-appels-SMS) —
    même traitement que .fcat-btn/.fsub-btn : inactif en gris neutre,

@@ -14,7 +14,7 @@ let _adminResume = {
   filters: {
     clients: '', cabines: '', rechargeCabiniste: '', rechargeClient: '',
     rechargeUv: { q: '', status: '' }, exchange: { q: '', status: '' },
-    retards: '', transactions: { q: '', status: '' }, admins: '',
+    retards: '', transactions: { q: '', status: '' }, admins: '', commandeAuto: '',
   },
   settingsDraft: null, assistanceDraft: null, maintenanceDraft: null,
 };
@@ -57,6 +57,7 @@ function _adminViewLoader(name) {
     'recharge-uv-admin':     loadRechargeUvAdmin,
     'exchange-admin':        loadExchangeAdmin,
     'retards-admin':         loadRetardsAdmin,
+    'commande-auto-admin':   loadCommandeAutoAdmin,
     'retraits-historique':   () => loadRetraitsHistorique(1),
     transactions:            loadTransactions,
     'commissions-admin':     loadCommissionsAdmin,
@@ -421,6 +422,7 @@ async function boot() {
     DB.business.sweepStaleOrders();
     DB.business.sweepAutoUnsuspensions();
     DB.business.sweepQuotaDeadlines();
+    DB.business.sweepScheduled();
     // Cache local affiché immédiatement par les chargements ci-dessous
     // (jamais bloquant) ; resynchronise les commandes/retards en tâche de
     // fond (voir DB.transactions.refresh()/DB.retards.refresh(), js/db.js
@@ -428,6 +430,7 @@ async function boot() {
     // rafraîchit ces mêmes vues une fois reçu.
     DB.transactions.refresh().then(() => { loadDashboard(); loadTransactions(); loadCabines(); });
     DB.retards.refresh().then(loadRetardsAdmin);
+    DB.commandesProgrammees.refresh().then(loadCommandeAutoAdmin);
 
     loadDashboard();
     loadClients();
@@ -477,9 +480,11 @@ async function boot() {
       // compte avant la comparaison de signature/le re-rendu ci-dessous.
       await refreshUsersFromServer();
       await DB.transactions.refresh();
+      await DB.commandesProgrammees.refresh();
       await DB.business.sweepStaleOrders();
       await DB.business.sweepAutoUnsuspensions();
       await DB.business.sweepQuotaDeadlines();
+      await DB.business.sweepScheduled();
       // Notifications réelles (voir api/notifications_list.php) — reflète
       // désormais ce qui se passe partout, pas seulement ce que cet
       // appareil admin a lui-même déclenché.
@@ -541,6 +546,7 @@ function restoreAdminState(saved) {
     searchExchangeAdmin();
   }
   if (f.retards) { const el = document.getElementById('retards-admin-search'); if (el) { el.value = f.retards; searchRetardsAdmin(); } }
+  if (f.commandeAuto) { const el = document.getElementById('cauto-search'); if (el) { el.value = f.commandeAuto; searchCommandeAutoAdmin(); } }
   if (f.transactions.q || f.transactions.status) {
     const qEl = document.getElementById('admin-txn-search'); const sEl = document.getElementById('admin-txn-status');
     if (qEl) qEl.value = f.transactions.q; if (sEl) sEl.value = f.transactions.status;
@@ -1629,6 +1635,115 @@ function searchRetardsAdmin() {
   loadRetardsAdmin(q);
 }
 
+/* ================================================================
+   COMMANDE AUTOMATIQUE (admin) — création (super admin, sans paiement)
+   + suivi de toutes les commandes programmées (client ou admin)
+   ================================================================
+   Voir api/orders_schedule_create_admin.php/orders_schedule_list.php et
+   DB.commandesProgrammees/DB.business.scheduleOrderAdmin (js/db.js). Le
+   temps de traitement est calculé entre l'assignation à une cabine
+   (txn_date_assignation) et la fin réelle (txn_date_fin) de la vraie
+   commande créée au déclenchement — tant qu'elle n'est pas terminée,
+   affiche "En cours…". */
+function _cautoDuration(cp) {
+  if (!cp.txn_date_assignation) return '—';
+  if (!cp.txn_date_fin) return 'En cours…';
+  const ms = new Date(cp.txn_date_fin) - new Date(cp.txn_date_assignation);
+  if (!(ms >= 0)) return '—';
+  const mins = Math.round(ms / 60000);
+  if (mins < 1) return '< 1 min';
+  if (mins < 60) return `${mins} min`;
+  return `${Math.floor(mins / 60)} h ${mins % 60} min`;
+}
+
+function _cautoStatusBadge(cp) {
+  if (cp.statut === 'en_attente' || cp.statut === 'en_cours') {
+    return `<span class="badge badge-pending"><i class="fa-solid fa-hourglass-half"></i> Programmée</span>`;
+  }
+  return cp.txn_statut ? Fmt.status(cp.txn_statut) : `<span class="badge">${cp.statut}</span>`;
+}
+
+function loadCommandeAutoAdmin(query = '') {
+  const createCard = document.getElementById('cauto-create-card');
+  if (createCard) createCard.style.display = currentUser.admin_level === 'super' ? '' : 'none';
+
+  let rows = DB.commandesProgrammees.all().sort((a, b) => new Date(b.date_programmee) - new Date(a.date_programmee));
+  if (query) {
+    const q = query.toLowerCase();
+    rows = rows.filter(cp =>
+      (cp.numero_beneficiaire || '').includes(query) ||
+      `${cp.cabine_prenom || ''} ${cp.cabine_nom || ''} ${cp.cabine_cabine_nom || ''}`.toLowerCase().includes(q)
+    );
+  }
+
+  const tbody = document.getElementById('cauto-tbody');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:24px"><div class="empty-title">Aucune commande programmée</div></div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(cp => {
+    const origine = cp.client_id
+      ? `<i class="fa-solid fa-user"></i> ${cp.client_prenom || ''} ${cp.client_nom || ''}`
+      : `<i class="fa-solid fa-shield-halved"></i> ${cp.admin_prenom || ''} ${cp.admin_nom || ''} <span class="badge badge-info" style="margin-left:4px;">Admin</span>`;
+    const cabine = cp.cabine_prenom
+      ? `${cp.cabine_prenom} ${cp.cabine_nom} (${cp.cabine_cabine_nom || '—'})`
+      : '—';
+    return `<tr>
+      <td>${Fmt.datetime(cp.date_programmee)}</td>
+      <td>${origine}</td>
+      <td>${Fmt.operator(cp.operateur || '')}</td>
+      <td>${Fmt.phone(cp.numero_beneficiaire)}</td>
+      <td>${Fmt.money(cp.montant)}</td>
+      <td>${_cautoStatusBadge(cp)}</td>
+      <td>${cabine}</td>
+      <td>${_cautoDuration(cp)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function searchCommandeAutoAdmin() {
+  const q = document.getElementById('cauto-search').value.trim();
+  _adminResume.filters.commandeAuto = q;
+  _saveAdminResume();
+  loadCommandeAutoAdmin(q);
+}
+
+async function submitCommandeAutoAdmin(event) {
+  event.preventDefault();
+  const btn = document.getElementById('cauto-submit-btn');
+  const operateur = document.getElementById('cauto-op').value;
+  const service    = document.getElementById('cauto-service').value;
+  const recipient  = document.getElementById('cauto-recipient').value.replace(/\D/g, '').slice(0, 10);
+  const montant    = parseInt(document.getElementById('cauto-amount').value, 10) || 0;
+  const dateVal    = document.getElementById('cauto-date').value;
+  const timeVal    = document.getElementById('cauto-time').value;
+
+  if (!operateur) { Toast.error('Choisissez un réseau.'); return; }
+  if (!/^0[0-9]{9}$/.test(recipient)) { Toast.error('Numéro du destinataire invalide (10 chiffres).'); return; }
+  if (montant < 500 || montant > 100000) { Toast.error('Montant entre 500 et 100 000 FCFA.'); return; }
+  if (!dateVal || !timeVal) { Toast.error('Choisissez une date et une heure.'); return; }
+  const ts = new Date(`${dateVal}T${timeVal}:00`).getTime();
+  if (!ts || ts <= Date.now() + 60000) { Toast.error('La date/heure programmée doit être au moins 1 minute dans le futur.'); return; }
+
+  btn.disabled = true;
+  const res = await DB.business.scheduleOrderAdmin({
+    operateur, service,
+    numero_beneficiaire: recipient,
+    montant,
+    date_programmee: `${dateVal} ${timeVal}:00`,
+  });
+  btn.disabled = false;
+
+  if (!res.ok) { Toast.error(res.error || 'Échec de la programmation.'); return; }
+
+  Toast.success('Commande automatique programmée.');
+  event.target.reset();
+  await DB.commandesProgrammees.refresh();
+  loadCommandeAutoAdmin(document.getElementById('cauto-search')?.value.trim() || '');
+}
+
 /* â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 function loadTransactions(query = '', statusFilter = 'all') {
   // Badge de la sidebar : total en_attente indépendant de la recherche/du
@@ -2578,6 +2693,7 @@ const ADMIN_PERMISSIONS = [
   { key: 'recharge-uv-admin',    label: 'Recharge UV' },
   { key: 'exchange-admin',       label: 'Exchange' },
   { key: 'retards-admin',        label: 'Commandes en retard' },
+  { key: 'commande-auto-admin',  label: 'Commande automatique' },
   { key: 'transactions',         label: 'Transactions' },
   { key: 'commissions-admin',    label: 'Commissions' },
   { key: 'maintenance-admin',    label: 'Maintenance' },

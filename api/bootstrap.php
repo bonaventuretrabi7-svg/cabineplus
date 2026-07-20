@@ -122,6 +122,22 @@ function requireAdminToken(): array {
   return requireAuth(['admin']);
 }
 
+// Autorise soit une session normale (n'importe quel rôle — même contrat que
+// requireAuth() sans argument, pour rester appelable par le sondage
+// périodique client.js/cabine.js/admin.js déjà en place), soit un appel
+// "hors session" authentifié par un secret partagé (en-tête
+// X-Cron-Secret) — seul moyen pour un déclencheur externe (ex. tâche
+// planifiée GitHub Actions, voir .github/workflows/) d'appeler un endpoint
+// sans qu'aucun appareil n'ait besoin d'être ouvert. CRON_SECRET n'est
+// défini que si l'hébergeur l'a configuré (voir config.example.php) —
+// hash_equals() pour une comparaison à temps constant, comme un jeton de
+// session classique.
+function requireAuthOrCron(): void {
+  $secret = $_SERVER['HTTP_X_CRON_SECRET'] ?? '';
+  if (defined('CRON_SECRET') && CRON_SECRET !== '' && $secret !== '' && hash_equals(CRON_SECRET, $secret)) return;
+  requireAuth();
+}
+
 // Décode les colonnes JSON (stockées en texte par MySQL, contrairement à
 // Postgres/jsonb) avant de les renvoyer au client — utilisé par
 // settings_get.php/settings_update.php.
