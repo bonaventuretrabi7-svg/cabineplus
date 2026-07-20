@@ -506,13 +506,14 @@ async function boot() {
       loadWallet();
       loadProfit();
       loadRecentRecap();
+      renderChapChap();
       renderLockedSections(false);
       startClientPresence();
       // Cache local affiché immédiatement ci-dessus ; resynchronise ses
       // propres commandes en tâche de fond (voir DB.transactions.refresh(),
       // js/db.js — le moteur de commandes, Phase 4, écrit désormais côté
       // serveur) et rafraîchit ces mêmes vues une fois reçu.
-      DB.transactions.refresh().then(() => { loadHistory(); loadWallet(); loadRecentRecap(); });
+      DB.transactions.refresh().then(() => { loadHistory(); loadWallet(); loadRecentRecap(); renderChapChap(); });
       // Reprend aussi son propre profil (solde compris) dès l'ouverture —
       // une recharge faite par l'administration pendant que cet onglet
       // était fermé/en arrière-plan doit apparaître dès la réouverture,
@@ -821,7 +822,7 @@ function closeQrScanner() {
 // sans avoir à câbler chaque onglet au cas par cas.
 function _clientSectionLoader(name) {
   return ({
-    transfer:     () => { loadRecentRecap(); renderActualites(); },
+    transfer:     () => { loadRecentRecap(); renderChapChap(); renderActualites(); },
     historique:   loadHistory,
     depenses:     loadDepenses,
     portefeuille: loadWallet,
@@ -2055,6 +2056,7 @@ async function tfConfirmFromRecap() {
     _saveClientResume();
     loadHistory();
     loadWallet();
+    renderChapChap();
   } else {
     Toast.error(res.error);
   }
@@ -2197,6 +2199,7 @@ function tfSubmitConfirm() {
       refreshSoldeNumbers();
       loadHistory();
       loadWallet();
+      renderChapChap();
     } else {
       Toast.error(res.error);
     }
@@ -3644,6 +3647,67 @@ function tfPickContact(numero) {
   document.getElementById('tf-recipient').value = numero;
   tfUpdateRecipient(numero);
   Toast.info(`Numéro ${Fmt.phone(numero)} sélectionné.`);
+}
+
+/* ================================================================
+   CHAP CHAP — répéter l'une des 3 dernières transactions
+   ================================================================
+   Affiche jusqu'à 3 transferts DIRECTS récents (tunnel principal, pas un
+   forfait — un forfait ne peut pas se re-sélectionner de façon fiable ici,
+   son prix/sa disponibilité ayant pu changer depuis) sous forme de cartes
+   cliquables, même identité visuelle que "Choisissez votre réseau"
+   juste au-dessus (.op-card). Un clic pré-remplit le tunnel de commande
+   (réseau, montant, destinataire) et amène directement à l'étape
+   Paiement — le client choisit encore lui-même son moyen de paiement à
+   chaque fois, jamais pré-rempli automatiquement. */
+const CHAPCHAP_OP_LOGO  = { Orange: 'orange.png', MTN: 'mtn.jpg', Moov: 'moov.jpg' };
+const CHAPCHAP_OP_EMOJI = { Orange: '🟠', MTN: '🟡', Moov: '🔵' };
+const CHAPCHAP_OP_CLASS = { Orange: 'op-card--orange', MTN: 'op-card--mtn', Moov: 'op-card--moov' };
+
+function renderChapChap() {
+  if (!currentUser) return;
+  const section = document.getElementById('chapchap-section');
+  const list = document.getElementById('chapchap-list');
+  if (!section || !list) return;
+
+  const txns = DB.transactions.byClient(currentUser.id)
+    .filter(t => !t.type && !(t.details && t.details.forfait_id))
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 3);
+
+  if (!txns.length) { section.style.display = 'none'; return; }
+  section.style.display = 'block';
+
+  list.innerHTML = txns.map(t => {
+    const opClass = CHAPCHAP_OP_CLASS[t.operateur] || 'op-card--orange';
+    const opEmoji = CHAPCHAP_OP_EMOJI[t.operateur] || '📱';
+    const opLogo  = CHAPCHAP_OP_LOGO[t.operateur];
+    return `<div class="op-card ${opClass}" onclick="repeatTransaction('${t.id}')" title="Répéter : ${Fmt.phone(t.numero_beneficiaire)} · ${Fmt.money(t.montant)}">
+      <div class="op-logo-sq">
+        ${opLogo
+          ? `<img class="op-logo-img" src="img/logos/${opLogo}" alt="${t.operateur}" onerror="this.outerHTML='<span class=op-emoji-fb>${opEmoji}</span>'">`
+          : `<span class="op-emoji-fb">${opEmoji}</span>`}
+      </div>
+      <div class="op-name-pill">${Fmt.money(t.montant)}</div>
+    </div>`;
+  }).join('');
+}
+
+/* Rejoue tfSelectOp()/tfSetService()/tfCustomAmount()/tfUpdateRecipient()
+   dans l'ordre — les mêmes fonctions que si le client cliquait chaque
+   étape lui-même — pour rester à jamais cohérent avec la logique du
+   tunnel de commande (validations, mise à jour du stepper/du slider...)
+   sans la dupliquer ici. */
+async function repeatTransaction(txnId) {
+  const t = DB.transactions.byId(txnId);
+  if (!t) return;
+  const opEl = document.querySelector(`.op-card[data-op="${t.operateur}"]`);
+  if (!opEl) return;
+  await tfSelectOp(t.operateur, opEl);
+  tfSetService('direct', true);
+  tfCustomAmount(String(t.montant));
+  tfUpdateRecipient(t.numero_beneficiaire || '');
+  document.querySelector('.tf-layout')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 /* ================================================================
