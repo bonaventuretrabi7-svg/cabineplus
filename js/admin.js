@@ -4058,20 +4058,15 @@ async function loadPartnerRequests() {
       <button class="btn btn-sm" style="background:var(--gray-100);color:var(--danger);font-size:.62rem;padding:5px 12px;" onclick="deletePartnerRequest('${a.id}','${(a.prenom||'')} ${(a.nom||'')}')" title="Supprimer définitivement">
         <i class="fa-solid fa-trash"></i> Supprimer
       </button>`}`;
-    const puces = a.puces ? `Orange: ${a.puces.orange||0} · Moov: ${a.puces.moov||0} · MTN: ${a.puces.mtn||0}` : '';
-    const paiement = (a.paiement_vers || a.numero_compte)
-      ? `<div class="rst-admin-meta">${a.paiement_vers ? 'Paiement via ' + a.paiement_vers : ''}${a.numero_compte ? ' · Compte : ' + Fmt.phone(a.numero_compte) : ''}</div>`
-      : '';
+    // Carte réduite au strict nécessaire (photo, nom, statut, date) — toutes
+    // les coordonnées/infos renseignées par le candidat (téléphone, email,
+    // cabine, puces, abonnement, paiement, motivation, pièce d'identité) ne
+    // s'affichent que dans la modale "Voir" (voir viewPartnerApplication()),
+    // jamais directement dans cette liste.
     return `<div class="rst-admin-row">
       ${a.photo ? `<img src="${a.photo}" alt="Photo" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;margin-right:10px;">` : ''}
       <div class="rst-admin-info">
         <div class="rst-admin-name"><i class="fa-solid fa-user"></i> ${a.prenom || ''} ${a.nom || ''}</div>
-        <div class="rst-admin-meta"><i class="fa-solid fa-phone"></i> ${Fmt.phone(a.telephone) || '—'} · <i class="fa-regular fa-envelope"></i> ${a.email || '—'}</div>
-        ${a.whatsapp ? `<div class="rst-admin-meta"><i class="fa-brands fa-whatsapp"></i> ${Fmt.phone(a.whatsapp)}</div>` : ''}
-        <div class="rst-admin-meta">${a.cabine_nom ? 'Cabine : ' + a.cabine_nom + ' · ' : ''}${puces}</div>
-        ${(a.abonnement || a.experience) ? `<div class="rst-admin-meta">${a.abonnement ? 'Abonnement souhaité : ' + a.abonnement : ''}${a.experience ? ' · Expérience : ' + a.experience : ''}</div>` : ''}
-        ${paiement}
-        ${a.motivation ? `<div class="rst-admin-meta" style="font-style:italic;">"${a.motivation}"</div>` : ''}
         <div class="rst-admin-date"><i class="fa-regular fa-clock"></i> ${dateStr}</div>
       </div>
       <div class="rst-admin-actions">
