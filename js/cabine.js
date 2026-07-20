@@ -836,9 +836,13 @@ function loadCabStats() {
   const txns  = DB.transactions.byCabine(currentUser.id);
   const done  = txns.filter(t => t.statut === 'terminé');
 
-  const now   = new Date();
-  const h24   = new Date(now - 86400000);
-  const done24 = done.filter(t => new Date(t.date) >= h24);
+  // "Commandes 24h"/"Commissions 24h" repartent à zéro chaque jour à 00h —
+  // minuit local du jour courant (même repère que loadCabRealtimeStats()
+  // un peu plus bas), PAS une fenêtre glissante des dernières 24 heures
+  // (qui ne se réinitialise jamais réellement à un instant fixe).
+  const now = new Date();
+  const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const done24 = done.filter(t => new Date(t.date) >= todayStart);
 
   const comm24     = done24.reduce((s, t) => s + (t.commission || 0), 0);
   const cmd24      = done24.length;
