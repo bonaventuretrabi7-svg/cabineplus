@@ -15,7 +15,7 @@ final class ReferralsTest extends ApiTestCase
         $referrer = Fixtures::createProfile('client', ['telephone' => '0700000001']);
 
         $res = ApiClient::post('/create_account.php', [
-            'role' => 'client', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
+            'role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
         ]);
         $this->assertTrue(isset($res->json['profile']));
 
@@ -28,7 +28,7 @@ final class ReferralsTest extends ApiTestCase
     public function testCreateAccountWithUnknownReferrerJustSkipsSilently(): void
     {
         $res = ApiClient::post('/create_account.php', [
-            'role' => 'client', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0799999999',
+            'role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0799999999',
         ]);
         $this->assertTrue(isset($res->json['profile']), 'la creation du compte ne doit jamais echouer a cause d\'un code parrain invalide');
         $count = (int)Fixtures::pdo()->query('SELECT COUNT(*) FROM referrals')->fetchColumn();
@@ -38,7 +38,7 @@ final class ReferralsTest extends ApiTestCase
     public function testSelfReferralIsIgnored(): void
     {
         ApiClient::post('/create_account.php', [
-            'role' => 'client', 'telephone' => '0700000001', 'pin' => '1234', 'parrain_telephone' => '0700000001',
+            'role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000001', 'pin' => '1234', 'parrain_telephone' => '0700000001',
         ]);
         $count = (int)Fixtures::pdo()->query('SELECT COUNT(*) FROM referrals')->fetchColumn();
         $this->assertSame(0, $count);
@@ -48,7 +48,7 @@ final class ReferralsTest extends ApiTestCase
     {
         $referrer = Fixtures::createProfile('client', ['telephone' => '0700000001', 'solde' => 0]);
         ApiClient::post('/create_account.php', [
-            'role' => 'client', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
+            'role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
         ]);
         $referredLogin = ApiClient::post('/login.php', ['identifiant' => '0700000002', 'pin' => '1234', 'role' => 'client'], null);
         $referredToken = $referredLogin->json['token'];
@@ -80,7 +80,7 @@ final class ReferralsTest extends ApiTestCase
     {
         $referrer = Fixtures::createProfile('client', ['telephone' => '0700000001', 'solde' => 0]);
         ApiClient::post('/create_account.php', [
-            'role' => 'client', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
+            'role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001',
         ]);
         $referredLogin = ApiClient::post('/login.php', ['identifiant' => '0700000002', 'pin' => '1234', 'role' => 'client'], null);
         $referredToken = $referredLogin->json['token'];
@@ -102,8 +102,8 @@ final class ReferralsTest extends ApiTestCase
     public function testReferralsSummaryReturnsCountAndTotal(): void
     {
         $referrer = Fixtures::createProfile('client', ['telephone' => '0700000001']);
-        ApiClient::post('/create_account.php', ['role' => 'client', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001']);
-        ApiClient::post('/create_account.php', ['role' => 'client', 'telephone' => '0700000003', 'pin' => '1234', 'parrain_telephone' => '0700000001']);
+        ApiClient::post('/create_account.php', ['role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000002', 'pin' => '1234', 'parrain_telephone' => '0700000001']);
+        ApiClient::post('/create_account.php', ['role' => 'client', 'prenom' => 'Filleul', 'telephone' => '0700000003', 'pin' => '1234', 'parrain_telephone' => '0700000001']);
 
         $res = ApiClient::get('/referrals_summary.php', $referrer['token']);
         $this->assertTrue($res->ok());

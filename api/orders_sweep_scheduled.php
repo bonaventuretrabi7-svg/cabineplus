@@ -29,7 +29,7 @@ foreach ($due as $cp) {
   $txn = $result['txn'];
   $cab = $result['cabine'];
   if ($cp['client_id']) {
-    createNotification($cp['client_id'], 'Votre commande programmée (' . $cp['operateur'] . ' ' . number_format((float)$cp['montant'], 0, ',', ' ') . ' F) vient de démarrer.', 'info');
+    createNotification($cp['client_id'], 'Votre commande programmée (' . $cp['operateur'] . ' ' . number_format((float)$cp['montant'], 0, ',', ' ') . ' F) vient de démarrer.', 'order_pending');
 
     $nameStmt = $pdo->prepare('SELECT nom, prenom FROM profiles WHERE id = ?');
     $nameStmt->execute([$cp['client_id']]);

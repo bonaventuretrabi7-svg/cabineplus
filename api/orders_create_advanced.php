@@ -67,7 +67,7 @@ try {
   throw $e;
 }
 
-createNotification($me['id'], 'Votre demande de ' . number_format((float)$montant, 0, ',', ' ') . ' F (' . $service . ') est en attente de traitement.', 'info');
+createNotification($me['id'], 'Votre demande de ' . number_format((float)$montant, 0, ',', ' ') . ' F (' . $service . ') est en attente de traitement.', 'order_pending');
 if ($cab) {
   createNotification($cab['id'], 'Nouvelle demande de ' . $service . ' — ' . number_format((float)$montant, 0, ',', ' ') . ' F.', 'new_request');
 }

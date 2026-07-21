@@ -158,7 +158,22 @@ require __DIR__ . '/push_common.php';
 // un débit/crédit déjà validé. Déclenche aussi une notification push sur
 // le téléphone (voir sendPushToProfile(), api/push_common.php) — même
 // best-effort, un échec d'envoi push ne remonte jamais ici non plus.
+// Catégories seules autorisées côté CLIENT (demande explicite) : sa
+// commande en cours, sa commande terminée, un transfert client-à-client
+// envoyé ou reçu, sa réclamation en cours, sa réclamation terminée — tout
+// le reste (remboursement, recharge de portefeuille, cadeau/parrainage,
+// statut de candidature partenaire...) ne doit jamais lui être créé.
+// Cabine/admin ne sont pas concernés par ce filtre.
+const CLIENT_NOTIFICATION_TYPES = [
+  'order_pending', 'order_completed', 'transfer_sent', 'transfer_received',
+  'reclamation_pending', 'reclamation_completed',
+];
+
 function createNotification(string $userId, string $message, string $type = 'info'): void {
+  $roleStmt = db()->prepare('SELECT role FROM profiles WHERE id = ?');
+  $roleStmt->execute([$userId]);
+  if ($roleStmt->fetchColumn() === 'client' && !in_array($type, CLIENT_NOTIFICATION_TYPES, true)) return;
+
   db()->prepare('INSERT INTO notifications (id, utilisateur_id, message, lu, date, type) VALUES (?, ?, ?, 0, NOW(), ?)')
       ->execute([uuid4(), $userId, $message, $type]);
   sendPushToProfile($userId, 'KBINE PLUS', $message);

@@ -92,6 +92,20 @@ final class AuthTest extends ApiTestCase
         $this->assertFalse($res->ok());
     }
 
+    // Le surnom est désormais obligatoire à l'inscription client (voir
+    // handleAuthGateRegister(), js/client.js) — affiché ensuite à chaque
+    // connexion (showLoginSuccess()/clientDisplayName()). La cabine a son
+    // propre parcours d'inscription (prg-*, index.html), non concerné.
+    public function testCreateAccountRequiresSurnomForClientRole(): void
+    {
+        $res = ApiClient::post('/create_account.php', [
+            'role' => 'client', 'telephone' => '0788880000', 'pin' => '1234',
+        ]);
+        $this->assertFalse($res->ok());
+        $count = (int)Fixtures::pdo()->query("SELECT COUNT(*) FROM profiles WHERE telephone = '0788880000'")->fetchColumn();
+        $this->assertSame(0, $count, 'aucun compte client ne doit être créé sans surnom');
+    }
+
     public function testEndpointsRejectMissingOrInvalidToken(): void
     {
         $res = ApiClient::post('/orders_create.php', ['operateur' => 'Orange', 'numero_beneficiaire' => '0700000000', 'montant' => 1000]);

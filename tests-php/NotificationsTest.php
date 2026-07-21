@@ -70,4 +70,84 @@ final class NotificationsTest extends ApiTestCase
     {
         $this->assertSame(401, ApiClient::get('/notifications_list.php', null)->status);
     }
+
+    // Un client ne doit recevoir QUE 4 catégories de notifications (sa
+    // commande en cours, sa commande terminée, un transfert client-à-client
+    // envoyé ou reçu) — voir CLIENT_NOTIFICATION_TYPES/createNotification(),
+    // api/bootstrap.php. Tout le reste (remboursement ici) ne doit jamais
+    // lui être créé, même si l'action elle-même réussit normalement.
+    public function testClientNeverReceivesNonWhitelistedNotificationTypes(): void
+    {
+        $client = Fixtures::createProfile('client');
+        $admin  = Fixtures::createProfile('admin');
+        $txn = Fixtures::createTransaction(['client_id' => $client['profile']['id'], 'statut' => 'en_attente']);
+
+        $res = ApiClient::post('/orders_refund.php', ['transaction_id' => $txn['id']], $admin['token']);
+        $this->assertTrue($res->ok(), $res->raw);
+
+        $count = (int)Fixtures::pdo()->query("SELECT COUNT(*) FROM notifications WHERE utilisateur_id = '{$client['profile']['id']}'")->fetchColumn();
+        $this->assertSame(0, $count, 'un remboursement ne fait pas partie des 4 catégories autorisées pour un client');
+    }
+
+    public function testClientReceivesOrderPendingThenOrderCompletedNotifications(): void
+    {
+        $client = Fixtures::createProfile('client', ['solde' => 10000]);
+        $cabine = Fixtures::createProfile('cabine');
+        Fixtures::ping($cabine['profile']['id']);
+
+        $order = ApiClient::post('/orders_create.php', [
+            'operateur' => 'Orange', 'numero_beneficiaire' => '0700000000', 'montant' => 1000,
+        ], $client['token']);
+        $this->assertTrue($order->ok(), $order->raw);
+        $txnId = $order->json['transaction']['id'];
+
+        $pending = Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$client['profile']['id']}'")->fetchAll();
+        $this->assertSame(['order_pending'], array_column($pending, 'type'));
+
+        $accept = ApiClient::post('/orders_accept.php', ['transaction_id' => $txnId], $cabine['token']);
+        $this->assertTrue($accept->ok(), $accept->raw);
+
+        $types = array_column(Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$client['profile']['id']}' ORDER BY date")->fetchAll(), 'type');
+        $this->assertSame(['order_pending', 'order_completed'], $types);
+    }
+
+    public function testClientTransferNotifiesBothSenderAndReceiver(): void
+    {
+        $sender   = Fixtures::createProfile('client', ['solde' => 5000, 'telephone' => '0700000001']);
+        $receiver = Fixtures::createProfile('client', ['telephone' => '0700000002']);
+
+        $res = ApiClient::post('/client_transfer.php', [
+            'to_phone' => $receiver['profile']['telephone'], 'montant' => 1000,
+        ], $sender['token']);
+        $this->assertTrue($res->ok(), $res->raw);
+
+        $senderTypes   = array_column(Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$sender['profile']['id']}'")->fetchAll(), 'type');
+        $receiverTypes = array_column(Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$receiver['profile']['id']}'")->fetchAll(), 'type');
+        $this->assertSame(['transfer_sent'], $senderTypes, "l'expéditeur doit être notifié du transfert qu'il vient d'effectuer");
+        $this->assertSame(['transfer_received'], $receiverTypes);
+    }
+
+    public function testClientReceivesReclamationPendingThenCompletedNotifications(): void
+    {
+        $client = Fixtures::createProfile('client');
+        $cabine = Fixtures::createProfile('cabine');
+        $txn = Fixtures::createTransaction(['client_id' => $client['profile']['id'], 'cabine_id' => $cabine['profile']['id'], 'statut' => 'terminé']);
+
+        $recla = ApiClient::post('/reclamations_create.php', [
+            'transaction_id' => $txn['id'], 'motif' => 'Le bénéficiaire n\'a rien reçu',
+        ], $client['token']);
+        $this->assertTrue($recla->ok(), $recla->raw);
+        $reclaId = $recla->json['reclamation']['id'];
+
+        $pending = array_column(Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$client['profile']['id']}'")->fetchAll(), 'type');
+        $this->assertSame(['reclamation_pending'], $pending);
+
+        $resolve = ApiClient::post('/reclamations_resolve.php', [
+            'reclamation_id' => $reclaId, 'screenshot' => 'data:image/png;base64,abc',
+        ], $cabine['token']);
+        $this->assertTrue($resolve->ok(), $resolve->raw);
+
+        $types = array_column(Fixtures::pdo()->query("SELECT type FROM notifications WHERE utilisateur_id = '{$client['profile']['id']}' ORDER BY date")->fetchAll(), 'type');
+        $this->assertSame(['reclamation_pending', 'reclamation_completed'], $types);
+    }
 }

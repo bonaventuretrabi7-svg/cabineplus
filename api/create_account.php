@@ -23,6 +23,11 @@ $parrainTelephone = isset($in['parrain_telephone']) && $in['parrain_telephone'] 
 
 if (!in_array($role, ['client', 'cabine'], true)) fail('Rôle non autorisé pour une inscription publique.');
 if ($telephone === '' || !preg_match('/^\d{4}$/', $pin)) fail('Téléphone et PIN (4 chiffres) requis.');
+// Surnom obligatoire côté client (voir handleAuthGateRegister(), js/client.js) —
+// affiché ensuite à chaque connexion (showLoginSuccess()/afterLogin()). La
+// cabine a son propre parcours d'inscription (prg-*, index.html) qui
+// renseigne déjà prenom/nom, donc non concernée par cette contrainte.
+if ($role === 'client' && $prenom === '') fail('Le surnom est requis.');
 
 $pdo = db();
 $stmt = $pdo->prepare('SELECT id FROM profiles WHERE telephone = ? AND role = ?');

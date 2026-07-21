@@ -2666,7 +2666,6 @@
     <!-- -- CONNEXION ----------------------------------- -->
     <div id="ag-panel-login">
       <div class="ag-hero">
-        <div class="ag-hero-icon"><img src="img/logo.png" alt="" class="ag-hero-logo"></div>
         <div class="ag-title">Connexion</div>
         <div class="ag-sub">Entrez vos identifiants pour continuer</div>
       </div>
@@ -2692,17 +2691,20 @@
             <div class="ag-field-label"><i class="fa-solid fa-phone"></i> Numéro de téléphone</div>
             <div class="form-group">
               <div class="ag-input-wrap">
-                <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
+                <span class="ag-flag-prefix"><strong>+225</strong></span>
                 <span class="ag-prefix-sep"></span>
                 <input type="tel" class="ag-input" id="ag-login-tel"
                   placeholder="00 00 00 00 00" maxlength="14"
-                  inputmode="numeric" oninput="formatPhoneInput(this); syncAgLoginHiddenFields();"
+                  inputmode="numeric" oninput="formatPhoneInput(this); syncAgLoginHiddenFields(); _agLoginAutoAdvance(this);"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();agLoginGoStep(2);}" required />
               </div>
             </div>
-            <button type="button" class="ag-submit-btn" id="ag-login-continue-btn" onclick="agLoginGoStep(2)">
-              <i class="fa-solid fa-arrow-right"></i> Continuer
-            </button>
+            <!-- Plus de bouton "Continuer" : avance automatiquement dès 10
+                 chiffres valides (_agLoginAutoAdvance()) — ce statut est le
+                 seul retour visuel pendant la vérification serveur. -->
+            <div id="ag-login-checking" class="pln-checking" style="display:none;">
+              <i class="fa-solid fa-spinner fa-spin"></i> Vérification du numéro…
+            </div>
           </div>
 
           <!-- Étape 2 : code PIN — uniquement une fois le numéro reconnu
@@ -2763,38 +2765,109 @@
         <div class="ag-title">Créer un compte 🎉</div>
         <div class="ag-sub">Rejoignez KBINE PLUS en quelques secondes</div>
       </div>
+      <!-- Stepper 3 étapes (Identité/Numéro/Code) — même patron visuel que
+           le stepper du tunnel de commande (.wzc-bar, js/client.js) mais
+           adapté au fond clair de .ag-modal (voir .reg-step*, css/style.css). -->
+      <div class="reg-stepper" id="reg-stepper">
+        <div class="reg-step reg-active" id="reg-ind-1" onclick="regClickStep(1)">
+          <div class="reg-step-bubble">
+            <span class="reg-step-num">1</span>
+            <svg class="reg-step-check" viewBox="0 0 24 24" width="12" height="12">
+              <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="reg-step-lbl">Identité</span>
+        </div>
+        <div class="reg-step-line" id="reg-line-1"></div>
+        <div class="reg-step" id="reg-ind-2" onclick="regClickStep(2)">
+          <div class="reg-step-bubble">
+            <span class="reg-step-num">2</span>
+            <svg class="reg-step-check" viewBox="0 0 24 24" width="12" height="12">
+              <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="reg-step-lbl">Numéro</span>
+        </div>
+        <div class="reg-step-line" id="reg-line-2"></div>
+        <div class="reg-step" id="reg-ind-3" onclick="regClickStep(3)">
+          <div class="reg-step-bubble">
+            <span class="reg-step-num">3</span>
+            <svg class="reg-step-check" viewBox="0 0 24 24" width="12" height="12">
+              <path d="M4 12l5 5L20 6" pathLength="1" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <span class="reg-step-lbl">Code</span>
+        </div>
+      </div>
+
       <form onsubmit="handleAuthGateRegister(event)" autocomplete="off">
-        <div class="form-group">
-          <label class="ag-label">Numéro de téléphone</label>
-          <div class="ag-input-wrap">
-            <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
-            <span class="ag-prefix-sep"></span>
-            <input type="tel" class="ag-input" id="ag-reg-tel"
-              placeholder="XX XX XX XX XX" maxlength="14"
-              inputmode="numeric" oninput="formatPhoneInput(this)" required />
+        <div class="pln-slides">
+
+          <!-- Étape 1 : identité -->
+          <div class="pln-slide" id="reg-slide-1">
+            <div class="form-group">
+              <label class="ag-label">Votre surnom</label>
+              <div class="ag-input-wrap">
+                <input type="text" class="ag-input" id="ag-reg-surnom"
+                  placeholder="Ex : LE KING DE BONOA" maxlength="40"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();regGoStep(2);}" />
+              </div>
+            </div>
+            <button type="button" class="ag-submit-btn" onclick="regGoStep(2)">
+              <i class="fa-solid fa-arrow-right"></i> Continuer
+            </button>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="ag-label">Choisissez votre code (4 chiffres)</label>
-          <div class="pin-row" id="pin-register-row">
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+
+          <!-- Étape 2 : numéro -->
+          <div class="pln-slide pln-slide--hidden" id="reg-slide-2" style="display:none;">
+            <button type="button" class="pln-back-btn" onclick="regGoStep(1)" title="Retour">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="form-group">
+              <label class="ag-label">Numéro de téléphone</label>
+              <div class="ag-input-wrap">
+                <span class="ag-flag-prefix">🇨🇮 <strong>+225</strong></span>
+                <span class="ag-prefix-sep"></span>
+                <input type="tel" class="ag-input" id="ag-reg-tel"
+                  placeholder="XX XX XX XX XX" maxlength="14"
+                  inputmode="numeric" oninput="formatPhoneInput(this)"
+                  onkeydown="if(event.key==='Enter'){event.preventDefault();regGoStep(3);}" />
+              </div>
+            </div>
+            <button type="button" class="ag-submit-btn" onclick="regGoStep(3)">
+              <i class="fa-solid fa-arrow-right"></i> Continuer
+            </button>
           </div>
-        </div>
-        <div class="form-group">
-          <label class="ag-label">Confirmer le code</label>
-          <div class="pin-row" id="pin-register-confirm-row">
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
-            <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+
+          <!-- Étape 3 : code -->
+          <div class="pln-slide pln-slide--hidden" id="reg-slide-3" style="display:none;">
+            <button type="button" class="pln-back-btn" onclick="regGoStep(2)" title="Retour">
+              <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div class="form-group">
+              <label class="ag-label">Choisissez votre code (4 chiffres)</label>
+              <div class="pin-row" id="pin-register-row">
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="ag-label">Confirmer le code</label>
+              <div class="pin-row" id="pin-register-confirm-row">
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+                <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
+              </div>
+            </div>
+            <button type="submit" class="ag-submit-btn">
+              <i class="fa-solid fa-user-plus"></i> Créer mon compte
+            </button>
           </div>
+
         </div>
-        <button type="submit" class="ag-submit-btn">
-          <i class="fa-solid fa-user-plus"></i> Créer mon compte
-        </button>
       </form>
       <div class="ag-switch-line">
         Déjà un compte ?

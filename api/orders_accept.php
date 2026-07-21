@@ -77,7 +77,7 @@ $isAdvanced = in_array($txn['type'] ?? '', ['facture', 'recharge_uv', 'exchange'
 $clientMsg = $isAdvanced
   ? 'Votre demande de ' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F (' . $txn['service'] . ') est terminée !'
   : 'Votre transfert de ' . number_format((float)$txn['montant'], 0, ',', ' ') . ' F (' . $txn['operateur'] . ' ' . $txn['numero_beneficiaire'] . ') est terminé !';
-createNotification($txn['client_id'], $clientMsg, 'success');
+createNotification($txn['client_id'], $clientMsg, 'order_completed');
 createNotification($me['id'], 'Commission de ' . number_format((float)$commission, 0, ',', ' ') . ' F enregistrée.', 'commission');
 if ($quotaReached) {
   createNotification($me['id'], 'Quota de commission du forfait ' . $plan . ' atteint (' . number_format((float)$quota, 0, ',', ' ') . ' F). Votre abonnement a pris fin.', 'warning');

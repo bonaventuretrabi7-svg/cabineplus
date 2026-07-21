@@ -1095,7 +1095,13 @@ async function loadClientNotifications() {
     updateNotifBadge();
     return;
   }
-  const icons = { success: 'fa-circle-check', info: 'fa-circle-info', new_request: 'fa-bell', transfer: 'fa-right-left', warning: 'fa-triangle-exclamation', reassigned: 'fa-shuffle' };
+  const icons = {
+    success: 'fa-circle-check', info: 'fa-circle-info', new_request: 'fa-bell',
+    transfer: 'fa-right-left', warning: 'fa-triangle-exclamation', reassigned: 'fa-shuffle',
+    order_pending: 'fa-clock', order_completed: 'fa-circle-check',
+    transfer_sent: 'fa-paper-plane', transfer_received: 'fa-right-left',
+    reclamation_pending: 'fa-triangle-exclamation', reclamation_completed: 'fa-circle-check',
+  };
   list.innerHTML = notifs.map(n => `
     <div class="notif-item ${n.lu ? '' : 'unread'}" onclick="markClientNotifRead('${n.id}', this)">
       <div class="notif-icon"><i class="fa-solid ${icons[n.type] || 'fa-bell'}"></i></div>
@@ -1130,10 +1136,12 @@ function afterLogin(user, instant) {
   renderCadeauBtn();
 
   if (instant) {
-    // Reconnexion (formulaire de connexion standard, hors inscription —
-    // voir handleAuthGateRegister qui appelle afterLogin() sans "instant"
-    // et affiche déjà son propre message de bienvenue via showLoginSuccess).
-    Toast.success('Bon retour parmi nous !');
+    // Reconnexion (formulaire de connexion standard ou déverrouillage PIN,
+    // hors inscription — voir handleAuthGateRegister qui appelle
+    // afterLogin() sans "instant" et affiche déjà son propre message de
+    // bienvenue via showLoginSuccess). Le surnom doit apparaître à CHAQUE
+    // connexion, pas seulement à l'inscription.
+    Toast.success(`Bon retour, ${clientDisplayName(user)} !`);
     closeAuthModal();
     return;
   }
@@ -1152,6 +1160,14 @@ function afterLogin(user, instant) {
   }
 }
 
+// Ancien compte créé avant l'ajout du surnom obligatoire (prenom valait
+// alors le numéro de téléphone, voir handleAuthGateRegister()) : on affiche
+// le numéro formaté plutôt qu'un surnom qui n'a jamais existé.
+function clientDisplayName(user) {
+  const isPhone = /^0[0-9]{9}$/.test(user.prenom);
+  return isPhone ? Fmt.phone(user.telephone) : user.prenom;
+}
+
 function showLoginSuccess(user, callback) {
   const panels = ['ag-panel-login', 'ag-panel-register', 'ag-pending-order'];
   panels.forEach(id => {
@@ -1160,10 +1176,7 @@ function showLoginSuccess(user, callback) {
   });
   const panel = document.getElementById('ag-panel-success');
   const nameEl = document.getElementById('ag-success-name');
-  if (nameEl) {
-    const isPhone = /^0[0-9]{9}$/.test(user.prenom);
-    nameEl.textContent = `Bienvenue, ${isPhone ? Fmt.phone(user.telephone) : user.prenom} !`;
-  }
+  if (nameEl) nameEl.textContent = `Bienvenue, ${clientDisplayName(user)} !`;
   if (panel) panel.style.display = 'block';
   setTimeout(() => {
     if (panel) panel.style.display = 'none';
@@ -1215,8 +1228,10 @@ function closeAuthModal() {
   if (banner) banner.style.display = 'none';
   const telLogin = document.getElementById('ag-login-tel');
   const telReg   = document.getElementById('ag-reg-tel');
-  if (telLogin) telLogin.value = '';
-  if (telReg)   telReg.value   = '';
+  const surnomReg = document.getElementById('ag-reg-surnom');
+  if (telLogin)  telLogin.value  = '';
+  if (telReg)    telReg.value    = '';
+  if (surnomReg) surnomReg.value = '';
   clearPinRow('pin-login-row');
   clearPinRow('pin-register-row');
   clearPinRow('pin-register-confirm-row');
@@ -1241,7 +1256,92 @@ function switchAuthGateTab(tab) {
   } else if (tab === 'register') {
     clearPinRow('pin-register-row');
     clearPinRow('pin-register-confirm-row');
+    _regResetToStep1();
   }
+}
+
+/* Inscription client en 3 étapes glissantes (identité/numéro/code) — même
+   patron .pln-slide que la connexion en 2 étapes ci-dessous
+   (agLoginGoStep()), avec en plus le stepper à bulles numérotées
+   (.reg-step*) qui reflète la progression (voir css/style.css). */
+let regStep = 1;
+
+function _regSetStepperVisual(step) {
+  for (let i = 1; i <= 3; i++) {
+    const ind = document.getElementById('reg-ind-' + i);
+    if (!ind) continue;
+    ind.classList.toggle('reg-active', i === step);
+    ind.classList.toggle('reg-done', i < step);
+  }
+  for (let i = 1; i <= 2; i++) {
+    document.getElementById('reg-line-' + i)?.classList.toggle('reg-done', i < step);
+  }
+}
+
+function _regValidateStep(step) {
+  if (step === 1) {
+    const surnom = document.getElementById('ag-reg-surnom')?.value.trim();
+    if (!surnom) { Toast.error('Choisissez un surnom.'); return false; }
+  }
+  if (step === 2) {
+    const tel = (document.getElementById('ag-reg-tel')?.value || '').replace(/\s/g, '');
+    if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return false; }
+  }
+  return true;
+}
+
+function regGoStep(target) {
+  if (target === regStep) return;
+  // Vérifie l'étape qu'on quitte uniquement en avançant — revenir en
+  // arrière (bouton Retour ou clic sur une bulle déjà validée) ne doit
+  // jamais être bloqué par une validation.
+  if (target > regStep && !_regValidateStep(regStep)) return;
+
+  const from = document.getElementById('reg-slide-' + regStep);
+  const to   = document.getElementById('reg-slide-' + target);
+  if (!from || !to) return;
+
+  from.classList.remove('pln-slide--enter');
+  from.classList.add('pln-slide--exit');
+  setTimeout(() => {
+    from.style.display = 'none';
+    from.classList.remove('pln-slide--exit');
+    from.classList.add('pln-slide--hidden');
+    to.classList.remove('pln-slide--hidden', 'pln-slide--exit');
+    to.style.display = '';
+    requestAnimationFrame(() => { requestAnimationFrame(() => { to.classList.add('pln-slide--enter'); }); });
+  }, 260);
+
+  regStep = target;
+  _regSetStepperVisual(target);
+  const focusId = target === 1 ? 'ag-reg-surnom' : target === 2 ? 'ag-reg-tel' : null;
+  setTimeout(() => {
+    if (focusId) document.getElementById(focusId)?.focus();
+    else document.querySelector('#pin-register-row .pin-box')?.focus();
+  }, 420);
+}
+
+/* Cliquer une bulle du stepper ne permet que de revenir à une étape déjà
+   validée (jamais d'en sauter une pas encore remplie). */
+function regClickStep(target) {
+  if (target >= regStep) return;
+  regGoStep(target);
+}
+
+function _regResetToStep1() {
+  regStep = 1;
+  const surnomEl = document.getElementById('ag-reg-surnom');
+  if (surnomEl) surnomEl.value = '';
+  [2, 3].forEach(i => {
+    const s = document.getElementById('reg-slide-' + i);
+    if (!s) return;
+    s.style.display = 'none';
+    s.classList.add('pln-slide--hidden');
+    s.classList.remove('pln-slide--exit', 'pln-slide--enter');
+  });
+  const s1 = document.getElementById('reg-slide-1');
+  if (s1) { s1.style.display = ''; s1.classList.remove('pln-slide--hidden', 'pln-slide--exit', 'pln-slide--enter'); }
+  _regSetStepperVisual(1);
 }
 
 /* Lire les 4 cases PIN d'une rangée */
@@ -1276,8 +1376,23 @@ function _agLoginResetToStep1() {
   s1.style.display = '';
   s2.style.display = 'none'; s2.classList.remove('pln-slide--enter', 'pln-slide--exit');
   document.getElementById('ag-login-denied').style.display = 'none';
-  const continueBtn = document.getElementById('ag-login-continue-btn');
-  if (continueBtn) { continueBtn.disabled = false; continueBtn.textContent = ''; continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuer'; }
+  const checkingEl = document.getElementById('ag-login-checking');
+  if (checkingEl) checkingEl.style.display = 'none';
+  _agLoginLookupInFlight = false;
+}
+
+/* Avance automatiquement vers l'étape PIN dès que le numéro atteint 10
+   chiffres valides — plus de bouton "Continuer" à taper (voir
+   #ag-login-checking, index.html, seul retour visuel pendant la
+   vérification). Le garde-fou _agLoginLookupInFlight évite un second appel
+   pendant qu'un lookup est déjà en vol (ex. l'utilisateur retouche le champ
+   pendant la vérification en cours). */
+let _agLoginLookupInFlight = false;
+function _agLoginAutoAdvance(input) {
+  const tel = input.value.replace(/\s/g, '');
+  if (/^[0-9]{10}$/.test(tel) && !_agLoginLookupInFlight) {
+    agLoginGoStep(2);
+  }
 }
 
 async function agLoginGoStep(step) {
@@ -1300,10 +1415,12 @@ async function agLoginGoStep(step) {
   const tel = (document.getElementById('ag-login-tel')?.value || '').replace(/\s/g, '');
   if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
 
-  const continueBtn = document.getElementById('ag-login-continue-btn');
-  if (continueBtn) { continueBtn.disabled = true; continueBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Vérification…'; }
+  const checkingEl = document.getElementById('ag-login-checking');
+  _agLoginLookupInFlight = true;
+  if (checkingEl) checkingEl.style.display = 'flex';
   const res = await ServerAPI.clientLoginLookup(tel);
-  if (continueBtn) { continueBtn.disabled = false; continueBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuer'; }
+  _agLoginLookupInFlight = false;
+  if (checkingEl) checkingEl.style.display = 'none';
 
   if (!res.ok) { Toast.error(res.error || 'Connexion Internet requise.'); return; }
   if (!res.found) {
@@ -1459,10 +1576,12 @@ async function handleAuthGateUnlock(e) {
 
 async function handleAuthGateRegister(e) {
   e.preventDefault();
+  const surnom  = document.getElementById('ag-reg-surnom').value.trim();
   const tel     = document.getElementById('ag-reg-tel').value.replace(/\s/g, '');
   const pin     = getPinValue('pin-register-row');
   const pinConf = getPinValue('pin-register-confirm-row');
 
+  if (!surnom)                  { Toast.error('Choisissez un surnom.'); return; }
   if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
   if (pin.length !== 4)          { Toast.error('Choisissez un code à 4 chiffres.'); return; }
   if (pinConf.length !== 4)      { Toast.error('Confirmez votre code à 4 chiffres.'); return; }
@@ -1484,7 +1603,7 @@ async function handleAuthGateRegister(e) {
   // configure un entretemps.
   if (ServerAPI.isConfigured && DB.Net.isOnline()) {
     const parrainTelephone = localStorage.getItem('cbp_referral_code') || null;
-    const created = await ServerAPI.createAccount({ role: 'client', prenom: tel, telephone: tel, pin, parrainTelephone });
+    const created = await ServerAPI.createAccount({ role: 'client', prenom: surnom, telephone: tel, pin, parrainTelephone });
     if (!created.ok) { Toast.error(created.error || 'Échec de la création du compte.'); return; }
     DB.users.cacheFromServer(created.profile, pin);
     // Consommé une seule fois — un client qui recrée un autre compte plus
@@ -1492,7 +1611,7 @@ async function handleAuthGateRegister(e) {
     // parrainage indéfiniment.
     localStorage.removeItem('cbp_referral_code');
   } else {
-    DB.users.create({ prenom: tel, telephone: tel, mot_de_passe: pin, role: 'client' });
+    DB.users.create({ prenom: surnom, telephone: tel, mot_de_passe: pin, role: 'client' });
   }
   // remember:true — même règle que toute connexion client (voir
   // checkLoginLive() plus haut) : un compte tout juste créé doit lui

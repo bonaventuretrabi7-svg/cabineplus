@@ -63,7 +63,7 @@ try {
   throw $e;
 }
 
-createNotification($me['id'], 'Commande programmée pour le ' . date('d/m/Y à H:i', $ts) . ' (' . $operateur . ', ' . number_format((float)$montant, 0, ',', ' ') . ' F) — paiement effectué.', 'info');
+createNotification($me['id'], 'Commande programmée pour le ' . date('d/m/Y à H:i', $ts) . ' (' . $operateur . ', ' . number_format((float)$montant, 0, ',', ' ') . ' F) — paiement effectué.', 'order_pending');
 
 $cpStmt = $pdo->prepare('SELECT * FROM commandes_programmees WHERE id = ?');
 $cpStmt->execute([$cpId]);

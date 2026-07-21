@@ -43,6 +43,10 @@ $pdo->prepare('INSERT INTO reclamation_messages (id, reclamation_id, sender, typ
 if ($txn['cabine_id']) {
   createNotification($txn['cabine_id'], 'Réclamation reçue sur une commande.', 'reclamation');
 }
+// Celui qui dépose (client, ou cabine dans le cas self-recharge UV — voir
+// commentaire plus haut) doit lui aussi être notifié que sa réclamation
+// est enregistrée et en cours de traitement.
+createNotification($me['id'], 'Votre réclamation a été enregistrée et est en cours de traitement.', 'reclamation_pending');
 
 $reclaStmt = $pdo->prepare('SELECT * FROM reclamations WHERE id = ?');
 $reclaStmt->execute([$reclaId]);

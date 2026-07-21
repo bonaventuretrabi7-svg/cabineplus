@@ -34,7 +34,7 @@ $reclaStmt = $pdo->prepare('SELECT client_id, transaction_id FROM reclamations W
 $reclaStmt->execute([$reclaId]);
 $recla = $reclaStmt->fetch();
 if ($recla) {
-  createNotification($recla['client_id'], 'Votre réclamation a été traitée. Une preuve a été fournie.', 'success');
+  createNotification($recla['client_id'], 'Votre réclamation a été traitée. Une preuve a été fournie.', 'reclamation_completed');
 }
 
 echo json_encode(['ok' => true]);
