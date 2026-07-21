@@ -1282,6 +1282,14 @@ const DB = (() => {
       set(KEY.notifications, list);
       if (ServerAPI.isConfigured && Net.isOnline()) await ServerAPI.notificationsMarkAllRead();
     },
+
+    // Supprime une notification — voir api/notifications_delete.php. Retirée
+    // du cache local immédiatement, pas d'attente du prochain refresh().
+    async delete(id) {
+      const list = get(KEY.notifications).filter(n => n.id !== id);
+      set(KEY.notifications, list);
+      if (ServerAPI.isConfigured && Net.isOnline()) await ServerAPI.notificationsDelete(id);
+    },
   };
 
   /* â”€â”€ Réclamations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */

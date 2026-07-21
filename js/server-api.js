@@ -559,6 +559,12 @@ const ServerAPI = (() => {
     return { ok: true };
   }
 
+  async function notificationsDelete(id) {
+    const { res, data } = await _call('notifications_delete.php', { auth: true, body: { id } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la suppression.' };
+    return { ok: true };
+  }
+
   async function retraitsCreate(cabineId, montant) {
     const { res, data } = await _call('retraits_create.php', { auth: true, body: { cabine_id: cabineId, montant } });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec du retrait.' };
@@ -903,7 +909,7 @@ const ServerAPI = (() => {
     reclamationsList, reclamationsCreate, reclamationsResolve, reclamationsConfirmReceived,
     reclamationsRelance, reclamationsRequestRefund, ordersProcessRefund, refundRequestsList,
     transfertsCabineList, resubscriptionsList,
-    notificationsList, notificationsMarkRead, notificationsMarkAllRead,
+    notificationsList, notificationsMarkRead, notificationsMarkAllRead, notificationsDelete,
     retraitsCreate, retraitsList, cabineSetRetraitInfo,
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
     partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse, partnerApplicationsDelete,

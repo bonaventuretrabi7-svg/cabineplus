@@ -1091,9 +1091,19 @@ function loadCabOrders(filter = 'all') {
 
   // Filtre réseau : ne s'applique qu'aux commandes pas encore traitées.
   // Un réseau désactivé bloque les nouvelles commandes, mais celles déjà
-  // traitées (terminées/refusées) restent visibles quel que soit l'état du toggle.
+  // traitées (terminées/refusées) restent visibles quel que soit l'état du
+  // toggle. Ne s'applique JAMAIS à Facture/Recharge UV/Exchange : leur
+  // assignation (pickInitialCabine(..., null, $type), api/orders_common.php)
+  // ignore volontairement reseaux_actifs et ne regarde que services_actifs
+  // — appliquer ce filtre ici aussi masquait à tort des commandes bel et
+  // bien assignées à cette cabine dès que le réseau qu'elles référencent
+  // (ex. "Orange" pour une Recharge UV) était désactivé pour les
+  // transferts classiques (bug remonté : "des commandes en cours mais on
+  // ne voit pas").
+  const ADVANCED_SERVICE_TYPES = ['facture', 'recharge_uv', 'exchange'];
   txns = txns.filter(t => {
     if (t.statut !== 'en_attente') return true;
+    if (ADVANCED_SERVICE_TYPES.includes(t.type)) return true;
     const op = (t.operateur || '').toLowerCase();
     if (op.includes('orange') && !_cabNetworks.orange) return false;
     if (op.includes('moov')   && !_cabNetworks.moov)   return false;
@@ -3161,6 +3171,9 @@ function _renderCabNotifications() {
         <div class="notif-time"><i class="fa-regular fa-clock"></i> ${Fmt.datetime(n.date)}</div>
       </div>
       ${!n.lu ? '<div class="notif-unread-dot"></div>' : ''}
+      <button class="notif-delete-btn" onclick="event.stopPropagation(); deleteCabNotif('${n.id}', this)" title="Supprimer">
+        <i class="fa-solid fa-trash"></i>
+      </button>
     </div>`).join('');
   updateNotifBadge();
 }
@@ -3170,6 +3183,19 @@ async function markCabNotifRead(id, el) {
   el.querySelector('.notif-unread-dot')?.remove();
   updateNotifBadge();
   await DB.notifications.markRead(id);
+}
+
+async function deleteCabNotif(id, btn) {
+  const list = document.getElementById('cab-notif-list');
+  btn.closest('.notif-item')?.remove();
+  if (list && !list.children.length) {
+    list.innerHTML = `<div class="cab-empty-state">
+      <i class="fa-solid fa-bell-slash" style="font-size:2rem;opacity:.3;margin-bottom:8px;display:block;"></i>
+      <div>Aucune notification</div>
+    </div>`;
+  }
+  updateNotifBadge();
+  await DB.notifications.delete(id);
 }
 
 async function markAllCabRead() {
