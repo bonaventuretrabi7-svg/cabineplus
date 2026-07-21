@@ -336,7 +336,26 @@ async function boot() {
    partent EN PARALLÈLE plutôt qu'enchaînées une par une — sur un réseau
    lent, ça change le temps d'attente total du cumul des 3 allers-retours
    au plus lent des 3. */
+// Empêche deux cycles de tourner en même temps : sur un réseau lent ou un
+// hébergement chargé, un cycle (8 appels réseau en parallèle) peut mettre
+// plus d'1s à répondre — sans ce garde-fou, setInterval() en relançait un
+// nouveau par-dessus à chaque tick suivant, empilant des cycles concurrents
+// qui se disputaient la même bande passante/capacité serveur (boutons
+// perçus comme lents) et pouvaient même faire arriver une réponse PLUS
+// ANCIENNE après une plus récente, écrasant le cache local avec des
+// données périmées (commandes qui "disparaissent").
+let _cabRefreshInFlight = false;
 async function _cabRefreshCycle() {
+  if (_cabRefreshInFlight) return;
+  _cabRefreshInFlight = true;
+  try {
+    await _cabRefreshCycleImpl();
+  } finally {
+    _cabRefreshInFlight = false;
+  }
+}
+
+async function _cabRefreshCycleImpl() {
   // Signature avant rafraîchissement (voir DB.pollSignature, js/db.js) :
   // les re-rendus lourds plus bas (liste de commandes, section affichée)
   // ne se déclenchent que si elle a changé — évite de reconstruire tout
@@ -1259,6 +1278,14 @@ function renderCabOrders(txns) {
       <!-- Boutons action (commandes en cours uniquement) -->
       ${isPend ? `
       <div class="cov-actions">
+        <div class="cov-actions-row">
+          <button class="cov-btn cov-btn--hold" onclick="holdRequest('${t.id}')" ${t.hold_used ? 'disabled' : ''}>
+            <i class="fa-solid ${t.hold_used ? 'fa-lock-open' : 'fa-lock'}"></i> ${t.hold_used ? 'Déjà utilisé' : 'Conserver 5min'}
+          </button>
+          <button class="cov-btn cov-btn--refuse" onclick="refuseRequest('${t.id}')">
+            <i class="fa-solid fa-circle-xmark"></i> Ramener
+          </button>
+        </div>
         ${t.type === 'facture' ? `
         <div class="factp-wrap" id="factp-wrap-${t.id}">
           <input type="file" id="factp-file-${t.id}" class="factp-file-input" onchange="handleFactureProofSelect('${t.id}', this)">
@@ -1273,14 +1300,6 @@ function renderCabOrders(txns) {
         <button class="cov-btn cov-btn--done" onclick="acceptRequest('${t.id}')">
           <i class="fa-solid fa-check"></i> Terminer
         </button>`}
-        <div class="cov-actions-row">
-          <button class="cov-btn cov-btn--hold" onclick="holdRequest('${t.id}')" ${t.hold_used ? 'disabled' : ''}>
-            <i class="fa-solid ${t.hold_used ? 'fa-lock-open' : 'fa-lock'}"></i> ${t.hold_used ? 'Déjà utilisé' : 'Conserver 5min'}
-          </button>
-          <button class="cov-btn cov-btn--refuse" onclick="refuseRequest('${t.id}')">
-            <i class="fa-solid fa-circle-xmark"></i> Ramener
-          </button>
-        </div>
       </div>` : ''}
 
     </div>`;

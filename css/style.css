@@ -12705,39 +12705,29 @@ body.impersonating:not(.on-home) .cs-section.active { padding-top: calc(20px + v
 .cov-countdown--queued { color: var(--gray-400); }
 
 /* ── Boutons action ── */
-/* Modèle "Terminer en avant" — l'action la plus fréquente (Terminer)
-   passe en premier et en grand ; Conserver/Ramener (actions secondaires,
-   rarement utilisées) redeviennent deux petites pastilles discrètes
-   juste en dessous plutôt que des boutons de même poids visuel. */
 .cov-actions { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
 .cov-actions-row { display: flex; gap: 8px; }
 .cov-btn {
-  display: flex; align-items: center; justify-content: center; gap: 7px;
-  border: none; cursor: pointer;
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 13px 12px; border-radius: 14px; border: none; cursor: pointer;
+  font-size: .78rem; font-weight: 800;
   transition: opacity .18s, transform .12s;
 }
 .cov-btn:active { transform: scale(.97); }
-.cov-btn--hold, .cov-btn--refuse {
-  flex: 1; padding: 9px 8px; border-radius: 12px;
-  font-size: .68rem; font-weight: 700;
-}
 .cov-btn--hold {
-  background: rgba(59,130,246,.08); color: #3b82f6;
-  border: 1px solid rgba(59,130,246,.3);
+  background: #fff; color: #3b82f6;
+  border: 2px solid #3b82f6;
 }
 .cov-btn--hold:disabled { opacity: .55; cursor: not-allowed; }
 .cov-btn--refuse {
-  background: rgba(255,98,0,.08); color: #FF6200;
-  border: 1px solid rgba(255,98,0,.3);
+  background: #FF6200; color: #fff;
 }
-.cov-btn--refuse:hover { background: rgba(255,98,0,.16); }
+.cov-btn--refuse:hover { background: #CC4E00; }
 .cov-btn--done {
-  width: 100%; background: linear-gradient(135deg,#22c55e,#15803d); color: #fff;
-  padding: 15px 12px; border-radius: 14px;
-  font-size: .88rem; font-weight: 800;
-  box-shadow: 0 6px 18px rgba(34,197,94,.28);
+  width: 100%; background: #16a34a; color: #fff;
+  font-size: .85rem;
 }
-.cov-btn--done:hover { opacity: .92; }
+.cov-btn--done:hover { background: #15803d; }
 
 /* ── Preuve de paiement (commande facture) — zone bleu marine vif,
    bien distincte du reste de la carte pour que le cabiniste la voie
