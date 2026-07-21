@@ -177,18 +177,17 @@ function syncCabLoginHiddenFields() {
   if (pin) pin.value = [...document.querySelectorAll('#cab-login-pin-row .pln-pin-box')].map(b => b.value).join('');
 }
 
-// Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
-// triggerAgLoginSubmit() (js/client.js) pour la même logique côté client :
-// nécessaire pour que le navigateur propose l'enregistrement du mot de passe.
-// Repli direct sur submitCabineLoginGate() si requestSubmit() n'existe pas
-// (WebView Android ancienne) : sans ce repli, la connexion restait
-// silencieusement bloquée sur certains appareils (bug remonté : cabinistes
-// ne parvenant plus du tout à se connecter).
+// Appelle submitCabineLoginGate() directement (pas via requestSubmit()) —
+// la connexion automatique dès un PIN correct est prioritaire sur la
+// proposition d'enregistrement du mot de passe : requestSubmit() restait
+// bloqué sans retour sur certains appareils/navigateurs (validation de
+// formulaire native silencieuse, bug remonté : cabinistes ne parvenant
+// plus du tout à se connecter automatiquement, obligés de cliquer sur le
+// bouton). Ce bouton (type=submit du formulaire) reste lui la voie qui
+// déclenche la proposition d'enregistrement du mot de passe.
 function triggerCabineLoginSubmit() {
   syncCabLoginHiddenFields();
-  const form = document.getElementById('cab-login-form');
-  if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
-  else submitCabineLoginGate();
+  submitCabineLoginGate();
 }
 
 function handleCabineLoginSubmit(event) {

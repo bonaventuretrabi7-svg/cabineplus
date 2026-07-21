@@ -251,17 +251,17 @@ function syncAdminLoginHiddenFields() {
   if (pin) pin.value = [...document.querySelectorAll('#admin-login-pin-row .adx-pin-box')].map(b => b.value).join('');
 }
 
-// Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
-// triggerAgLoginSubmit() (js/client.js) pour la même logique côté client.
-// Repli direct sur submitAdminLoginGate() si requestSubmit() n'existe pas
-// (WebView Android ancienne) : sans ce repli, la connexion restait
-// silencieusement bloquée sur certains appareils (bug remonté : impossible
-// de se connecter avec un compte administrateur).
+// Appelle submitAdminLoginGate() directement (pas via requestSubmit()) —
+// la connexion automatique dès un PIN correct est prioritaire sur la
+// proposition d'enregistrement du mot de passe : requestSubmit() restait
+// bloqué sans retour sur certains appareils/navigateurs (validation de
+// formulaire native silencieuse, bug remonté : impossible de se connecter
+// automatiquement avec un compte administrateur, obligé de cliquer sur le
+// bouton). Ce bouton (type=submit du formulaire) reste lui la voie qui
+// déclenche la proposition d'enregistrement du mot de passe.
 function triggerAdminLoginSubmit() {
   syncAdminLoginHiddenFields();
-  const form = document.getElementById('admin-login-form');
-  if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
-  else submitAdminLoginGate();
+  submitAdminLoginGate();
 }
 
 function handleAdminLoginSubmit(event) {

@@ -1385,17 +1385,15 @@ function syncAgLoginHiddenFields() {
 }
 
 // Déclenché une fois les 4 chiffres saisis (voir initPinRows() ci-dessus) —
-// passe par une vraie soumission de formulaire (requestSubmit(), pas
-// submit()) pour que le navigateur associe cette action à un login réel et
-// propose l'enregistrement du mot de passe après succès. Repli direct sur
-// checkLoginLive() si requestSubmit() n'existe pas (WebView Android
-// ancienne) : sans ce repli, la connexion restait silencieusement bloquée
-// sur certains appareils.
+// appelle checkLoginLive() directement : la connexion automatique dès un
+// PIN correct est prioritaire sur la proposition d'enregistrement du mot
+// de passe. requestSubmit() a été essayé ici mais restait bloqué sans
+// retour sur certains appareils/navigateurs (validation de formulaire
+// native silencieuse, bug remonté : plus de connexion automatique après
+// le 4e chiffre) — la connexion automatique doit toujours fonctionner.
 function triggerAgLoginSubmit() {
   syncAgLoginHiddenFields();
-  const form = document.getElementById('ag-login-form');
-  if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
-  else checkLoginLive();
+  checkLoginLive();
 }
 
 function handleAgLoginSubmit(event) {
