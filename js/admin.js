@@ -253,9 +253,15 @@ function syncAdminLoginHiddenFields() {
 
 // Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
 // triggerAgLoginSubmit() (js/client.js) pour la même logique côté client.
+// Repli direct sur submitAdminLoginGate() si requestSubmit() n'existe pas
+// (WebView Android ancienne) : sans ce repli, la connexion restait
+// silencieusement bloquée sur certains appareils (bug remonté : impossible
+// de se connecter avec un compte administrateur).
 function triggerAdminLoginSubmit() {
   syncAdminLoginHiddenFields();
-  document.getElementById('admin-login-form')?.requestSubmit();
+  const form = document.getElementById('admin-login-form');
+  if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
+  else submitAdminLoginGate();
 }
 
 function handleAdminLoginSubmit(event) {

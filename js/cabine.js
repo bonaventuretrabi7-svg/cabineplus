@@ -180,9 +180,15 @@ function syncCabLoginHiddenFields() {
 // Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
 // triggerAgLoginSubmit() (js/client.js) pour la même logique côté client :
 // nécessaire pour que le navigateur propose l'enregistrement du mot de passe.
+// Repli direct sur submitCabineLoginGate() si requestSubmit() n'existe pas
+// (WebView Android ancienne) : sans ce repli, la connexion restait
+// silencieusement bloquée sur certains appareils (bug remonté : cabinistes
+// ne parvenant plus du tout à se connecter).
 function triggerCabineLoginSubmit() {
   syncCabLoginHiddenFields();
-  document.getElementById('cab-login-form')?.requestSubmit();
+  const form = document.getElementById('cab-login-form');
+  if (form && typeof form.requestSubmit === 'function') form.requestSubmit();
+  else submitCabineLoginGate();
 }
 
 function handleCabineLoginSubmit(event) {
