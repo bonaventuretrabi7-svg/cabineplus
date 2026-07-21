@@ -175,3 +175,32 @@ function notifyAllCabines(string $message, string $type = 'info'): void {
     createNotification($row['id'], $message, $type);
   }
 }
+
+// Diffusion à TOUS les administrateurs — même patron que notifyAllCabines()
+// ci-dessus, utilisée pour l'alerte de seuil de solde cabine ci-dessous.
+function notifyAllAdmins(string $message, string $type = 'info'): void {
+  $stmt = db()->query("SELECT id FROM profiles WHERE role = 'admin'");
+  foreach ($stmt->fetchAll() as $row) {
+    createNotification($row['id'], $message, $type);
+  }
+}
+
+// Alerte l'administration quand le solde disponible d'une cabine dépasse
+// 50 000 F suite à un crédit — seuls deux cas font réellement augmenter le
+// solde réel d'une cabine (recharge par un admin, voir orders_recharge.php,
+// et transfert reçu d'une autre cabine, voir cabine_transfer.php ; la
+// commission n'est plus créditée au solde réel, voir orders_accept.php).
+// Ne se déclenche qu'au moment où le solde FRANCHIT le seuil vers le haut
+// (soldeAvant <= seuil < soldeApres) — pas de colonne d'état à maintenir,
+// le franchissement se déduit directement des deux valeurs au moment du
+// crédit, sans jamais re-notifier tant que le solde reste au-dessus.
+function notifyAdminsIfCabineSoldeCrossed(PDO $pdo, string $cabineId, int $soldeAvant, int $soldeApres): void {
+  $CABINE_SOLDE_SEUIL = 50000;
+  if ($soldeAvant > $CABINE_SOLDE_SEUIL || $soldeApres <= $CABINE_SOLDE_SEUIL) return;
+  $stmt = $pdo->prepare('SELECT nom, prenom, cabine_nom FROM profiles WHERE id = ?');
+  $stmt->execute([$cabineId]);
+  $cab = $stmt->fetch();
+  if (!$cab) return;
+  $name = $cab['cabine_nom'] ?: trim($cab['prenom'] . ' ' . $cab['nom']);
+  notifyAllAdmins('La cabine ' . $name . ' a dépassé 50 000 F de solde disponible (' . number_format((float)$soldeApres, 0, ',', ' ') . ' F).', 'warning');
+}

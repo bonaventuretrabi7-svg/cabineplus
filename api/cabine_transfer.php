@@ -54,5 +54,6 @@ $fromName = $fromRow['cabine_nom'] ?: ($fromRow['prenom'] . ' ' . $fromRow['nom'
 
 createNotification($me['id'], 'Vous avez transféré ' . number_format((float)$montant, 0, ',', ' ') . ' F à ' . $toName . ' (frais : ' . $TRANSFERT_CABINE_FRAIS . ' F).', 'transfer');
 createNotification($to['id'], 'Vous avez reçu ' . number_format((float)$montant, 0, ',', ' ') . ' F de la part de ' . $fromName . '.', 'transfer');
+notifyAdminsIfCabineSoldeCrossed($pdo, $to['id'], (int)$to['solde'], (int)$to['solde'] + $montant);
 
 echo json_encode(['ok' => true, 'recipient' => ['id' => $to['id'], 'cabine_nom' => $to['cabine_nom'], 'prenom' => $to['prenom'], 'nom' => $to['nom']]]);

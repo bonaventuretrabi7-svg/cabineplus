@@ -31,20 +31,29 @@ if ($method !== null) {
   }
 }
 
+$pdo = db();
+
 // Un admin peut créditer un autre compte (client/cabine) ; les autres
 // rôles ne peuvent créditer qu'eux-mêmes.
 $targetId   = $me['id'];
 $targetRole = $me['role'];
 if ($me['role'] === 'admin' && !empty($in['target_id'])) {
   $targetId = (string)$in['target_id'];
-  $checkStmt = db()->prepare('SELECT id, role FROM profiles WHERE id = ?');
+  $checkStmt = $pdo->prepare('SELECT id, role FROM profiles WHERE id = ?');
   $checkStmt->execute([$targetId]);
   $targetRow = $checkStmt->fetch();
   if (!$targetRow) fail('Compte introuvable.');
   $targetRole = $targetRow['role'];
 }
 
-db()->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([$montant, $targetId]);
+// Lu avant le crédit pour détecter un franchissement du seuil d'alerte
+// admin (voir notifyAdminsIfCabineSoldeCrossed(), bootstrap.php) — sans
+// objet pour une cible client, mais sans coût de le lire systématiquement.
+$beforeStmt = $pdo->prepare('SELECT solde FROM profiles WHERE id = ?');
+$beforeStmt->execute([$targetId]);
+$soldeAvant = (int)($beforeStmt->fetchColumn() ?: 0);
+
+$pdo->prepare('UPDATE profiles SET solde = solde + ? WHERE id = ?')->execute([$montant, $targetId]);
 createNotification($targetId, 'Votre portefeuille a été rechargé de ' . number_format((float)$montant, 0, ',', ' ') . ' F.', 'info');
 
 // Historique visible côté client (voir loadWallet()/renderWalletRechargeList()
@@ -64,6 +73,8 @@ if ($targetRole === 'client') {
   $clientRow  = $nameStmt->fetch();
   $clientName = $clientRow ? trim($clientRow['prenom'] . ' ' . $clientRow['nom']) : 'Un client';
   notifyAllCabines('Le client ' . $clientName . ' a rechargé son portefeuille de ' . number_format((float)$montant, 0, ',', ' ') . ' F.', 'info');
+} elseif ($targetRole === 'cabine') {
+  notifyAdminsIfCabineSoldeCrossed($pdo, $targetId, $soldeAvant, $soldeAvant + $montant);
 }
 
 echo json_encode(['ok' => true]);
