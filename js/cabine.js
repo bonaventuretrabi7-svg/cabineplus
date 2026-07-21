@@ -156,7 +156,7 @@ function showCabineLoginGate() {
       if (box.value && idx < boxes.length - 1) {
         boxes[idx + 1].focus();
       } else if (box.value && idx === boxes.length - 1) {
-        setTimeout(submitCabineLoginGate, 120);
+        setTimeout(triggerCabineLoginSubmit, 120);
       }
     };
     box.onkeydown = e => {
@@ -165,6 +165,29 @@ function showCabineLoginGate() {
   });
 
   setTimeout(() => document.getElementById('cab-login-email')?.focus(), 120);
+}
+
+// Recopie l'email + le PIN (cases séparées) dans les champs cachés
+// username/password du formulaire — voir le commentaire HTML de
+// #cab-login-form (cabine.html).
+function syncCabLoginHiddenFields() {
+  const email = document.getElementById('cab-login-username-hidden');
+  const pin   = document.getElementById('cab-login-pin-hidden');
+  if (email) email.value = (document.getElementById('cab-login-email')?.value || '').trim();
+  if (pin) pin.value = [...document.querySelectorAll('#cab-login-pin-row .pln-pin-box')].map(b => b.value).join('');
+}
+
+// Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
+// triggerAgLoginSubmit() (js/client.js) pour la même logique côté client :
+// nécessaire pour que le navigateur propose l'enregistrement du mot de passe.
+function triggerCabineLoginSubmit() {
+  syncCabLoginHiddenFields();
+  document.getElementById('cab-login-form')?.requestSubmit();
+}
+
+function handleCabineLoginSubmit(event) {
+  event.preventDefault();
+  submitCabineLoginGate();
 }
 
 async function submitCabineLoginGate() {

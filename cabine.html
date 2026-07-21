@@ -128,12 +128,20 @@
         <span>Accès refusé — ce compte n'est pas un compte partenaire.</span>
       </div>
 
-      <div class="pln-form">
+      <form class="pln-form" id="cab-login-form" autocomplete="on" onsubmit="handleCabineLoginSubmit(event)">
+        <!-- Champs miroirs cachés — voir #ag-login-form (index.html) pour
+             l'explication complète : permettent au navigateur de proposer
+             "Enregistrer le mot de passe" sans changer la saisie visible. -->
+        <input type="text" id="cab-login-username-hidden" name="username" autocomplete="username"
+          style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+        <input type="password" id="cab-login-pin-hidden" name="password" autocomplete="current-password"
+          style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+
         <div class="pln-field">
           <label class="pln-label"><i class="fa-solid fa-envelope"></i> Adresse Gmail</label>
           <div class="pln-input-wrap">
             <input id="cab-login-email" type="email" inputmode="email" maxlength="60"
-                   class="pln-input" placeholder="exemple@gmail.com"
+                   class="pln-input" placeholder="exemple@gmail.com" oninput="syncCabLoginHiddenFields()"
                    onkeydown="if(event.key==='Enter')document.querySelector('#cab-login-pin-row .pln-pin-box')?.focus();" autocomplete="off">
           </div>
         </div>
@@ -148,12 +156,12 @@
           </div>
         </div>
 
-        <button class="pln-cta" onclick="submitCabineLoginGate()">
+        <button class="pln-cta" type="submit">
           <div class="pln-cta-bg"></div>
           <span class="pln-cta-label">Accéder à mon espace</span>
           <div class="pln-cta-arrow"><i class="fa-solid fa-arrow-right"></i></div>
         </button>
-      </div>
+      </form>
 
       <div class="ag-switch-line">
         <button type="button" onclick="window.location.href='index.html'">Retour à l'accueil</button>

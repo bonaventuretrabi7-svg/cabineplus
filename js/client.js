@@ -749,12 +749,17 @@ let _qrRAF    = null;
    scanner — sinon chaque visite paie son poids au chargement initial
    pour une fonctionnalité que la plupart des clients n'utilisent jamais.
    _qrScanLoop() vérifie déjà window.jsQR avant de l'appeler, donc rien
-   à changer côté boucle de scan : elle attend juste que ça devienne vrai. */
+   à changer côté boucle de scan : elle attend juste que ça devienne vrai.
+   Servi en LOCAL (js/vendor-jsqr.js, même convention que vendor-qrcode.js)
+   plutôt que depuis un CDN externe (jsdelivr) : sur un réseau mobile qui le
+   bloque ou le charge trop lentement, l'ancienne version restait bloquée
+   indéfiniment sur "Placez le code..." sans jamais scanner ni signaler
+   d'erreur — reproductible aussi bien sur le site web que dans l'app. */
 function _loadJsQR() {
   if (window.jsQR || document.getElementById('jsqr-lib')) return;
   const s = document.createElement('script');
   s.id = 'jsqr-lib';
-  s.src = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js';
+  s.src = 'js/vendor-jsqr.js?v=1';
   document.head.appendChild(s);
 }
 
@@ -773,7 +778,11 @@ function openQrScanner() {
       _qrScanLoop();
     })
     .catch(() => {
-      if (statusEl) statusEl.textContent = '';
+      // Message explicite plutôt qu'un vidage silencieux — sans ça,
+      // l'utilisateur voit juste un écran figé sans comprendre pourquoi
+      // (permission refusée, aucune caméra disponible, contexte non
+      // sécurisé...), ce qui se lit comme "le scan ne marche pas".
+      if (statusEl) statusEl.textContent = 'Impossible d\'accéder à la caméra — vérifiez que vous avez autorisé l\'accès dans les réglages de votre navigateur/téléphone.';
     });
 }
 
@@ -1020,9 +1029,50 @@ function refreshSoldeNumbers() {
   refreshSidebarBalance();
 }
 
+// Son de notification — même principe que CabSound/AdminSound (js/cabine.js/
+// js/admin.js) : tonalité générée en Web Audio (aucun fichier audio requis),
+// jouée UNIQUEMENT quand le nombre de notifications non lues augmente (jamais
+// à chaque clic/action) — voir updateNotifBadge() ci-dessous. Un seul son
+// (pas de presets comme côté cabine/admin, l'espace client n'a qu'un seul
+// type d'événement à signaler) ; activé par défaut, réglage local à
+// l'appareil (pas de champ serveur dédié, contrairement à notif_son_actif
+// réservé aux rôles cabine/admin).
+const ClientSound = {
+  ctx: null,
+  _ctx() {
+    if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    return this.ctx;
+  },
+  isEnabled() { return localStorage.getItem('kbine_client_notif_sound') !== 'off'; },
+  tone(freq, delay, duration = .18, type = 'sine') {
+    try {
+      const ctx = this._ctx();
+      const start = ctx.currentTime + delay;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.001, start);
+      gain.gain.linearRampToValueAtTime(0.16, start + .02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(start);
+      osc.stop(start + duration + .02);
+    } catch (e) { /* Web Audio indisponible — silencieux */ }
+  },
+  notify() {
+    if (!this.isEnabled()) return;
+    this.tone(880, 0, .18);
+    this.tone(1175, .14, .22);
+  },
+};
+let _clientLastNotifCount = null;
+
 function updateNotifBadge() {
   if (!currentUser) return;
   const count = DB.notifications.unread(currentUser.id);
+  if (_clientLastNotifCount !== null && count > _clientLastNotifCount) ClientSound.notify();
+  _clientLastNotifCount = count;
   // Pastille sur l'onglet "Profil" du bas (voir index.html) — même patron
   // que notif-badge/recla-badge côté cabine (js/cabine.js) et
   // txn-badge/etc. côté admin (js/admin.js) : une notification non lue
@@ -1293,7 +1343,7 @@ function initPinRows() {
         if (box.value && idx < boxes.length - 1) {
           boxes[idx + 1].focus();
         } else if (box.value && idx === boxes.length - 1) {
-          if (isLoginRow)  checkLoginLive();
+          if (isLoginRow)  triggerAgLoginSubmit();
           if (isUnlockRow) handleAuthGateUnlock();
         }
       });
@@ -1315,12 +1365,37 @@ function initPinRows() {
         const next = boxes[Math.min(digits.length, boxes.length - 1)];
         if (next) next.focus();
         if (digits.length === 4) {
-          if (isLoginRow)  checkLoginLive();
+          if (isLoginRow)  triggerAgLoginSubmit();
           if (isUnlockRow) handleAuthGateUnlock();
         }
       });
     });
   });
+}
+
+// Recopie le téléphone + le PIN (cases séparées) dans les champs cachés
+// username/password du formulaire — voir le commentaire HTML de
+// #ag-login-form (index.html) : c'est ce que le navigateur regarde pour
+// proposer "Enregistrer le mot de passe", jamais les cases visibles.
+function syncAgLoginHiddenFields() {
+  const tel = document.getElementById('ag-login-username-hidden');
+  const pin = document.getElementById('ag-login-pin-hidden');
+  if (tel) tel.value = (document.getElementById('ag-login-tel')?.value || '').replace(/\s/g, '');
+  if (pin) pin.value = getPinValue('pin-login-row');
+}
+
+// Déclenché une fois les 4 chiffres saisis (voir initPinRows() ci-dessus) —
+// passe par une vraie soumission de formulaire (requestSubmit(), pas
+// submit()) pour que le navigateur associe cette action à un login réel et
+// propose l'enregistrement du mot de passe après succès.
+function triggerAgLoginSubmit() {
+  syncAgLoginHiddenFields();
+  document.getElementById('ag-login-form')?.requestSubmit();
+}
+
+function handleAgLoginSubmit(event) {
+  event.preventDefault();
+  checkLoginLive();
 }
 
 async function checkLoginLive() {
@@ -5172,6 +5247,27 @@ function copyReferralLink() {
   }).catch(() => Toast.info('Votre lien : ' + link));
 }
 
+// Bouton "Partager" du bandeau "Aidez vos amis !" (accueil, voir
+// #friends-promo-section) — même lien de parrainage que copyReferralLink()
+// ci-dessus (Profil > Parrainez & gagnez), ouvert via le partage natif
+// (Web Share API) quand disponible, sinon copié dans le presse-papier.
+async function shareAppReferral() {
+  const me = Auth.current();
+  if (!me) { openPrivateSpaceNotice('Connectez-vous pour partager votre lien de parrainage.'); return; }
+
+  const link = 'https://kbineplus.com/?ref=' + me.telephone;
+  const text = 'Rejoins-moi sur KBINE PLUS et profite de transferts rapides et sans frais cachés !';
+
+  if (navigator.share) {
+    try { await navigator.share({ title: 'KBINE PLUS', text, url: link }); }
+    catch (e) { /* partage annulé par l'utilisateur — rien à faire */ }
+    return;
+  }
+  navigator.clipboard.writeText(text + ' ' + link).then(() => {
+    Toast.success('Lien de parrainage copié !');
+  }).catch(() => Toast.info('Votre lien : ' + link));
+}
+
 /* ================================================================
    FIDÉLITÉ
    ================================================================ */
@@ -6617,14 +6713,9 @@ function openCadeauModal() {
           </svg>
           <div class="cadeau-prog-center">
             <div class="cadeau-prog-num">${displayProgress}</div>
-            <div class="cadeau-prog-denom">/${CADEAU_GOAL}</div>
-            <div class="cadeau-prog-ico">🎁</div>
           </div>
         </div>
         <div class="cadeau-prog-title">Votre cadeau arrive !</div>
-        <div class="cadeau-prog-sub">
-          Réalisez <strong>${displayReste} commande${displayReste > 1 ? 's' : ''}</strong> de plus pour débloquer votre récompense de <strong>${Fmt.money(CADEAU_MONTANT)}</strong>.
-        </div>
         <div class="cadeau-prog-bar-wrap">
           <div class="cadeau-prog-bar" style="width:${Math.round(displayProgress / CADEAU_GOAL * 100)}%"></div>
         </div>

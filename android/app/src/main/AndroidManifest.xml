@@ -46,4 +46,12 @@
          partir d'Android 13 (API 33) pour que l'app puisse même demander la
          permission d'afficher une notification à l'utilisateur. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- Scanner de code QR (voir js/client.js openQrScanner(), getUserMedia
+         dans la WebView) — sans cette permission ET la prise en charge de
+         onPermissionRequest() dans MainActivity.java, la caméra reste
+         inaccessible même si l'utilisateur accepte une invite côté JS :
+         Android bloque l'accès au niveau du système avant que la WebView
+         ne puisse même relayer la demande. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 </manifest>

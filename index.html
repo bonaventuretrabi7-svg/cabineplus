@@ -685,7 +685,6 @@
               <div class="form-hint">Min. 500 FCFA · Max. 100 000 FCFA</div>
             </div>
             <div class="sched-field" id="sched-forfait-field" style="display:none;">
-              <label class="sched-label"><i class="fa-solid fa-box"></i> Forfait</label>
               <div class="forfait-cats" id="sched-forfait-cats"></div>
               <div class="forfait-subcats" id="sched-forfait-subcats" style="display:none;"></div>
               <div class="forfait-grid" id="sched-forfait-list">
@@ -846,15 +845,6 @@
       <div class="actu-list" id="actu-kbine-list"></div>
     </div>
 
-    <!-- -- 3c. Récapitulatif commandes --------------------------- -->
-    <div class="home-section" id="rcp-section" style="display:none;">
-      <div class="home-section-head">
-        <span class="home-section-title"><i class="fa-solid fa-clock-rotate-left"></i> Commandes récentes</span>
-        <button class="rcp-see-all" onclick="showSection('historique')">Tout voir <i class="fa-solid fa-arrow-right"></i></button>
-      </div>
-      <div id="rcp-list"></div>
-    </div>
-
     <!-- -- 6.5 Vitrine app ------------------------------------- -->
     <div class="asc-card home-only">
       <div class="asc-top">
@@ -889,9 +879,29 @@
       </div>
     </div>
 
+    <!-- -- 5.5 Aidez vos amis (partage du lien de parrainage) ----
+         Réutilise le même lien que Parrainez & gagnez (Profil, voir
+         renderParrainage()/copyReferralLink() dans js/client.js) — voir
+         shareAppReferral() pour le partage natif (Web Share API), avec
+         repli sur le presse-papier si indisponible. -->
+    <div class="home-section home-only" id="friends-promo-section" style="background:none; border:none; box-shadow:none; padding:0;">
+      <div class="frp2-card">
+        <div class="frp2-head">
+          <div class="frp2-ico">🤝</div>
+          <div class="frp2-body">
+            <div class="frp2-title">Invitez vos amis</div>
+            <div class="frp2-sub">Gagnez <strong>50 F</strong> par ami inscrit</div>
+          </div>
+        </div>
+        <button class="frp2-btn" onclick="shareAppReferral()">
+          <i class="fa-solid fa-share-nodes"></i> Partager mon lien
+        </button>
+      </div>
+    </div>
+
     <!-- -- 6. Réseaux Sociaux --------------------------------- -->
     <div class="home-section home-section--light home-only">
-      <div class="social-circles-title">Rejoignez-nous dès maintenant</div>
+      <div class="social-circles-title">Rejoignez-nous dès maintenant sur</div>
       <div class="social-circles">
           <a class="social-circ social-circ--fb" href="https://facebook.com" target="_blank" rel="noopener">
             <div class="social-circ-ico"><i class="fa-brands fa-facebook-f"></i></div>
@@ -2662,7 +2672,20 @@
       </div>
       <!-- Carte formulaire -->
       <div class="ag-form-card">
-        <div class="pln-slides">
+        <form class="pln-slides" id="ag-login-form" autocomplete="on" onsubmit="handleAgLoginSubmit(event)">
+
+          <!-- Champs miroirs cachés (jamais affichés, jamais désactivés) —
+               permettent au navigateur de proposer "Enregistrer le mot de
+               passe" après connexion : les cases PIN visibles ci-dessous
+               restent inchangées pour l'utilisateur, mais un vrai champ
+               password (voir syncAgLoginHiddenFields(), js/client.js) est
+               ce que le navigateur regarde pour l'enregistrement. Positionné
+               hors écran plutôt que display:none — certains navigateurs
+               ignorent les champs mot de passe totalement masqués. -->
+          <input type="text" id="ag-login-username-hidden" name="username" autocomplete="username"
+            style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+          <input type="password" id="ag-login-pin-hidden" name="password" autocomplete="current-password"
+            style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
 
           <!-- Étape 1 : numéro de téléphone seul -->
           <div class="pln-slide" id="ag-login-slide-1">
@@ -2673,7 +2696,7 @@
                 <span class="ag-prefix-sep"></span>
                 <input type="tel" class="ag-input" id="ag-login-tel"
                   placeholder="00 00 00 00 00" maxlength="14"
-                  inputmode="numeric" oninput="formatPhoneInput(this)"
+                  inputmode="numeric" oninput="formatPhoneInput(this); syncAgLoginHiddenFields();"
                   onkeydown="if(event.key==='Enter'){event.preventDefault();agLoginGoStep(2);}" required />
               </div>
             </div>
@@ -2713,7 +2736,7 @@
             </div>
           </div>
 
-        </div>
+        </form>
 
         <div class="ag-switch-line">
           <button type="button" onclick="closeModal('modal-auth-gate');openResetModal('client');">Mot de passe oublié ?</button>

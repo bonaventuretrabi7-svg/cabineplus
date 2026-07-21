@@ -229,7 +229,7 @@ function showAdminLoginGate() {
       if (box.value && idx < boxes.length - 1) {
         boxes[idx + 1].focus();
       } else if (box.value && idx === boxes.length - 1) {
-        setTimeout(submitAdminLoginGate, 120);
+        setTimeout(triggerAdminLoginSubmit, 120);
       }
     };
     box.onkeydown = e => {
@@ -238,6 +238,28 @@ function showAdminLoginGate() {
   });
 
   setTimeout(() => document.getElementById('admin-login-email')?.focus(), 120);
+}
+
+// Recopie l'email + le PIN (cases séparées) dans les champs cachés
+// username/password du formulaire — voir le commentaire HTML de
+// #admin-login-form (admin.html).
+function syncAdminLoginHiddenFields() {
+  const email = document.getElementById('admin-login-username-hidden');
+  const pin   = document.getElementById('admin-login-pin-hidden');
+  if (email) email.value = (document.getElementById('admin-login-email')?.value || '').trim();
+  if (pin) pin.value = [...document.querySelectorAll('#admin-login-pin-row .adx-pin-box')].map(b => b.value).join('');
+}
+
+// Vraie soumission de formulaire (requestSubmit(), pas submit()) — voir
+// triggerAgLoginSubmit() (js/client.js) pour la même logique côté client.
+function triggerAdminLoginSubmit() {
+  syncAdminLoginHiddenFields();
+  document.getElementById('admin-login-form')?.requestSubmit();
+}
+
+function handleAdminLoginSubmit(event) {
+  event.preventDefault();
+  submitAdminLoginGate();
 }
 
 async function submitAdminLoginGate() {

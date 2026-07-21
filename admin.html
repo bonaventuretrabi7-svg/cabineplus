@@ -729,12 +729,19 @@
           <span>Accès refusé — ce compte n'est pas un compte administrateur.</span>
         </div>
 
-        <div class="adx-form">
+        <form class="adx-form" id="admin-login-form" autocomplete="on" onsubmit="handleAdminLoginSubmit(event)">
+          <!-- Champs miroirs cachés — voir #ag-login-form (index.html) pour
+               l'explication complète. -->
+          <input type="text" id="admin-login-username-hidden" name="username" autocomplete="username"
+            style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+          <input type="password" id="admin-login-pin-hidden" name="password" autocomplete="current-password"
+            style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" tabindex="-1" aria-hidden="true">
+
           <div class="adx-field">
             <label class="adx-label"><i class="fa-solid fa-envelope"></i> Adresse Gmail</label>
             <div class="adx-input-wrap">
               <input id="admin-login-email" type="email" inputmode="email" maxlength="60"
-                     class="adx-input" placeholder="exemple@gmail.com"
+                     class="adx-input" placeholder="exemple@gmail.com" oninput="syncAdminLoginHiddenFields()"
                      onkeydown="if(event.key==='Enter')document.querySelector('#admin-login-pin-row .adx-pin-box')?.focus();" autocomplete="off">
             </div>
           </div>
@@ -749,11 +756,11 @@
             </div>
           </div>
 
-          <button class="adx-cta" onclick="submitAdminLoginGate()">
+          <button class="adx-cta" type="submit">
             <span class="adx-cta-label">Accéder au tableau de bord</span>
             <div class="adx-cta-arr"><i class="fa-solid fa-arrow-right"></i></div>
           </button>
-        </div>
+        </form>
 
         <div class="ag-switch-line">
           <button type="button" onclick="window.location.href='index.html'">Retour à l'accueil</button>
