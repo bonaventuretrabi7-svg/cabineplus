@@ -1908,7 +1908,25 @@ function _tfSyncSlideHeight() {
     // écrire une hauteur figée à 0 dans ce cas, elle sera recalculée dès
     // que la section redevient visible (setOrderMode() rappelle déjà
     // cette fonction à ce moment-là).
-    if (slide && slide.scrollHeight > 0) wrap.style.height = slide.scrollHeight + 'px';
+    if (!slide || slide.scrollHeight <= 0) return;
+    if (curIdx === 0) {
+      // Étape 1 (réseau) : jamais d'agrandissement animé — seulement un
+      // ajustement instantané (transition coupée le temps de l'écriture,
+      // via un reflow forcé). Sans ça, chaque affichage/ré-affichage du
+      // tunnel (boot(), retour depuis l'onglet "Plus tard" via
+      // setOrderMode()) anime .38s depuis la hauteur précédente (souvent 0,
+      // la section étant restée display:none) jusqu'à la hauteur réelle de
+      // la carte réseau — visible comme un agrandissement au chargement/
+      // changement de page alors que cette étape ne devrait jamais bouger.
+      // L'agrandissement animé garde son sens à partir de l'étape 2, où le
+      // contenu varie réellement selon les choix de l'utilisateur.
+      wrap.style.transition = 'none';
+      wrap.style.height = slide.scrollHeight + 'px';
+      void wrap.offsetHeight;
+      wrap.style.transition = '';
+    } else {
+      wrap.style.height = slide.scrollHeight + 'px';
+    }
   };
   // Un second passage légèrement différé rattrape le contenu qui finit de
   // se mettre en page après le premier frame (ex : grille de forfaits
@@ -3926,7 +3944,18 @@ function _schedSyncSlideHeight() {
     // jamais écrire une hauteur figée à 0, elle sera recalculée dès que
     // la section redevient visible (setOrderMode() rappelle déjà cette
     // fonction à ce moment-là).
-    if (wrap && slide && slide.scrollHeight > 0) wrap.style.height = slide.scrollHeight + 'px';
+    if (!wrap || !slide || slide.scrollHeight <= 0) return;
+    if (schedState.step === 0) {
+      // Étape 1 (réseau) : jamais d'agrandissement animé — même correctif
+      // que _tfSyncSlideHeight() (tunnel principal) pour la même raison
+      // (affichage/ré-affichage via setOrderMode() qui anime sinon depuis 0).
+      wrap.style.transition = 'none';
+      wrap.style.height = slide.scrollHeight + 'px';
+      void wrap.offsetHeight;
+      wrap.style.transition = '';
+    } else {
+      wrap.style.height = slide.scrollHeight + 'px';
+    }
   };
   // Second passage différé : rattrape le contenu qui finit de se mettre
   // en page après le premier frame (grille de forfaits, logo réseau...).
