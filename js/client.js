@@ -1866,7 +1866,7 @@ const OP_THEME = {
   Moov:   { clr: '#1D7AE0', text: '#fff' },
 };
 async function tfSelectOp(op, el) {
-  if (await isNetworkInMaintenance(op)) { warnNetworkMaintenance(op); return; }
+  if (await isNetworkInMaintenanceForService('commande', op)) { warnNetworkMaintenance(op); return; }
   tf.operator     = op;
   tf.forfait      = null;
   tf.directAmount = 0;
@@ -4017,7 +4017,17 @@ async function openContactsPicker(onPick = tfPickContact) {
       if (!numero) { Toast.error('Ce contact ne possède aucun numéro de téléphone.'); return; }
       onPick(numero);
     } catch (e) {
-      // Sélection annulée ou permission refusée — rien à afficher.
+      // Le plugin natif (@capacitor-community/contacts) rejette avec un
+      // message contenant "permission" quand l'accès aux contacts a été
+      // refusé (une seule fois — Android ne redemande plus après un refus,
+      // il faut l'autoriser manuellement dans les réglages du téléphone) :
+      // sans ce message explicite, le bouton semblait "ne rien faire" alors
+      // qu'il échouait silencieusement à chaque appui. Une annulation
+      // volontaire de la sélection (utilisateur qui ferme le picker) reste
+      // silencieuse, elle ne lève pas cette erreur.
+      if (/permission/i.test(e?.message || '')) {
+        Toast.error("Autorisez l'accès aux contacts pour KBINE PLUS dans les réglages de votre téléphone (Applications › KBINE PLUS › Autorisations), puis réessayez.");
+      }
     }
     return;
   }
@@ -4327,7 +4337,7 @@ function schedSyncStepper(autoAdvance = true) {
 }
 
 async function schedSelectOp(op, el) {
-  if (await isNetworkInMaintenance(op)) { warnNetworkMaintenance(op); return; }
+  if (await isNetworkInMaintenanceForService('commande', op)) { warnNetworkMaintenance(op); return; }
   schedState.operateur = op;
   document.querySelectorAll('#sched-op-row .op-card').forEach(c => c.classList.remove('active'));
   el.classList.add('active');

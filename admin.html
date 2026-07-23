@@ -2283,7 +2283,7 @@
         <div class="page-header">
           <div class="breadcrumb">Admin › <span>Maintenance</span></div>
           <h2>Maintenance</h2>
-          <p>Désactivez temporairement un message global ou un service précis — le client en est averti s'il tente de l'utiliser. Recharge UV et les réseaux se gèrent depuis l'onglet "UV Cabine".</p>
+          <p>Désactivez temporairement un message global, un service précis, ou un réseau pour "Passez votre commande"/"Commande automatique" — le client en est averti s'il tente de l'utiliser. Recharge UV et les réseaux pour Facture se gèrent depuis l'onglet "UV Cabine".</p>
         </div>
         <div class="card" style="margin-bottom:20px;">
           <div class="card-header">
@@ -2305,6 +2305,15 @@
             <span class="card-title"><i class="fa-solid fa-sliders" style="color:var(--secondary)"></i> Services</span>
           </div>
           <div class="card-body" id="maint-services-content"></div>
+        </div>
+        <div class="card" style="margin-top:20px;">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-tower-broadcast" style="color:var(--secondary)"></i> Réseaux — Passez votre commande / Commande automatique</span>
+          </div>
+          <div class="card-body">
+            <p style="margin:0 0 12px;color:var(--gray-500);font-size:.82rem;">Bloque un ou plusieurs réseaux uniquement pour le tunnel "Passez votre commande" et "Commande automatique" — n'affecte ni Facture ni Recharge UV.</p>
+            <div class="card-body" id="maint-networks-commande-content" style="padding:0;"></div>
+          </div>
         </div>
         <button class="btn btn-primary" style="margin-top:20px;" onclick="saveMaintenanceAdmin()">
           <i class="fa-solid fa-save"></i> Enregistrer

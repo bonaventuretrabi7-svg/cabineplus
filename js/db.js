@@ -152,13 +152,19 @@ const DB = (() => {
         global:   { enabled: false, message: '' },
         services: { recharger: false, depenses: false, transferer: false, historique: false, facture: false, recharge_uv: false, exchange: false },
         networks: { Orange: false, MTN: false, Moov: false },
-        // Réseaux indépendants par service (Exchange/Recharge) — distincts de
-        // `networks` ci-dessus, qui reste partagé par Transfert direct/Facture
+        // Réseaux indépendants par service (Exchange/Recharge/Commande) —
+        // distincts de `networks` ci-dessus, qui reste partagé par Facture
         // (réseau de paiement)/Recharge UV, volontairement inchangés (voir
-        // isNetworkInMaintenanceForService ci-dessous).
+        // isNetworkInMaintenanceForService ci-dessous). "commande" couvre
+        // à la fois "Passez votre commande" (tfSelectOp()) et "Commande
+        // automatique" (schedSelectOp()) — un seul interrupteur pour les
+        // deux, éditable depuis l'onglet Admin "Maintenance" (accessible à
+        // un admin simple habilité, pas seulement au super admin comme
+        // Exchange/Recharge ci-dessous).
         networksByService: {
           exchange: { Orange: false, MTN: false, Moov: false },
           recharge: { Orange: false, MTN: false, Moov: false, Wave: false },
+          commande: { Orange: false, MTN: false, Moov: false },
         },
         // Un message personnalisé par service du bouton Facture, affiché au
         // client à la place du service quand `blocked` est vrai (voir
@@ -2580,10 +2586,12 @@ async function isNetworkInMaintenance(rawNetwork) {
   return !!(await DB.settings.get()).maintenance?.networks?.[net];
 }
 
-// Réseaux indépendants par service (Exchange/Recharge) — voir
+// Réseaux indépendants par service (Exchange/Recharge/Commande) — voir
 // maintenance.networksByService dans seed() ci-dessus. Distinct de
-// isNetworkInMaintenance() qui reste partagé par Transfert direct/Facture/
-// Recharge UV.
+// isNetworkInMaintenance() qui reste partagé par Facture/Recharge UV
+// uniquement — "Passez votre commande"/"Commande automatique"
+// (tfSelectOp()/schedSelectOp(), js/client.js) utilisent désormais leur
+// propre clé ('commande'), éditable depuis l'onglet Admin "Maintenance".
 async function isNetworkInMaintenanceForService(serviceKey, rawNetwork) {
   const net = normalizeMaintenanceNetwork(rawNetwork);
   if (!net) return false;

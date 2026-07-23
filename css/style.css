@@ -1941,7 +1941,7 @@ body.dark .amount-custom-suffix { color: var(--dark-muted); }
 .forfait-card.selected.op-moov   .fc-check { color: #1D7AE0; }
 .forfait-card.selected.op-mtn    .fc-check { color: #CA8A04; }
 
-.fc-sep { height: 1px; background: var(--gray-200); margin-bottom: 4px; }
+.fc-sep { height: 1px; background: var(--gray-200); margin-bottom: 0; }
 
 /* Bandeau "Les avantages du pass" — couleur de marque par réseau, pour
    repérer l'opérateur d'un coup d'œil même une fois la carte en fond

@@ -4950,11 +4950,19 @@ const MAINTENANCE_SERVICE_LABELS = {
   commande_auto: 'Commande automatique',
 };
 
+// Réseaux (Orange/MTN/Moov) bloqués uniquement pour "Passez votre
+// commande"/"Commande automatique" (voir maintenance.networksByService.commande,
+// js/db.js, et isNetworkInMaintenanceForService('commande', ...) dans
+// tfSelectOp()/schedSelectOp(), js/client.js) — indépendant de `networks`
+// (partagé Facture/Recharge UV, onglet "UV Cabine").
+const MAINT_COMMANDE_NETWORKS = ['Orange', 'MTN', 'Moov'];
+
 async function loadMaintenanceAdmin() {
   const m = (await DB.settings.get()).maintenance || {};
-  const draft    = _adminResume.maintenanceDraft; // brouillon non enregistré, prioritaire sur la base
-  const global   = draft ? draft.global   : (m.global   || { enabled: false, message: '' });
-  const services = draft ? draft.services : (m.services || {});
+  const draft            = _adminResume.maintenanceDraft; // brouillon non enregistré, prioritaire sur la base
+  const global           = draft ? draft.global           : (m.global   || { enabled: false, message: '' });
+  const services         = draft ? draft.services         : (m.services || {});
+  const networksCommande = draft ? draft.networksCommande : (m.networksByService?.commande || {});
 
   document.getElementById('maint-global-enabled').checked = !!global.enabled;
   document.getElementById('maint-global-message').value   = global.message || '';
@@ -4966,29 +4974,42 @@ async function loadMaintenanceAdmin() {
       <input type="checkbox" class="maint-service-chk" data-key="${key}" ${services[key] ? 'checked' : ''} onchange="_saveMaintenanceDraft()">
       <span class="chip-dot"><i class="fa-solid fa-check"></i></span>${label}
     </label>`).join('');
+
+  document.getElementById('maint-networks-commande-content').innerHTML = MAINT_COMMANDE_NETWORKS.map(net => `
+    <label class="chip-toggle">
+      <input type="checkbox" class="maint-network-commande-chk" data-net="${net}" ${networksCommande[net] ? 'checked' : ''} onchange="_saveMaintenanceDraft()">
+      <span class="chip-dot"><i class="fa-solid fa-check"></i></span>${net}
+    </label>`).join('');
 }
 
 function _saveMaintenanceDraft() {
   const services = {};
   document.querySelectorAll('.maint-service-chk').forEach(chk => { services[chk.dataset.key] = chk.checked; });
+  const networksCommande = {};
+  document.querySelectorAll('.maint-network-commande-chk').forEach(chk => { networksCommande[chk.dataset.net] = chk.checked; });
   _adminResume.maintenanceDraft = {
     global: {
       enabled: document.getElementById('maint-global-enabled').checked,
       message: document.getElementById('maint-global-message').value,
     },
     services,
+    networksCommande,
   };
   _saveAdminResume();
 }
 
 async function saveMaintenanceAdmin() {
-  // Relit l'objet maintenance courant : recharge_uv/networks appartiennent
-  // désormais à l'onglet "UV Cabine" et ne doivent jamais être écrasés par
-  // une sauvegarde faite depuis cet onglet-ci (DB.settings.update fait une
-  // fusion superficielle — {maintenance:{...}} remplace tout l'objet).
+  // Relit l'objet maintenance courant : recharge_uv/networks (partagé) et
+  // networksByService.exchange/recharge appartiennent à d'autres onglets
+  // ("UV Cabine"/"Disponibilité services") et ne doivent jamais être
+  // écrasés par une sauvegarde faite depuis cet onglet-ci (DB.settings.update
+  // fait une fusion superficielle — {maintenance:{...}} remplace tout
+  // l'objet, d'où la reconstruction complète de networksByService ici).
   const current  = (await DB.settings.get()).maintenance || {};
   const services = { ...current.services };
   document.querySelectorAll('.maint-service-chk').forEach(chk => { services[chk.dataset.key] = chk.checked; });
+  const networksCommande = {};
+  document.querySelectorAll('.maint-network-commande-chk').forEach(chk => { networksCommande[chk.dataset.net] = chk.checked; });
 
   await DB.settings.update({
     maintenance: {
@@ -4998,6 +5019,7 @@ async function saveMaintenanceAdmin() {
       },
       services,
       networks: current.networks,
+      networksByService: { ...current.networksByService, commande: networksCommande },
     },
   });
   _adminResume.maintenanceDraft = null;
