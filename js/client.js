@@ -858,14 +858,26 @@ async function showSection(name) {
     warnServiceMaintenance(maintenanceKeys[name]);
     return;
   }
-  const guestGateMsg = {
-    historique:    'Connectez-vous pour voir votre historique de transferts.',
-    depenses:      'Connectez-vous pour consulter vos dépenses du mois.',
-    portefeuille:  'Connectez-vous pour gérer votre solde et recharger votre compte.',
-    profit:        'Connectez-vous pour accéder à votre profil et vos coordonnées.',
+  const guestGate = {
+    historique: {
+      icon: 'fa-solid fa-clock-rotate-left',
+      benefits: ['Toutes vos commandes en un coup d\'œil', 'Statut en temps réel, du dépôt à la livraison', 'Retrouvez une commande passée en un tap'],
+    },
+    depenses: {
+      icon: 'fa-solid fa-chart-line',
+      benefits: ['Total de vos dépenses du mois', 'Détail par réseau et par jour', 'Repérez vos habitudes de recharge'],
+    },
+    portefeuille: {
+      icon: 'fa-solid fa-wallet',
+      benefits: ['Solde disponible en temps réel', 'Rechargez votre compte en 1 minute', 'Historique complet de vos mouvements'],
+    },
+    profit: {
+      icon: 'fa-solid fa-user',
+      benefits: ['Vos coordonnées toujours à jour', 'Votre code de parrainage personnel', 'Photo et informations de profil'],
+    },
   };
-  if (guestGateMsg[name] && !Auth.current()) {
-    openPrivateSpaceNotice(guestGateMsg[name]);
+  if (guestGate[name] && !Auth.current()) {
+    openPrivateSpaceNotice(guestGate[name].benefits, { icon: guestGate[name].icon });
     return;
   }
   document.querySelectorAll('.bn-item').forEach(i =>
@@ -2405,7 +2417,13 @@ function tfPaymentTimeout() {
 
 function tfShowRecap() {
   if (tf.paymentMethod !== 'solde' && !/^0[0-9]{9}$/.test(tf.payPhone)) return;
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour effectuer un transfert.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Créditez n\'importe quel numéro', 'Orange, MTN et Moov, un seul endroit', 'Transfert instantané, sans file d\'attente'],
+      { icon: 'fa-solid fa-paper-plane' }
+    );
+    return;
+  }
   tfBuildInlineRecap();
   document.getElementById('tf-panel-select').style.display = 'none';
   document.getElementById('tf-panel-recap').style.display  = 'flex';
@@ -3096,17 +3114,35 @@ function openPartnerAuthModal() {
   openAuthModal('login');
 }
 
-/* ── Rappel "Espace privé" (Facture, Recharge UV, Exchange, Cadeau) :
-   au lieu de renvoyer directement au formulaire de connexion, on
-   affiche d'abord ce popup explicatif. */
-// `tab` : 'login' (défaut, tous les appels existants) ou 'register' — pour
-// un geste qui n'a de sens qu'avec un compte fraîchement créé (ex. QR
-// invité ci-dessous), inutile de faire passer par l'onglet connexion
-// d'abord pour cliquer ensuite sur "Créer un compte".
-function openPrivateSpaceNotice(message, tab) {
-  const msgEl = document.getElementById('priv-space-msg');
-  if (msgEl) msgEl.textContent = message || 'Connectez-vous pour accéder à cette fonctionnalité.';
-  const isRegister = tab === 'register';
+/* ── Rappel "Espace privé" : au lieu de renvoyer directement au formulaire
+   de connexion, affiche d'abord ce popup — un badge icône contextuel + 2-3
+   bénéfices courts propres au service visé (voir #priv-space-icon/-list,
+   index.html), plutôt qu'une simple phrase générique "Connectez-vous
+   pour...". Réutilisé par toutes les fonctionnalités réservées aux clients
+   connectés (voir guestGate ci-dessous et les appels directs plus bas). */
+// `benefits` : tableau de 2-3 bénéfices courts, texte brut (jamais de HTML
+// à injecter ici : chaque appelant écrit ce texte lui-même, aucune saisie
+// utilisateur n'y transite).
+// `opts.icon` : classe Font Awesome du badge (défaut : cadenas générique).
+// `opts.tab` : 'login' (défaut) ou 'register' — pour un geste qui n'a de
+// sens qu'avec un compte fraîchement créé (ex. QR invité ci-dessous),
+// inutile de faire passer par l'onglet connexion d'abord pour cliquer
+// ensuite sur "Créer un compte".
+function openPrivateSpaceNotice(benefits, opts) {
+  opts = opts || {};
+  const listEl = document.getElementById('priv-space-list');
+  if (listEl) {
+    listEl.innerHTML = '';
+    (benefits || []).forEach(text => {
+      const li = document.createElement('li');
+      li.innerHTML = '<span class="chk"><i class="fa-solid fa-check"></i></span>';
+      li.appendChild(document.createTextNode(text));
+      listEl.appendChild(li);
+    });
+  }
+  const iconEl = document.getElementById('priv-space-icon');
+  if (iconEl) iconEl.innerHTML = `<i class="${opts.icon || 'fa-solid fa-lock'}"></i>`;
+  const isRegister = opts.tab === 'register';
   const btnEl = document.getElementById('priv-space-btn');
   if (btnEl) {
     btnEl.innerHTML = isRegister
@@ -3122,8 +3158,8 @@ function openPrivateSpaceNotice(message, tab) {
 // invite donc directement à s'inscrire plutôt que d'ouvrir la caméra.
 function guestQrPrompt() {
   openPrivateSpaceNotice(
-    'Scannez et payez en un clin d\'œil dès que vous avez un compte KBINE PLUS — inscrivez-vous, c\'est gratuit et ça prend 1 minute.',
-    'register'
+    ['Scanner et payer en un clin d\'œil', 'Aucuns frais cachés', 'Inscription gratuite, en 1 minute'],
+    { icon: 'fa-solid fa-qrcode', tab: 'register' }
   );
 }
 
@@ -5880,7 +5916,13 @@ function copyReferralLink() {
 // (Web Share API) quand disponible, sinon copié dans le presse-papier.
 async function shareAppReferral() {
   const me = Auth.current();
-  if (!me) { openPrivateSpaceNotice('Connectez-vous pour partager votre code de parrainage.'); return; }
+  if (!me) {
+    openPrivateSpaceNotice(
+      ['25 F par ami inscrit, 1 000 F par partenaire', 'Un seul code à partager', 'Suivez vos gains en temps réel'],
+      { icon: 'fa-solid fa-users-between-lines' }
+    );
+    return;
+  }
 
   const code = parrainCodeFor(me.telephone);
   const text = `Rejoins-moi sur KBINE PLUS et profite de transferts rapides et sans frais cachés ! Utilise mon code de parrainage ${code} à l'inscription.`;
@@ -6309,7 +6351,13 @@ function _ctSetStep(step) {
 
 async function openClientTransferModal() {
   if (await isServiceInMaintenance('transferer')) { warnServiceMaintenance('transferer'); return; }
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour transférer de l\'argent à un autre client.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Envoyez de l\'argent à un autre client', 'Aucuns frais entre comptes KBINE PLUS', 'Argent reçu instantanément'],
+      { icon: 'fa-solid fa-money-bill-transfer' }
+    );
+    return;
+  }
   _ctData = {};
   document.getElementById('ct-phone').value   = '';
   document.getElementById('ct-amount').value  = '';
@@ -6568,7 +6616,13 @@ async function _applyFactureServiceGating() {
 
 async function openFactureModal() {
   if (await isServiceInMaintenance('facture')) { warnServiceMaintenance('facture'); return; }
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour accéder à vos factures.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Payez vos factures en quelques taps', 'Suivi de chaque paiement', 'Plus besoin de vous déplacer'],
+      { icon: 'fa-solid fa-file-invoice' }
+    );
+    return;
+  }
   _factService = '';
   _factData    = {};
   _factPickedService = '';
@@ -6936,7 +6990,13 @@ function _uvSetStep(step) {
 
 async function openUVModal() {
   if (await isServiceInMaintenance('recharge_uv')) { warnServiceMaintenance('recharge_uv'); return; }
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour recharger vos unités virtuelles.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Rechargez vos unités en 1 minute', 'Tous les réseaux disponibles', 'Suivi en temps réel de la demande'],
+      { icon: 'fa-solid fa-bolt' }
+    );
+    return;
+  }
   _uvData = {};
   document.querySelectorAll('.uv-op-card, .uv-pay-card').forEach(b => b.classList.remove('active'));
   document.getElementById('uv-step-1').style.display      = 'block';
@@ -7134,7 +7194,13 @@ async function _applyExchangeNetworkGating() {
 
 async function openExchangeModal() {
   if (await isServiceInMaintenance('exchange')) { warnServiceMaintenance('exchange'); return; }
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour effectuer un exchange.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Échangez du crédit entre réseaux', 'Taux clair, sans surprise', 'Suivi étape par étape de l\'échange'],
+      { icon: 'fa-solid fa-arrow-right-arrow-left' }
+    );
+    return;
+  }
   _exchData = {};
   document.querySelectorAll('.exch-debit-net, .exch-recep-net').forEach(b => b.classList.remove('active'));
   await _applyExchangeNetworkGating();
@@ -7314,7 +7380,13 @@ function renderCadeauBtn() {
 }
 
 function openCadeauModal() {
-  if (!Auth.current()) { openPrivateSpaceNotice('Connectez-vous pour accéder à vos cadeaux.'); return; }
+  if (!Auth.current()) {
+    openPrivateSpaceNotice(
+      ['Cumulez des récompenses à chaque commande', 'Débloquez des cadeaux en un tap', 'Suivez votre progression'],
+      { icon: 'fa-solid fa-gift' }
+    );
+    return;
+  }
   const { done, canClaim, claimed, progress } = _cadeauStats();
   const pct  = Math.min(100, Math.round((done % CADEAU_GOAL) / CADEAU_GOAL * 100));
   const circ = 2 * Math.PI * 54; // circumference for r=54
