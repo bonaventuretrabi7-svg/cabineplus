@@ -987,9 +987,10 @@ function dpShowServiceDetail(label) {
 
 // Ligne de détail d'UNE transaction (dans le modal ouvert par
 // dpShowServiceDetail() ci-dessus) — le transfert client-à-client n'a pas
-// de véritable "opérateur" (operateur vaut 'send-client', une valeur
-// technique jamais montrée telle quelle, voir api/client_transfer.php),
-// donc affiché différemment des autres services.
+// de véritable "opérateur" mobile money (operateur vaut le réseau du
+// numéro bénéficiaire, ex. "Orange", déduit du préfixe — voir
+// phoneNetwork(), api/bootstrap.php), donc affiché différemment des
+// autres services (le réseau du destinataire, pas un opérateur choisi).
 function dpTxnDetailRow(t) {
   const dateStr = new Date(t.date).toLocaleDateString('fr-CI', { day: '2-digit', month: 'short' });
   const isClientTransfer = t.type === 'transfert_client_envoi';

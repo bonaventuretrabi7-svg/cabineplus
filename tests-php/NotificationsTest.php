@@ -127,6 +127,28 @@ final class NotificationsTest extends ApiTestCase
         $this->assertSame(['transfer_received'], $receiverTypes);
     }
 
+    // Chaque ligne `transactions` d'un transfert client-à-client stocke le
+    // réseau réel (déduit du préfixe) de SON PROPRE numero_beneficiaire —
+    // jamais le texte technique "send-client" (voir phoneNetwork(),
+    // api/bootstrap.php) — la ligne "envoi" affiche donc le réseau du
+    // destinataire, la ligne "réception" celui de l'envoyeur.
+    public function testClientTransferStoresRealNetworkPerRow(): void
+    {
+        $sender   = Fixtures::createProfile('client', ['solde' => 5000, 'telephone' => '0700000001']); // Orange
+        $receiver = Fixtures::createProfile('client', ['telephone' => '0500000002']); // MTN
+
+        $res = ApiClient::post('/client_transfer.php', [
+            'to_phone' => $receiver['profile']['telephone'], 'montant' => 1000,
+        ], $sender['token']);
+        $this->assertTrue($res->ok(), $res->raw);
+
+        $envoi = Fixtures::pdo()->query("SELECT operateur FROM transactions WHERE client_id = '{$sender['profile']['id']}' AND type = 'transfert_client_envoi'")->fetch();
+        $reception = Fixtures::pdo()->query("SELECT operateur FROM transactions WHERE client_id = '{$receiver['profile']['id']}' AND type = 'transfert_client_reception'")->fetch();
+
+        $this->assertSame('MTN', $envoi['operateur'], 'la ligne "envoi" affiche le réseau du destinataire');
+        $this->assertSame('Orange', $reception['operateur'], 'la ligne "réception" affiche le réseau de l\'envoyeur');
+    }
+
     public function testClientReceivesReclamationPendingThenCompletedNotifications(): void
     {
         $client = Fixtures::createProfile('client');

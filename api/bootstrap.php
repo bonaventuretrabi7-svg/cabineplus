@@ -92,6 +92,18 @@ function uuid4(): string {
   return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
 }
 
+// Réseau déduit du préfixe d'un numéro ivoirien — même règle que
+// NETWORK_PREFIX (js/auth.js). Utilisé là où un numéro doit être
+// rattaché à un réseau sans que l'appelant l'ait choisi explicitement
+// (ex. client_transfer.php, transfert client-à-client sans opérateur
+// mobile money à proprement parler).
+function phoneNetwork(string $phone): string {
+  if (preg_match('/^07/', $phone)) return 'Orange';
+  if (preg_match('/^05/', $phone)) return 'MTN';
+  if (preg_match('/^01/', $phone)) return 'Moov';
+  return 'Autre';
+}
+
 // Vérifie l'en-tête "Authorization: Bearer <jeton>" émis par login.php (voir
 // la table `sessions`) — remplace la vérification de session Supabase Auth
 // (RLS + current_profile_role()). Retourne le profil appelant ou arrête la

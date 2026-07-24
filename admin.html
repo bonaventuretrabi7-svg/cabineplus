@@ -868,6 +868,10 @@
         <span class="nav-label">Demandes de partenariat</span>
         <span class="nav-badge" id="partner-badge" style="display:none">0</span>
       </div>
+      <div class="nav-item" data-view="partner-codes" onclick="loadPartnerCodesReport()">
+        <i class="fa-solid fa-ticket"></i>
+        <span class="nav-label">Code partenaire</span>
+      </div>
       <div class="nav-item" data-view="rankings" onclick="loadRankings()">
         <i class="fa-solid fa-trophy"></i>
         <span class="nav-label">Classements</span>
@@ -1855,6 +1859,62 @@
           </div>
           <div class="card-body" style="padding:0;">
             <div id="partner-admin-list"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CODE PARTENAIRE (rapport de parrainage) ──────────────────
+           Une ligne par client ayant déjà servi de code de parrainage au
+           moins une fois (parrainage client->client, 25 F, ET parrainage
+           client->candidature partenaire, 1 000 F) — voir
+           admin_partner_codes_report.php. "Souscrit" = candidature
+           partenaire validée (abonnement Premium pris), pas une simple
+           inscription. Colonnes "jour" recalculées pour la date choisie
+           (aujourd'hui par défaut), colonnes "total" toujours cumulées
+           depuis le début. -->
+      <div class="view" data-view="partner-codes">
+        <div class="page-header">
+          <div class="breadcrumb">Admin › <span>Code partenaire</span></div>
+          <h2>Code partenaire</h2>
+          <p>Suivi des codes de parrainage : qui les utilise, combien de personnes inscrites et combien sont devenues partenaires.</p>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title"><i class="fa-solid fa-ticket" style="color:var(--primary)"></i> Codes de parrainage</span>
+            <button class="btn btn-sm" onclick="adminRefreshClick(this, () => loadPartnerCodesReport())" style="font-size:.65rem;padding:5px 12px;">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualiser
+            </button>
+          </div>
+          <div class="card-body" style="padding:0;">
+            <div class="filter-bar" style="padding:14px 14px 0;">
+              <div class="search-box input-group">
+                <i class="fa-solid fa-search input-icon"></i>
+                <input type="text" class="form-control" id="pcode-search"
+                  placeholder="Rechercher par surnom…"
+                  oninput="loadPartnerCodesReport()" />
+              </div>
+              <input type="date" class="form-control" id="pcode-date" title="Journée à afficher"
+                style="max-width:160px;" onchange="loadPartnerCodesReport()" />
+            </div>
+            <div class="table-wrapper">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Surnom</th>
+                    <th>Nom</th>
+                    <th>Code</th>
+                    <th>Inscrits (jour)</th>
+                    <th>Souscrits (jour)</th>
+                    <th>Inscrits (total)</th>
+                    <th>Souscrits (total)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody id="pcode-tbody">
+                  <tr><td colspan="8"><div class="empty-state" style="padding:24px"><div class="empty-title">Chargement…</div></div></td></tr>
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       </div>
@@ -3077,6 +3137,20 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-bulk-reassign')">Annuler</button>
       <button class="btn btn-primary" onclick="confirmBulkReassign()"><i class="fa-solid fa-check"></i> Réassigner</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Détail d'un code de parrainage (voir loadPartnerCodesReport()/
+     showPartnerCodeDetail(), js/admin.js) ─────────────────────────── -->
+<div class="modal-overlay" id="modal-partner-code-detail">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-header">
+      <span class="modal-title"><i class="fa-solid fa-ticket" style="color:var(--primary)"></i> <span id="pcode-detail-title">Détail du code</span></span>
+      <button class="modal-close" onclick="closeModal('modal-partner-code-detail')"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="modal-body" style="padding:0;max-height:60vh;overflow-y:auto;">
+      <div id="pcode-detail-list"></div>
     </div>
   </div>
 </div>

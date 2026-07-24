@@ -619,6 +619,19 @@ const ServerAPI = (() => {
     return { ok: true, applications: data.applications };
   }
 
+  // Rapport "Code partenaire" (admin, voir loadPartnerCodesReport(),
+  // js/admin.js) — api/admin_partner_codes_report.php.
+  async function adminPartnerCodesReport(date, surnom) {
+    const { res, data } = await _call('admin_partner_codes_report.php', { auth: true, body: { date, surnom } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, date: data.date, codes: data.codes };
+  }
+  async function adminPartnerCodeDetail(telephone) {
+    const { res, data } = await _call('admin_partner_code_detail.php', { auth: true, body: { telephone } });
+    if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec de la synchronisation.' };
+    return { ok: true, people: data.people };
+  }
+
   async function partnerApplicationsValidate(applicationId) {
     const { res, data } = await _call('partner_applications_validate.php', { auth: true, body: { application_id: applicationId } });
     if (!res.ok || !data || data.error) return { ok: false, error: (data && data.error) || 'Échec.' };
@@ -954,6 +967,7 @@ const ServerAPI = (() => {
     retraitsCreate, retraitsList, cabineSetRetraitInfo,
     resetRequestsCreate, resetRequestsList, resetRequestsApply, resetRequestsRefuse,
     partnerApplicationsCreate, partnerApplicationsList, partnerApplicationsValidate, partnerApplicationsRefuse, partnerApplicationsDelete,
+    adminPartnerCodesReport, adminPartnerCodeDetail,
     devicesTouch, devicesList, devicesRemove,
     referralsSummary, adminDeleteAccount,
   };

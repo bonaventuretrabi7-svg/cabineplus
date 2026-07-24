@@ -63,6 +63,7 @@ function _adminViewLoader(name) {
     transactions:            loadTransactions,
     'commissions-admin':     loadCommissionsAdmin,
     'partner-requests':      loadPartnerRequests,
+    'partner-codes':         loadPartnerCodesReport,
     rankings:                loadRankings,
     'zero-transaction':      loadZeroTransactionAdmin,
     'clients-inactifs':      loadClientsInactifsAdmin,
@@ -1905,7 +1906,19 @@ function loadTransactions(query = '', statusFilter = 'all') {
     txnBadge.textContent = pendingCount;
     txnBadge.style.display = (pendingCount > 0 && !_isNavActive('transactions')) ? 'inline-flex' : 'none';
   }
-  let txns = DB.transactions.all().sort((a,b) => new Date(b.date)-new Date(a.date));
+  // Un transfert client->client écrit 2 lignes en base (voir
+  // client_transfer.php) : une pour l'envoyeur (transfert_client_envoi) et
+  // une pour le receveur (transfert_client_reception), pour que
+  // l'historique personnel de CHACUN reflète sa moitié de l'opération
+  // (voir js/client.js). Côté admin, cette 2e ligne n'apporte rien de plus
+  // (même montant, même date, le destinataire est déjà le numéro
+  // bénéficiaire de la ligne "envoi") — elle ne fait que se présenter
+  // comme un doublon dans cette vue globale, donc masquée ici uniquement
+  // (DB.transactions.all() reste intact pour les autres écrans admin, ex.
+  // détection "zéro transaction" d'un client qui ne fait que recevoir).
+  let txns = DB.transactions.all()
+    .filter(t => t.type !== 'transfert_client_reception')
+    .sort((a,b) => new Date(b.date)-new Date(a.date));
   // "en_retard" n'est pas un statut stocké en base (voir Fmt.isLate) : c'est
   // un sous-ensemble de "en_attente" dérivé de la date d'assignation — filtre
   // dédié plutôt qu'une simple égalité de statut comme les autres valeurs.
@@ -4387,6 +4400,83 @@ async function loadPartnerRequests() {
       </div>
     </div>`;
   }).join('');
+}
+
+/* ── Rapport "Code partenaire" ──────────────────────────────────────
+   Une ligne par client ayant déjà servi de code de parrainage (voir
+   api/admin_partner_codes_report.php) — recherche par surnom et par date
+   (#pcode-search/#pcode-date), colonnes "jour" recalculées pour la date
+   choisie, colonnes "total" toujours cumulées depuis le début. */
+function loadPartnerCodesReport() {
+  const dateInput = document.getElementById('pcode-date');
+  if (dateInput && !dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+  const date   = dateInput?.value || new Date().toISOString().slice(0, 10);
+  const surnom = document.getElementById('pcode-search')?.value.trim() || '';
+  const tbody  = document.getElementById('pcode-tbody');
+  if (!tbody) return;
+
+  ServerAPI.adminPartnerCodesReport(date, surnom).then(res => {
+    if (!res.ok) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:24px"><div class="empty-title">${res.error || 'Échec de la synchronisation.'}</div></div></td></tr>`;
+      return;
+    }
+    if (!res.codes.length) {
+      tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state" style="padding:24px">
+        <i class="fa-solid fa-ticket" style="font-size:1.6rem;color:var(--text-muted);display:block;margin-bottom:8px;"></i>
+        <div class="empty-title">Aucun code de parrainage trouvé.</div>
+      </div></td></tr>`;
+      return;
+    }
+    tbody.innerHTML = res.codes.map(c => `
+      <tr>
+        <td><strong>${c.prenom || '—'}</strong></td>
+        <td>${c.nom || '—'}</td>
+        <td><code>${c.code}</code></td>
+        <td>${c.jour_inscrits}</td>
+        <td>${c.jour_souscrits}</td>
+        <td>${c.total_inscrits}</td>
+        <td>${c.total_souscrits}</td>
+        <td><button class="btn btn-sm btn-ghost" onclick="showPartnerCodeDetail('${c.telephone}', '${(c.prenom || '').replace(/'/g, "\\'")}')" style="font-size:.62rem;padding:4px 10px;"><i class="fa-solid fa-eye"></i> Détail</button></td>
+      </tr>
+    `).join('');
+  });
+}
+
+// Détail des personnes ayant utilisé un code précis (voir
+// api/admin_partner_code_detail.php) — rôle (client/partenaire) et statut
+// de chacune.
+function showPartnerCodeDetail(telephone, prenom) {
+  const titleEl = document.getElementById('pcode-detail-title');
+  const listEl  = document.getElementById('pcode-detail-list');
+  if (titleEl) titleEl.textContent = `Détail — ${prenom || telephone}`;
+  if (listEl) listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.8rem;">Chargement…</div>`;
+  openModal('modal-partner-code-detail');
+
+  ServerAPI.adminPartnerCodeDetail(telephone).then(res => {
+    if (!listEl) return;
+    if (!res.ok) {
+      listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.8rem;">${res.error || 'Échec de la synchronisation.'}</div>`;
+      return;
+    }
+    if (!res.people.length) {
+      listEl.innerHTML = `<div style="padding:24px;text-align:center;color:var(--text-muted);font-size:.8rem;">Personne n'a encore utilisé ce code.</div>`;
+      return;
+    }
+    listEl.innerHTML = res.people.map(p => {
+      const roleBadge = p.role === 'partenaire'
+        ? '<span class="badge" style="background:rgba(255,98,0,.12);color:var(--primary);">Partenaire</span>'
+        : '<span class="badge" style="background:rgba(59,130,246,.12);color:#3b82f6;">Client</span>';
+      return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
+          <div style="min-width:0;">
+            <div style="font-weight:700;font-size:.82rem;">${p.prenom || ''} ${p.nom || ''}</div>
+            <div style="font-size:.68rem;color:var(--text-muted);margin-top:2px;">${p.statut} · ${Fmt.datetime(p.date)}</div>
+          </div>
+          ${roleBadge}
+        </div>
+      `;
+    }).join('');
+  });
 }
 
 /* Détail complet d'une candidature — la carte compacte de
