@@ -3099,10 +3099,32 @@ function openPartnerAuthModal() {
 /* ── Rappel "Espace privé" (Facture, Recharge UV, Exchange, Cadeau) :
    au lieu de renvoyer directement au formulaire de connexion, on
    affiche d'abord ce popup explicatif. */
-function openPrivateSpaceNotice(message) {
+// `tab` : 'login' (défaut, tous les appels existants) ou 'register' — pour
+// un geste qui n'a de sens qu'avec un compte fraîchement créé (ex. QR
+// invité ci-dessous), inutile de faire passer par l'onglet connexion
+// d'abord pour cliquer ensuite sur "Créer un compte".
+function openPrivateSpaceNotice(message, tab) {
   const msgEl = document.getElementById('priv-space-msg');
   if (msgEl) msgEl.textContent = message || 'Connectez-vous pour accéder à cette fonctionnalité.';
+  const isRegister = tab === 'register';
+  const btnEl = document.getElementById('priv-space-btn');
+  if (btnEl) {
+    btnEl.innerHTML = isRegister
+      ? '<i class="fa-solid fa-user-plus"></i> Créer un compte'
+      : '<i class="fa-solid fa-right-to-bracket"></i> Se connecter';
+    btnEl.onclick = () => { closeModal('modal-private-space'); openAuthModal(isRegister ? 'register' : 'login'); };
+  }
   openModal('modal-private-space');
+}
+
+// QR "invité" (#hbc-guest, avant connexion — voir boot()) : scanner un code
+// n'a de sens qu'avec un compte (transfert/paiement rattaché à un solde),
+// invite donc directement à s'inscrire plutôt que d'ouvrir la caméra.
+function guestQrPrompt() {
+  openPrivateSpaceNotice(
+    'Scannez et payez en un clin d\'œil dès que vous avez un compte KBINE PLUS — inscrivez-vous, c\'est gratuit et ça prend 1 minute.',
+    'register'
+  );
 }
 
 /* Onglet "Partenaires" de la barre du bas : page de recrutement/

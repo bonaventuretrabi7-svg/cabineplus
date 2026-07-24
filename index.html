@@ -141,7 +141,7 @@
       <div class="pgc-qr-card">
         <div class="pgc-qr-inner">
           <div class="pgc-qr-big-wrap">
-            <button class="pgc-qr-big" onclick="openQrScanner()" title="Scanner un code">
+            <button class="pgc-qr-big" onclick="guestQrPrompt()" title="Créer un compte">
               <img id="hbc-qr-guest-img" alt="" class="pgc-qr-big-img">
               <span class="pgc-qr-pulse-ring"></span>
               <span class="pgc-qr-logo-badge"><img src="img/logo.png" alt="" class="pgc-qr-logo-badge-img"></span>
@@ -1790,7 +1790,7 @@
       <div class="elc-wall-lock"><img src="img/logo officiel.png" alt="KBINE PLUS"></div>
       <div class="elc-wall-title">Espace privé</div>
       <div class="elc-wall-sub" id="priv-space-msg">Connectez-vous pour accéder à cette fonctionnalité.</div>
-      <button class="elc-wall-btn" onclick="closeModal('modal-private-space'); openPartnerAuthModal();">
+      <button class="elc-wall-btn" id="priv-space-btn" onclick="closeModal('modal-private-space'); openPartnerAuthModal();">
         <i class="fa-solid fa-right-to-bracket"></i> Se connecter
       </button>
     </div>
