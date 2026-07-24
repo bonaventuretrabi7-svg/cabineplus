@@ -68,7 +68,35 @@ try {
   $pdo->prepare("UPDATE partner_applications SET statut = 'validée', date_traitement = NOW(), processed_by = ? WHERE id = ?")
       ->execute([$me['id'], $id]);
 
+  // Parrainage (facultatif, voir _parseParrainCode()/prgSubmit(),
+  // js/client.js) : 1 000 F crédités au client parrain dès la validation —
+  // même transaction que la création du compte cabine, contrairement au
+  // parrainage client->client (creditReferralRewardIfFirstOrder(),
+  // api/orders_common.php) qui attend la 1re commande terminée. Le statut
+  // 'en_attente' verrouillé par SELECT ... FOR UPDATE plus haut garantit
+  // qu'une même candidature ne peut être validée — donc ce versement
+  // déclenché — qu'une seule fois.
+  $parrainReward = null;
+  // Auto-parrainage impossible (même règle que create_account.php) : un
+  // candidat ne peut pas toucher la récompense en indiquant son propre
+  // numéro de candidature comme code de parrainage.
+  if (!empty($app['parrain_telephone']) && $app['parrain_telephone'] !== $app['telephone']) {
+    $parrainStmt = $pdo->prepare("SELECT id FROM profiles WHERE role = 'client' AND telephone = ?");
+    $parrainStmt->execute([$app['parrain_telephone']]);
+    $parrain = $parrainStmt->fetch();
+    if ($parrain) {
+      $pdo->prepare('UPDATE profiles SET solde = solde + 1000 WHERE id = ?')->execute([$parrain['id']]);
+      $parrainReward = $parrain['id'];
+    }
+  }
+
   $pdo->commit();
+
+  if ($parrainReward !== null) {
+    createNotification($parrainReward,
+      'La candidature partenaire que vous avez parrainée a été validée — 1 000 F ont été crédités sur votre solde. Merci d\'avoir parrainé KBINE PLUS !',
+      'success');
+  }
 } catch (Throwable $e) {
   if ($pdo->inTransaction()) $pdo->rollBack();
   throw $e;

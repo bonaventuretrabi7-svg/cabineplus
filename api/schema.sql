@@ -446,6 +446,12 @@ CREATE TABLE IF NOT EXISTS partner_applications (
   numero_compte     VARCHAR(64)  NULL,
   experience        VARCHAR(64)  NULL,
   puces             JSON         NULL,
+  -- Parrainage (client -> candidature partenaire) : téléphone du client
+  -- parrain, extrait du code "KP<téléphone>" à la candidature (voir
+  -- _parseParrainCode(), js/client.js). Le versement des 1 000 F est géré
+  -- par partner_applications_validate.php, jamais rejouable pour une même
+  -- candidature (statut='en_attente' ne peut être consommé qu'une fois).
+  parrain_telephone VARCHAR(32)  NULL,
   statut            VARCHAR(32)  NOT NULL DEFAULT 'en_attente',
   date_created      DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   date_traitement   DATETIME     NULL,
@@ -518,7 +524,7 @@ CREATE TABLE IF NOT EXISTS referrals (
   id              CHAR(36)   NOT NULL PRIMARY KEY,
   referrer_id     CHAR(36)   NOT NULL,
   referred_id     CHAR(36)   NOT NULL,
-  reward_montant  BIGINT     NOT NULL DEFAULT 50,
+  reward_montant  BIGINT     NOT NULL DEFAULT 25,
   reward_verse    TINYINT(1) NOT NULL DEFAULT 0,
   date            DATETIME   NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uniq_referred (referred_id),

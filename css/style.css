@@ -3944,6 +3944,15 @@ body.dark .cs-page-title { color: var(--dark-text); }
 .prg-pay-card:hover  { background: rgba(255,98,0,.06); border-color: rgba(255,98,0,.2); }
 .prg-pay-card--sel   { background: rgba(255,98,0,.1); border-color: #FF6200; color: #fff; }
 .prg-pay-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+/* Logo réel (voir #prg-pay-abo/#prg-pay-vers, index.html) — remplace les
+   pastilles de couleur .prg-pay-dot pour ces deux grilles seulement ;
+   .prg-pay-dot reste inchangé (encore utilisé par cabine.html/
+   cabSelectRetraitReseau()). */
+.prg-pay-logo {
+  width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0; overflow: hidden;
+  background: #fff; display: flex; align-items: center; justify-content: center;
+}
+.prg-pay-logo img { width: 100%; height: 100%; object-fit: cover; }
 
 /* Onglet Retrait cabine — verrouillage pendant le délai de 24h entre deux
    modifications (voir confirmCabRetrait()/renderCabRetraitState() dans
@@ -3951,11 +3960,44 @@ body.dark .cs-page-title { color: var(--dark-text); }
 .prg-pay-grid--locked { pointer-events: none; opacity: .5; }
 .cab-btn-primary:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Puces */
-.prg-puce-row  { display: flex; align-items: center; gap: 8px; }
-.prg-puce-op   { font-size: .56rem; font-weight: 800; padding: 5px 9px; border-radius: 7px; color: #fff; width: 50px; text-align: center; flex-shrink: 0; }
-.prg-puce-input { flex: 1; padding: 8px 10px !important; text-align: center; }
-.prg-puce-unit  { font-size: .55rem; color: rgba(255,255,255,.3); white-space: nowrap; }
+/* Réseaux exploités — case à cocher par réseau (logo réel), plusieurs
+   réseaux peuvent être cochés en même temps (voir prgToggleNet(),
+   js/client.js). Remplace l'ancien trio de champs numériques (quantité de
+   puces par réseau, jamais vraiment nécessaire : une simple déclaration
+   "j'ai / j'ai pas" suffit). */
+.prg-net-list { display: flex; flex-direction: column; gap: 8px; }
+.prg-net-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 12px; cursor: pointer;
+  border: 1.5px solid rgba(255,255,255,.1); background: rgba(255,255,255,.03);
+  transition: all .18s ease;
+}
+.prg-net-logo {
+  width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0; overflow: hidden;
+  background: #fff; display: flex; align-items: center; justify-content: center;
+}
+.prg-net-logo img { width: 100%; height: 100%; object-fit: cover; }
+.prg-net-name { flex: 1; font-weight: 800; font-size: .74rem; color: #fff; }
+.prg-net-check {
+  width: 22px; height: 22px; border-radius: 7px; flex-shrink: 0;
+  border: 1.5px solid rgba(255,255,255,.2); background: transparent;
+  display: flex; align-items: center; justify-content: center; color: transparent; font-size: .6rem;
+  transition: all .18s ease;
+}
+.prg-net-row--on { border-color: rgba(255,98,0,.5); background: rgba(255,98,0,.07); }
+.prg-net-row--on .prg-net-check { background: #FF6200; border-color: #FF6200; color: #fff; }
+
+/* Aperçu en direct du parrain (prénom) dès qu'un code valide est saisi —
+   #prg-parrain-feedback (candidature partenaire, formulaire sombre) et
+   #ag-reg-parrain-feedback (inscription client, coupon clair, voir plus
+   bas #reg-slide-3) — voir _wireParrainLookup(), js/client.js. */
+.parrain-fb {
+  display: none; align-items: center; gap: 6px;
+  font-size: .62rem; font-weight: 700; margin-top: 6px;
+}
+.parrain-fb--checking { color: rgba(255,255,255,.45); }
+.parrain-fb--ok       { color: #22c55e; }
+.parrain-fb--warn     { color: #f59e0b; }
 
 /* Footer navigation */
 .prg-footer {
@@ -4016,7 +4058,7 @@ body.dark .cs-page-title { color: var(--dark-text); }
 }
 .prt-input:focus { border-color: rgba(255,98,0,.6) !important; }
 .prt-pin-box:focus      { border-color: #FF6200 !important; background: rgba(255,98,0,.12) !important; }
-.prt-pin-box.adm-pin-filled { border-color: rgba(255,98,0,.5) !important; background: rgba(255,98,0,.1) !important; }
+.prt-pin-box.adm-pin-filled { border-color: #FF6200 !important; background: #FF6200 !important; color: #fff !important; }
 .prt-submit {
   background: linear-gradient(135deg, #c94800, #FF6200) !important;
   box-shadow: 0 4px 18px rgba(255,98,0,.4) !important;
@@ -4066,9 +4108,9 @@ body.dark .cs-page-title { color: var(--dark-text); }
 .adm-input:focus { border-color: rgba(138,99,255,.6); }
 .adm-pin-row { display: flex; gap: 8px; justify-content: center; }
 .adm-pin-box {
-  width: 52px; height: 52px; border-radius: 12px; text-align: center;
+  width: 44px; height: 44px; border-radius: 50%; text-align: center;
   background: rgba(138,99,255,.07); border: 1.5px solid rgba(138,99,255,.2);
-  color: #fff; font-size: 1.3rem; font-family: var(--font); outline: none;
+  color: #fff; font-size: 1.05rem; font-family: var(--font); outline: none;
   transition: border-color .2s, background .2s;
 }
 .adm-pin-box:focus      { border-color: #a78bfa; background: rgba(138,99,255,.15); }
@@ -6635,6 +6677,67 @@ body.dark .pf-kpi-val { color: var(--dark-text); }
    form-group juste au-dessus était visuellement trop large pour un bloc
    aussi court. */
 #ag-panel-register .pln-slide .ag-submit-btn { margin-top: 4px; }
+
+/* Étape 3 (code) de l'inscription — modèle "coupon", scopé à #reg-slide-3
+   uniquement : les cases de code restent le composant .pin-box partagé
+   (cercle déjà en place via .ag-modal .pin-box, inchangé pour ne pas
+   affecter connexion/déblocage ailleurs dans l'app), seuls l'en-tête
+   icône+libellé, le séparateur "Facultatif" et le champ de parrainage
+   sont propres à cette étape. */
+#reg-slide-3 .reg3-pin-group { margin-bottom: 7px; }
+#reg-slide-3 .reg3-pin-head { display: flex; align-items: center; gap: 4px; margin-bottom: 5px; }
+#reg-slide-3 .reg3-pin-ico {
+  width: 13px; height: 13px; border-radius: 50%; flex-shrink: 0;
+  background: rgba(255,98,0,.1); color: var(--primary);
+  display: flex; align-items: center; justify-content: center; font-size: .38rem;
+}
+#reg-slide-3 .reg3-pin-lbl { font-size: .56rem; font-weight: 700; color: #000000; }
+/* Cercles de code plus petits qu'ailleurs dans l'app (58px par défaut,
+   voir .ag-modal .pin-box) — l'ID l'emporte sur ces deux classes, sans
+   affecter connexion/déblocage qui gardent la taille d'origine. */
+#reg-slide-3 .pin-box { width: 36px; height: 36px; font-size: .85rem; }
+#reg-slide-3 .pin-row { gap: 5px; padding: 2px 22px; }
+
+#reg-slide-3 .reg3-divider {
+  display: flex; align-items: center; gap: 8px; margin: 0 18px 9px;
+  font-size: .5rem; font-weight: 700; color: rgba(0,0,0,.4);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+#reg-slide-3 .reg3-divider::before, #reg-slide-3 .reg3-divider::after { content: ''; flex: 1; height: 1px; background: rgba(0,0,0,.12); }
+
+/* Champ de parrainage façon coupon détachable (bords pointillés + encoches
+   rondes) — remplace l'encadré plein identique aux champs obligatoires. */
+#reg-slide-3 .reg3-coupon {
+  position: relative; display: flex; align-items: center; gap: 7px;
+  border: 1.5px dashed rgba(255,98,0,.4); border-radius: 11px;
+  padding: 6px 10px; background: rgba(255,98,0,.045);
+  margin: 0 18px;
+}
+#reg-slide-3 .reg3-coupon::before, #reg-slide-3 .reg3-coupon::after {
+  content: ''; position: absolute; top: 50%; transform: translateY(-50%);
+  width: 11px; height: 11px; border-radius: 50%; background: #fafafa;
+}
+#reg-slide-3 .reg3-coupon::before { left: -6px; }
+#reg-slide-3 .reg3-coupon::after { right: -6px; }
+#reg-slide-3 .reg3-coupon-ico {
+  width: 19px; height: 19px; border-radius: 50%; flex-shrink: 0;
+  background: var(--primary); color: #fff;
+  display: flex; align-items: center; justify-content: center; font-size: .54rem;
+}
+#reg-slide-3 .reg3-coupon-body { flex: 1; min-width: 0; }
+#reg-slide-3 .reg3-coupon-lbl { font-size: .48rem; font-weight: 700; color: rgba(0,0,0,.4); text-transform: uppercase; letter-spacing: .03em; margin-bottom: 1px; }
+#reg-slide-3 .reg3-coupon-input {
+  border: none; background: none; outline: none; width: 100%;
+  font-size: .72rem; font-weight: 800; letter-spacing: .03em; color: rgba(0,0,0,.7);
+  font-family: inherit; padding: 0;
+}
+#reg-slide-3 .reg3-coupon-input::placeholder { color: rgba(0,0,0,.28); font-weight: 700; }
+/* Coupon clair -> couleurs adaptées au fond blanc (voir .parrain-fb, plus
+   haut, pensé par défaut pour un fond sombre comme #prg-parrain-feedback). */
+#reg-slide-3 .parrain-fb { margin: 6px 18px 0; font-size: .58rem; }
+#reg-slide-3 .parrain-fb--checking { color: rgba(0,0,0,.4); }
+#reg-slide-3 .parrain-fb--ok       { color: #16a34a; }
+#reg-slide-3 .parrain-fb--warn     { color: #d97706; }
 
 /* Panneau succès */
 .ag-success-wrap {

@@ -1484,7 +1484,7 @@ const DB = (() => {
      Remplace le compteur figé lu depuis localStorage cbp_parrain_* (jamais
      incrémenté, la fonctionnalité n'était même pas implémentée en local)
      — voir api/referrals_summary.php et creditReferralRewardIfFirstOrder()
-     (api/orders_common.php) pour la règle de versement (50 F à la 1re
+     (api/orders_common.php) pour la règle de versement (25 F à la 1re
      commande terminée du filleul, montant déjà annoncé dans l'UI). */
   const referrals = {
     count: () => (get(KEY.referrals) || {}).count || 0,

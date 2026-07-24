@@ -1,7 +1,7 @@
 'use strict';
 // DB.referrals.{count,total,refresh} (js/db.js) — Phase H (mise en
 // conformité temps réel). Transport uniquement — la règle de versement
-// (50 F à la 1re commande terminée du filleul) est déjà couverte côté
+// (25 F à la 1re commande terminée du filleul) est déjà couverte côté
 // PHP (tests-php/ReferralsTest.php).
 const test = require('node:test');
 const assert = require('node:assert/strict');

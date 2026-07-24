@@ -23,11 +23,18 @@ $parrainTelephone = isset($in['parrain_telephone']) && $in['parrain_telephone'] 
 
 if (!in_array($role, ['client', 'cabine'], true)) fail('Rôle non autorisé pour une inscription publique.');
 if ($telephone === '' || !preg_match('/^\d{4}$/', $pin)) fail('Téléphone et PIN (4 chiffres) requis.');
+// Numéro ivoirien valide uniquement (plan de numérotation 2021) — même
+// règle que handleAuthGateRegister(), js/client.js.
+if (!preg_match('/^(01|05|07)[0-9]{8}$/', $telephone)) fail('Numéro invalide — doit commencer par 01, 05 ou 07 (10 chiffres).');
 // Surnom obligatoire côté client (voir handleAuthGateRegister(), js/client.js) —
 // affiché ensuite à chaque connexion (showLoginSuccess()/afterLogin()). La
 // cabine a son propre parcours d'inscription (prg-*, index.html) qui
 // renseigne déjà prenom/nom, donc non concernée par cette contrainte.
 if ($role === 'client' && $prenom === '') fail('Le surnom est requis.');
+// Lettres seules ou lettres + chiffres, jamais des chiffres seuls (même
+// règle que handleAuthGateRegister(), js/client.js) — revalidé ici pour ne
+// pas dépendre uniquement du contrôle côté client.
+if ($role === 'client' && preg_match('/^[0-9]+$/', $prenom)) fail('Le surnom ne peut pas contenir uniquement des chiffres.');
 
 $pdo = db();
 $stmt = $pdo->prepare('SELECT id FROM profiles WHERE telephone = ? AND role = ?');
@@ -48,7 +55,7 @@ if ($role === 'client' && $parrainTelephone !== null && $parrainTelephone !== $t
   $refStmt->execute([$parrainTelephone]);
   $referrer = $refStmt->fetch();
   if ($referrer) {
-    $pdo->prepare('INSERT INTO referrals (id, referrer_id, referred_id, reward_montant, reward_verse, date) VALUES (?, ?, ?, 50, 0, NOW())')
+    $pdo->prepare('INSERT INTO referrals (id, referrer_id, referred_id, reward_montant, reward_verse, date) VALUES (?, ?, ?, 25, 0, NOW())')
         ->execute([uuid4(), $referrer['id'], $id]);
   }
 }

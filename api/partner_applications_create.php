@@ -29,6 +29,11 @@ $paiementVers = (string)($in['paiement_vers'] ?? '');
 $numeroCompte = trim((string)($in['numero_compte'] ?? ''));
 $experience   = (string)($in['experience'] ?? '');
 $puces        = isset($in['puces']) ? json_encode($in['puces']) : null;
+// Parrainage (facultatif, voir _parseParrainCode(), js/client.js) : un
+// identifiant inconnu/absent n'empêche jamais le dépôt de la candidature,
+// juste aucune récompense versée à la validation (voir
+// partner_applications_validate.php) — même principe que create_account.php.
+$parrainTelephone = isset($in['parrain_telephone']) && $in['parrain_telephone'] !== '' ? trim((string)$in['parrain_telephone']) : null;
 
 if ($prenom === '' || $nom === '' || $telephone === '') fail('Prénom, nom et téléphone requis.');
 if (!preg_match('/^\d{4}$/', $pin)) fail('Le code PIN doit contenir exactement 4 chiffres.');
@@ -37,10 +42,10 @@ if (!preg_match('/^[^\s@]+@gmail\.com$/i', $email)) fail('Adresse Gmail invalide
 $id = uuid4();
 db()->prepare('INSERT INTO partner_applications
     (id, prenom, nom, email, telephone, whatsapp, cabine_nom, mot_de_passe_hash, photo, piece_recto, piece_verso, code_qr,
-     motivation, abonnement, paiement_abo, paiement_vers, numero_compte, experience, puces, statut, date_created)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'en_attente\', NOW())')
+     motivation, abonnement, paiement_abo, paiement_vers, numero_compte, experience, puces, parrain_telephone, statut, date_created)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \'en_attente\', NOW())')
     ->execute([$id, $prenom, $nom, $email, $telephone, $whatsapp, $cabineNom, password_hash($pin, PASSWORD_BCRYPT),
         $photo ?: null, $pieceRecto ?: null, $pieceVerso ?: null, $codeQr ?: null, $motivation, $abonnement ?: null, $paiementAbo ?: null,
-        $paiementVers ?: null, $numeroCompte, $experience ?: null, $puces]);
+        $paiementVers ?: null, $numeroCompte, $experience ?: null, $puces, $parrainTelephone]);
 
 echo json_encode(['ok' => true]);

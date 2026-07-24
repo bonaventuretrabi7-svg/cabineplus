@@ -102,4 +102,50 @@ final class PartnerApplicationsTest extends ApiTestCase
         $this->assertSame(401, ApiClient::get('/partner_applications_list.php', null)->status);
         $this->assertSame(403, ApiClient::get('/partner_applications_list.php', $client['token'])->status);
     }
+
+    // Phase 31 -- parrainage sur les candidatures partenaire (voir
+    // migration_phase31_partner_referral.sql, partner_applications_validate.php).
+    public function testValidatingApplicationCreditsParrainClient(): void
+    {
+        $admin = Fixtures::createProfile('admin');
+        $parrain = Fixtures::createProfile('client', ['telephone' => '0700000099']);
+
+        ApiClient::post('/partner_applications_create.php', $this->validPayload(['parrain_telephone' => '0700000099']));
+        $appId = Fixtures::pdo()->query('SELECT id FROM partner_applications LIMIT 1')->fetchColumn();
+
+        $validate = ApiClient::post('/partner_applications_validate.php', ['application_id' => $appId], $admin['token']);
+        $this->assertTrue($validate->ok(), $validate->raw);
+
+        $parrainAfter = Fixtures::fetchProfile($parrain['profile']['id']);
+        $this->assertSame(1000, (int)$parrainAfter['solde'], 'le parrain doit avoir recu exactement 1000 F');
+    }
+
+    public function testValidatingApplicationWithOwnPhoneAsParrainGrantsNoReward(): void
+    {
+        $admin = Fixtures::createProfile('admin');
+        // Le candidat a aussi un compte client avec le meme numero que sa
+        // candidature, et se designe lui-meme comme parrain.
+        $selfClient = Fixtures::createProfile('client', ['telephone' => '0700000001']);
+
+        ApiClient::post('/partner_applications_create.php', $this->validPayload(['parrain_telephone' => '0700000001']));
+        $appId = Fixtures::pdo()->query('SELECT id FROM partner_applications LIMIT 1')->fetchColumn();
+
+        $validate = ApiClient::post('/partner_applications_validate.php', ['application_id' => $appId], $admin['token']);
+        $this->assertTrue($validate->ok(), $validate->raw);
+
+        $selfAfter = Fixtures::fetchProfile($selfClient['profile']['id']);
+        $this->assertSame(0, (int)$selfAfter['solde'], 'un candidat ne doit jamais pouvoir se parrainer lui-meme');
+    }
+
+    public function testValidatingApplicationWithUnknownParrainStillWorks(): void
+    {
+        $admin = Fixtures::createProfile('admin');
+
+        ApiClient::post('/partner_applications_create.php', $this->validPayload(['parrain_telephone' => '0799999999']));
+        $appId = Fixtures::pdo()->query('SELECT id FROM partner_applications LIMIT 1')->fetchColumn();
+
+        $validate = ApiClient::post('/partner_applications_validate.php', ['application_id' => $appId], $admin['token']);
+        $this->assertTrue($validate->ok(), $validate->raw);
+        $this->assertNotEmpty($validate->json['cabineId']);
+    }
 }

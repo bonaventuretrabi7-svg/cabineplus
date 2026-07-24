@@ -474,6 +474,7 @@ async function boot() {
     renderSidebar();
     renderSoldeSection();
     initPinRows();
+    _wireParrainLookups();
     tfRenderPaymentMethods();
     schedRenderPaymentMethods();
     setOrderMode('now');
@@ -1563,8 +1564,11 @@ async function agLoginGoStep(step) {
 function initPinRows() {
   document.querySelectorAll('.pin-row, .cab-pin-row, .cab2-pin-row, .cab3-pin-row').forEach(row => {
     const boxes = [...row.querySelectorAll('.pin-box')];
-    const isLoginRow  = row.id === 'pin-login-row';
-    const isUnlockRow = row.id === 'pin-unlock-row';
+    const isLoginRow    = row.id === 'pin-login-row';
+    const isUnlockRow   = row.id === 'pin-unlock-row';
+    // Code (étape 3 de l'inscription) rempli -> passe directement sur la
+    // case "Confirmer le code" (pin-register-confirm-row), sans clic requis.
+    const isRegisterRow = row.id === 'pin-register-row';
     boxes.forEach((box, idx) => {
       box.addEventListener('input', () => {
         const v = box.value.replace(/\D/g, '');
@@ -1573,8 +1577,9 @@ function initPinRows() {
         if (box.value && idx < boxes.length - 1) {
           boxes[idx + 1].focus();
         } else if (box.value && idx === boxes.length - 1) {
-          if (isLoginRow)  triggerAgLoginSubmit();
-          if (isUnlockRow) handleAuthGateUnlock();
+          if (isLoginRow)    triggerAgLoginSubmit();
+          if (isUnlockRow)   handleAuthGateUnlock();
+          if (isRegisterRow) document.querySelector('#pin-register-confirm-row .pin-box')?.focus();
         }
       });
       box.addEventListener('keydown', e => {
@@ -1593,7 +1598,11 @@ function initPinRows() {
           if (boxes[i]) { boxes[i].value = d; boxes[i].classList.add('pin-filled'); }
         });
         const next = boxes[Math.min(digits.length, boxes.length - 1)];
-        if (next) next.focus();
+        if (digits.length === 4 && isRegisterRow) {
+          document.querySelector('#pin-register-confirm-row .pin-box')?.focus();
+        } else if (next) {
+          next.focus();
+        }
         if (digits.length === 4) {
           if (isLoginRow)  triggerAgLoginSubmit();
           if (isUnlockRow) handleAuthGateUnlock();
@@ -1695,13 +1704,28 @@ async function handleAuthGateRegister(e) {
   const pinConf = getPinValue('pin-register-confirm-row');
 
   if (!surnom)                  { Toast.error('Choisissez un surnom.'); return; }
-  if (!/^[0-9]{10}$/.test(tel)) { Toast.error('Numéro invalide — 10 chiffres requis.'); return; }
+  // Lettres seules ou lettres + chiffres, jamais des chiffres seuls (sinon
+  // rien ne distingue un surnom d'un numéro de téléphone mal placé).
+  if (/^[0-9]+$/.test(surnom))  { Toast.error('Le surnom ne peut pas contenir uniquement des chiffres.'); return; }
+  // Numéro ivoirien valide uniquement (plan de numérotation 2021) : doit
+  // commencer par 01, 05 ou 07, rien d'autre n'est accepté.
+  if (!/^(01|05|07)[0-9]{8}$/.test(tel)) { Toast.error('Numéro invalide — doit commencer par 01, 05 ou 07 (10 chiffres).'); return; }
   if (pin.length !== 4)          { Toast.error('Choisissez un code à 4 chiffres.'); return; }
   if (pinConf.length !== 4)      { Toast.error('Confirmez votre code à 4 chiffres.'); return; }
   if (pin !== pinConf) {
     Toast.error('Les codes ne correspondent pas. Réessayez.');
     clearPinRow('pin-register-confirm-row');
     document.querySelector('#pin-register-confirm-row .pin-box')?.focus();
+    return;
+  }
+  // Code de parrainage (facultatif, voir _parseParrainCode()) — saisi à
+  // vide, on retombe sur un éventuel ?ref= capté au lancement (boot()) ;
+  // saisi mais invalide, on bloque plutôt que d'ignorer silencieusement un
+  // parrainage que le client pense avoir renseigné.
+  const parrainCodeInput = document.getElementById('ag-reg-parrain-code')?.value || '';
+  const parrainFromInput = _parseParrainCode(parrainCodeInput);
+  if (parrainCodeInput.trim() && !parrainFromInput) {
+    Toast.error('Code de parrainage invalide — format attendu : KP suivi de 10 chiffres. Laissez le champ vide si besoin.');
     return;
   }
   if (DB.users.byPhoneAndRole(tel, 'client')) { Toast.error('Ce numéro est déjà utilisé par un autre compte de ce type.'); return; }
@@ -1715,7 +1739,7 @@ async function handleAuthGateRegister(e) {
   // connexion en ligne depuis un autre appareil, si l'utilisateur en
   // configure un entretemps.
   if (ServerAPI.isConfigured && DB.Net.isOnline()) {
-    const parrainTelephone = localStorage.getItem('cbp_referral_code') || null;
+    const parrainTelephone = parrainFromInput || localStorage.getItem('cbp_referral_code') || null;
     const created = await ServerAPI.createAccount({ role: 'client', prenom: surnom, telephone: tel, pin, parrainTelephone });
     if (!created.ok) { Toast.error(created.error || 'Échec de la création du compte.'); return; }
     DB.users.cacheFromServer(created.profile, pin);
@@ -3086,13 +3110,12 @@ function openPartnerRegister() {
   // si un brouillon existe depuis un précédent chargement de page.
   const draft = _clientResume.partnerRegister;
   prgStep = (draft && draft.step) || 1;
-  ['prg-prenom','prg-nom','prg-email','prg-tel','prg-wa','prg-exp','prg-numero-compte'].forEach(id => {
+  ['prg-prenom','prg-nom','prg-email','prg-tel','prg-wa','prg-exp','prg-numero-compte','prg-parrain-code'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = (draft && draft.fields[id]) || '';
   });
-  ['prg-puce-orange','prg-puce-mtn','prg-puce-moov'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.value = (draft && draft.fields[id]) || '0';
+  document.querySelectorAll('#prg-net-list .prg-net-row').forEach(row => {
+    row.classList.toggle('prg-net-row--on', !!(draft && draft.fields['net-' + row.dataset.op]));
   });
   document.querySelectorAll('.prg-abo2').forEach(c => c.classList.remove('prg-abo2--sel'));
   document.querySelectorAll('.prg-pay-card').forEach(c => c.classList.remove('prg-pay-card--sel'));
@@ -3125,9 +3148,12 @@ function openPartnerRegister() {
 }
 
 function _savePrgState() {
-  const fieldIds = ['prg-prenom','prg-nom','prg-email','prg-tel','prg-wa','prg-exp','prg-numero-compte','prg-puce-orange','prg-puce-mtn','prg-puce-moov'];
+  const fieldIds = ['prg-prenom','prg-nom','prg-email','prg-tel','prg-wa','prg-exp','prg-numero-compte','prg-parrain-code'];
   const fields = {};
   fieldIds.forEach(id => { const el = document.getElementById(id); if (el) fields[id] = el.value; });
+  document.querySelectorAll('#prg-net-list .prg-net-row').forEach(row => {
+    fields['net-' + row.dataset.op] = row.classList.contains('prg-net-row--on');
+  });
   _clientResume.partnerRegister = { step: prgStep, fields };
   _saveClientResume();
 }
@@ -3193,15 +3219,30 @@ function prgValidate(step) {
     if (!motivation || motivation.length < 20) { Toast.error('Veuillez expliquer votre motivation (20 caractères minimum).'); return false; }
     if (!document.querySelector('.prg-abo2--sel')) { Toast.error('Veuillez sélectionner un type d\'abonnement.'); return false; }
     if (!document.getElementById('prg-exp').value) { Toast.error('Veuillez indiquer vos années d\'expérience.'); return false; }
-    const total = ['prg-puce-orange','prg-puce-mtn','prg-puce-moov']
-      .reduce((s, id) => s + (parseInt(document.getElementById(id).value) || 0), 0);
-    if (total === 0) { Toast.error('Veuillez indiquer au moins une puce téléphonique.'); return false; }
+    if (!document.querySelector('#prg-net-list .prg-net-row--on')) { Toast.error('Veuillez cocher au moins un réseau exploité.'); return false; }
     if (!document.querySelector('#prg-pay-abo .prg-pay-card--sel'))  { Toast.error('Veuillez choisir un moyen de paiement pour l\'abonnement.'); return false; }
     if (!document.querySelector('#prg-pay-vers .prg-pay-card--sel')) { Toast.error('Veuillez choisir un moyen de réception des versements.'); return false; }
     const versSel = document.querySelector('#prg-pay-vers .prg-pay-card--sel');
-    if (!document.getElementById('prg-numero-compte').value.trim()) { Toast.error('Veuillez indiquer le numero de compte de reception.'); return false; }
+    const numeroDigits = document.getElementById('prg-numero-compte').value.replace(/\D/g, '');
+    if (!numeroDigits) { Toast.error('Veuillez indiquer le numéro de compte de réception.'); return false; }
+    if (numeroDigits.length !== 10) { Toast.error('Le numéro de compte doit contenir 10 chiffres.'); return false; }
+    // Préfixe imposé pour les réseaux mobile money (Orange/MTN/Moov) — voir
+    // NETWORK_PREFIX, js/auth.js ; Wave/Djamo n'ont pas de préfixe imposé.
+    const requiredPrefix = { 'Orange Money': '07', 'MTN MoMo': '05', 'Moov Money': '01' }[versSel?.dataset.pay];
+    if (requiredPrefix && !numeroDigits.startsWith(requiredPrefix)) {
+      Toast.error(`Le numéro ${versSel.dataset.pay} doit commencer par ${requiredPrefix}.`);
+      return false;
+    }
     if (versSel && (versSel.dataset.pay === 'Wave Business' || versSel.dataset.pay === 'Wave Normal') && !document.getElementById('prg-file-qr').files[0]) {
       Toast.error('Veuillez importer le code QR de reception Wave.'); return false;
+    }
+    // Code de parrainage (facultatif, voir _parseParrainCode()) — saisi
+    // mais invalide, on bloque plutôt que d'ignorer silencieusement un
+    // parrainage que le candidat pense avoir renseigné.
+    const parrainCodeInput = document.getElementById('prg-parrain-code')?.value || '';
+    if (parrainCodeInput.trim() && !_parseParrainCode(parrainCodeInput)) {
+      Toast.error('Code de parrainage invalide — format attendu : KP suivi de 10 chiffres. Laissez le champ vide si besoin.');
+      return false;
     }
   }
   return true;
@@ -3251,13 +3292,21 @@ function prgSubmit() {
       abonnement  : document.querySelector('.prg-abo2--sel')?.dataset.abo || '',
       paiement_abo   : document.querySelector('#prg-pay-abo .prg-pay-card--sel')?.dataset.pay || '',
       paiement_vers  : document.querySelector('#prg-pay-vers .prg-pay-card--sel')?.dataset.pay || '',
-      numero_compte  : document.getElementById('prg-numero-compte').value.trim(),
+      numero_compte  : document.getElementById('prg-numero-compte').value.replace(/\D/g, ''),
       experience  : document.getElementById('prg-exp').value,
+      // Simple déclaration "j'ai / j'ai pas" par réseau (voir #prg-net-list)
+      // — jamais de quantité saisie, mais le contrat serveur/admin attend
+      // toujours un nombre par réseau (voir edit-user-puce-* dans
+      // js/admin.js) : 1 si coché, 0 sinon.
       puces: {
-        orange: parseInt(document.getElementById('prg-puce-orange').value) || 0,
-        mtn   : parseInt(document.getElementById('prg-puce-mtn').value)    || 0,
-        moov  : parseInt(document.getElementById('prg-puce-moov').value)   || 0,
-      }
+        orange: document.querySelector('#prg-net-list .prg-net-row[data-op="orange"]')?.classList.contains('prg-net-row--on') ? 1 : 0,
+        mtn   : document.querySelector('#prg-net-list .prg-net-row[data-op="mtn"]')?.classList.contains('prg-net-row--on')    ? 1 : 0,
+        moov  : document.querySelector('#prg-net-list .prg-net-row[data-op="moov"]')?.classList.contains('prg-net-row--on')   ? 1 : 0,
+      },
+      // Facultatif — voir partner_applications_validate.php : si la
+      // candidature est validée, le client propriétaire du code reçoit
+      // 1 000 FCFA sur son solde.
+      parrain_telephone: _parseParrainCode(document.getElementById('prg-parrain-code')?.value),
     });
 
     btn.disabled = false;
@@ -3407,14 +3456,28 @@ function prtGoStep(step) {
 
 function prgInitPinRow(rowId) {
   const boxes = document.querySelectorAll(`#${rowId} .adm-pin-box`);
+  // Code (prg-pin-row) rempli -> passe directement sur "Confirmez le code
+  // PIN" (prg-pin-confirm-row), sans clic requis (même comportement que
+  // pin-register-row/pin-register-confirm-row, voir initPinRows()).
+  const isFirstRow = rowId === 'prg-pin-row';
   boxes.forEach((box, idx) => {
     box.oninput = () => {
       box.value = box.value.replace(/\D/g,'').slice(0,1);
       box.classList.toggle('adm-pin-filled', !!box.value);
-      if (box.value && idx < boxes.length - 1) boxes[idx + 1].focus();
+      if (box.value && idx < boxes.length - 1) {
+        boxes[idx + 1].focus();
+      } else if (box.value && idx === boxes.length - 1 && isFirstRow) {
+        document.querySelector('#prg-pin-confirm-row .adm-pin-box')?.focus();
+      }
     };
     box.onkeydown = e => { if (e.key === 'Backspace' && !box.value && idx > 0) boxes[idx - 1].focus(); };
   });
+}
+
+// Réseaux exploités (voir #prg-net-list, index.html) — simple case à
+// cocher par réseau, plusieurs peuvent être actifs en même temps.
+function prgToggleNet(row) {
+  row.classList.toggle('prg-net-row--on');
 }
 
 function prgSelectPay(groupId, card) {
@@ -3426,6 +3489,10 @@ function prgSelectPay(groupId, card) {
     const isWave = card.dataset.pay === 'Wave Business' || card.dataset.pay === 'Wave Normal';
     const qrWrap = document.getElementById('prg-qr-wrap');
     if (qrWrap) qrWrap.style.display = isWave ? 'block' : 'none';
+    // Préfixe auto pour les réseaux mobile money (Orange/MTN/Moov) — voir
+    // NETWORK_PREFIX, js/auth.js. Wave/Djamo n'ont pas de préfixe imposé.
+    const payNetwork = { 'Orange Money': 'Orange', 'MTN MoMo': 'MTN', 'Moov Money': 'Moov' }[card.dataset.pay];
+    if (payNetwork) applyNetworkPrefix('prg-numero-compte', payNetwork);
   }
 }
 
@@ -5496,9 +5563,73 @@ function loadProfit() {
   loadFavoris();
 }
 
+// Code de parrainage — toujours "KP" + le numéro du client (remplace
+// l'ancien lien "kbineplus.com/?ref=<numéro>"). _parseParrainCode() fait
+// l'inverse à l'inscription (voir handleAuthGateRegister()) : tolère aussi
+// un numéro saisi sans le préfixe "KP", pour rattraper une saisie
+// incomplète plutôt que de rejeter le parrainage.
+function parrainCodeFor(telephone) {
+  return 'KP' + telephone;
+}
+function _parseParrainCode(raw) {
+  const digits = (raw || '').trim().replace(/^kp/i, '').replace(/\s/g, '');
+  return /^[0-9]{10}$/.test(digits) ? digits : null;
+}
+
+// Aperçu en direct du parrain (prénom) dès qu'un code KP<téléphone> valide
+// est saisi — inscription client (#ag-reg-parrain-code) et candidature
+// partenaire (#prg-parrain-code), voir _wireParrainLookups() ci-dessous.
+// Même correspondance que le versement réel (role='client' uniquement, voir
+// api/client_login_lookup.php et api/partner_applications_validate.php) :
+// purement informatif, un code qui ne trouve personne n'empêche jamais
+// l'inscription/la candidature (voir handleAuthGateRegister()/prgValidate()).
+function _wireParrainLookup(inputId, feedbackId) {
+  const input = document.getElementById(inputId);
+  const feedback = document.getElementById(feedbackId);
+  if (!input || !feedback) return;
+  let timer = null;
+  let seq = 0;
+  // DOM direct (jamais innerHTML) : res.prenom vient du surnom saisi par un
+  // AUTRE utilisateur à son inscription (aucune restriction de caractères,
+  // voir handleAuthGateRegister()) et cette page n'exige aucune connexion —
+  // l'injecter tel quel dans du HTML ouvrirait une XSS stockée exploitable
+  // par n'importe qui avant même de se connecter.
+  const show = (state, iconClass, text) => {
+    feedback.className = 'parrain-fb parrain-fb--' + state;
+    feedback.style.display = 'flex';
+    feedback.textContent = '';
+    const icon = document.createElement('i');
+    icon.className = iconClass;
+    feedback.appendChild(icon);
+    feedback.appendChild(document.createTextNode(' ' + text));
+  };
+  const hide = () => { feedback.style.display = 'none'; feedback.textContent = ''; };
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    const phone = _parseParrainCode(input.value);
+    if (!phone) { hide(); return; }
+    const mySeq = ++seq;
+    show('checking', 'fa-solid fa-spinner fa-spin', 'Vérification…');
+    timer = setTimeout(async () => {
+      const res = await ServerAPI.clientLoginLookup(phone);
+      if (mySeq !== seq) return; // saisie modifiée entre-temps, réponse obsolète
+      if (!res.ok) { hide(); return; }
+      if (res.found) {
+        show('ok', 'fa-solid fa-circle-check', 'Parrainé par ' + (res.prenom || 'ce client'));
+      } else {
+        show('warn', 'fa-solid fa-triangle-exclamation', 'Aucun client trouvé pour ce code');
+      }
+    }, 400);
+  });
+}
+function _wireParrainLookups() {
+  _wireParrainLookup('ag-reg-parrain-code', 'ag-reg-parrain-feedback');
+  _wireParrainLookup('prg-parrain-code', 'prg-parrain-feedback');
+}
+
 function renderParrainage(u) {
   const linkEl = document.getElementById('parrain-link');
-  if (linkEl) linkEl.textContent = 'kbineplus.com/?ref=' + u.telephone;
+  if (linkEl) linkEl.textContent = parrainCodeFor(u.telephone);
 
   const countEl = document.getElementById('parrain-count');
   const totalEl = document.getElementById('parrain-total');
@@ -5583,34 +5714,34 @@ async function removeFavori(id) {
 }
 
 function copyReferralLink() {
-  const link = document.getElementById('parrain-link')?.textContent;
-  if (!link || link === '—') return;
+  const code = document.getElementById('parrain-link')?.textContent;
+  if (!code || code === '—') return;
   const icon = document.getElementById('parrain-copy-icon');
-  navigator.clipboard.writeText(link).then(() => {
+  navigator.clipboard.writeText(code).then(() => {
     if (icon) { icon.className = 'fa-solid fa-check'; setTimeout(() => { icon.className = 'fa-solid fa-copy'; }, 2200); }
-    Toast.success('Lien de parrainage copié !');
-  }).catch(() => Toast.info('Votre lien : ' + link));
+    Toast.success('Code de parrainage copié !');
+  }).catch(() => Toast.info('Votre code : ' + code));
 }
 
 // Bouton "Partager" du bandeau "Aidez vos amis !" (accueil, voir
-// #friends-promo-section) — même lien de parrainage que copyReferralLink()
+// #friends-promo-section) — même code de parrainage que copyReferralLink()
 // ci-dessus (Profil > Parrainez & gagnez), ouvert via le partage natif
 // (Web Share API) quand disponible, sinon copié dans le presse-papier.
 async function shareAppReferral() {
   const me = Auth.current();
-  if (!me) { openPrivateSpaceNotice('Connectez-vous pour partager votre lien de parrainage.'); return; }
+  if (!me) { openPrivateSpaceNotice('Connectez-vous pour partager votre code de parrainage.'); return; }
 
-  const link = 'https://kbineplus.com/?ref=' + me.telephone;
-  const text = 'Rejoins-moi sur KBINE PLUS et profite de transferts rapides et sans frais cachés !';
+  const code = parrainCodeFor(me.telephone);
+  const text = `Rejoins-moi sur KBINE PLUS et profite de transferts rapides et sans frais cachés ! Utilise mon code de parrainage ${code} à l'inscription.`;
 
   if (navigator.share) {
-    try { await navigator.share({ title: 'KBINE PLUS', text, url: link }); }
+    try { await navigator.share({ title: 'KBINE PLUS', text }); }
     catch (e) { /* partage annulé par l'utilisateur — rien à faire */ }
     return;
   }
-  navigator.clipboard.writeText(text + ' ' + link).then(() => {
-    Toast.success('Lien de parrainage copié !');
-  }).catch(() => Toast.info('Votre lien : ' + link));
+  navigator.clipboard.writeText(text).then(() => {
+    Toast.success('Code de parrainage copié !');
+  }).catch(() => Toast.info('Votre code : ' + code));
 }
 
 /* ================================================================

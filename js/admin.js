@@ -4421,6 +4421,7 @@ function viewPartnerApplication(appId) {
     <div class="stat-mini"><span class="stat-mini-label">Expérience</span><span class="stat-mini-val">${a.experience || '—'}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Paiement de l'abonnement</span><span class="stat-mini-val">${a.paiement_abo || '—'}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Réception des versements</span><span class="stat-mini-val">${a.paiement_vers || '—'}${a.numero_compte ? ' · ' + Fmt.phone(a.numero_compte) : ''}</span></div>
+    <div class="stat-mini"><span class="stat-mini-label">Code de parrainage</span><span class="stat-mini-val">${a.parrain_telephone ? 'KP' + a.parrain_telephone + ' (1 000 F versés à la validation)' : '—'}</span></div>
     <div class="stat-mini"><span class="stat-mini-label">Candidature reçue le</span><span class="stat-mini-val">${Fmt.datetime(a.date_created)}</span></div>
     ${a.motivation ? `<div style="margin-top:12px;padding:10px 12px;background:var(--gray-50);border-radius:10px;font-size:.82rem;font-style:italic;color:var(--gray-600);">"${a.motivation}"</div>` : ''}
     ${(a.piece_recto || a.piece_verso) ? `

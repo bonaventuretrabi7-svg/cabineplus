@@ -909,8 +909,8 @@
       </div>
     </div>
 
-    <!-- -- 5.5 Aidez vos amis (partage du lien de parrainage) ----
-         Réutilise le même lien que Parrainez & gagnez (Profil, voir
+    <!-- -- 5.5 Aidez vos amis (partage du code de parrainage) ----
+         Réutilise le même code que Parrainez & gagnez (Profil, voir
          renderParrainage()/copyReferralLink() dans js/client.js) — voir
          shareAppReferral() pour le partage natif (Web Share API), avec
          repli sur le presse-papier si indisponible. -->
@@ -920,11 +920,11 @@
           <div class="frp2-ico">🤝</div>
           <div class="frp2-body">
             <div class="frp2-title">Invitez vos amis</div>
-            <div class="frp2-sub">Gagnez <strong>50 F</strong> par ami inscrit</div>
+            <div class="frp2-sub">Gagnez <strong>25 F</strong> par ami inscrit</div>
           </div>
         </div>
         <button class="frp2-btn" onclick="shareAppReferral()">
-          <i class="fa-solid fa-share-nodes"></i> Partager mon lien
+          <i class="fa-solid fa-share-nodes"></i> Partager mon code
         </button>
       </div>
     </div>
@@ -1154,7 +1154,7 @@
             <div class="ref2-banner-ico"><i class="fa-solid fa-users-between-lines"></i></div>
             <div>
               <div class="ref2-banner-title">Parrainez & gagnez</div>
-              <div class="ref2-banner-sub">+50 F par ami inscrit</div>
+              <div class="ref2-banner-sub">+25 F par ami inscrit</div>
             </div>
           </div>
           <div class="ref2-banner-pill">
@@ -1175,11 +1175,11 @@
           </div>
         </div>
 
-        <!-- Lien -->
+        <!-- Code -->
         <div class="ref2-link">
-          <div class="ref2-link-label">Votre lien de parrainage</div>
+          <div class="ref2-link-label">Votre code de parrainage</div>
           <div class="ref2-link-box">
-            <i class="fa-solid fa-link ref2-link-icon"></i>
+            <i class="fa-solid fa-ticket ref2-link-icon"></i>
             <div class="ref2-link-url" id="parrain-link">—</div>
             <button class="ref2-copy" onclick="copyReferralLink()" title="Copier">
               <i class="fa-solid fa-copy" id="parrain-copy-icon"></i>
@@ -1201,7 +1201,7 @@
           <div class="ref2-flow-line"></div>
           <div class="ref2-flow-step">
             <div class="ref2-flow-dot ref2-flow-dot--green">3</div>
-            <span>+50 FCFA</span>
+            <span>+25 FCFA</span>
           </div>
         </div>
 
@@ -2368,26 +2368,28 @@
           </select>
         </div>
 
-        <!-- Puces -->
+        <!-- Puces : simple déclaration "j'ai / j'ai pas" par réseau (case à
+             cocher, logo réel), plus de quantité — voir prgToggleNet()/
+             prgSubmit() dans js/client.js. -->
         <div class="prg-field">
-          <label class="prg-label">Puces téléphoniques détenues *</label>
-          <div class="prg-notice" style="margin-bottom:10px;"><i class="fa-solid fa-circle-info"></i> Indiquez le nombre de puces par réseau</div>
+          <label class="prg-label">Réseaux exploités *</label>
+          <div class="prg-notice" style="margin-bottom:10px;"><i class="fa-solid fa-circle-info"></i> Cochez chaque réseau pour lequel vous détenez une puce</div>
 
-          <div style="display:flex;flex-direction:column;gap:8px;">
-            <div class="prg-puce-row">
-              <div class="prg-puce-op" style="background:#FF6200;">Orange</div>
-              <input id="prg-puce-orange" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
-              <span class="prg-puce-unit">puce(s)</span>
+          <div class="prg-net-list" id="prg-net-list">
+            <div class="prg-net-row" data-op="orange" onclick="prgToggleNet(this)">
+              <div class="prg-net-logo"><img src="img/logos/orange.png" alt="Orange"></div>
+              <div class="prg-net-name">Orange</div>
+              <div class="prg-net-check"><i class="fa-solid fa-check"></i></div>
             </div>
-            <div class="prg-puce-row">
-              <div class="prg-puce-op" style="background:#FFCC00;color:#111;">MTN</div>
-              <input id="prg-puce-mtn" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
-              <span class="prg-puce-unit">puce(s)</span>
+            <div class="prg-net-row" data-op="mtn" onclick="prgToggleNet(this)">
+              <div class="prg-net-logo"><img src="img/logos/mtn.jpg" alt="MTN"></div>
+              <div class="prg-net-name">MTN</div>
+              <div class="prg-net-check"><i class="fa-solid fa-check"></i></div>
             </div>
-            <div class="prg-puce-row">
-              <div class="prg-puce-op" style="background:#0066CC;">Moov</div>
-              <input id="prg-puce-moov" class="prg-input prg-puce-input" type="number" min="0" max="20" value="0" placeholder="0">
-              <span class="prg-puce-unit">puce(s)</span>
+            <div class="prg-net-row" data-op="moov" onclick="prgToggleNet(this)">
+              <div class="prg-net-logo"><img src="img/logos/moov.jpg" alt="Moov"></div>
+              <div class="prg-net-name">Moov</div>
+              <div class="prg-net-check"><i class="fa-solid fa-check"></i></div>
             </div>
           </div>
         </div>
@@ -2397,19 +2399,19 @@
           <label class="prg-label">Moyen de paiement de l'abonnement *</label>
           <div class="prg-pay-grid" id="prg-pay-abo">
             <div class="prg-pay-card" data-pay="Orange Money" onclick="prgSelectPay('prg-pay-abo',this)">
-              <div class="prg-pay-dot" style="background:#FF6200;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/orange.png" alt="Orange"></div>
               <span>Orange Money</span>
             </div>
             <div class="prg-pay-card" data-pay="MTN MoMo" onclick="prgSelectPay('prg-pay-abo',this)">
-              <div class="prg-pay-dot" style="background:#FFCC00;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/mtn.jpg" alt="MTN"></div>
               <span>MTN MoMo</span>
             </div>
             <div class="prg-pay-card" data-pay="Moov Money" onclick="prgSelectPay('prg-pay-abo',this)">
-              <div class="prg-pay-dot" style="background:#0066CC;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/moov.jpg" alt="Moov"></div>
               <span>Moov Money</span>
             </div>
             <div class="prg-pay-card" data-pay="Wave" onclick="prgSelectPay('prg-pay-abo',this)">
-              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/wave.png" alt="Wave"></div>
               <span>Wave</span>
             </div>
           </div>
@@ -2419,41 +2421,41 @@
           <label class="prg-label">Moyen de réception des versements *</label>
           <div class="prg-pay-grid" id="prg-pay-vers">
             <div class="prg-pay-card" data-pay="Orange Money" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#FF6200;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/orange.png" alt="Orange"></div>
               <span>Orange Money</span>
             </div>
             <div class="prg-pay-card" data-pay="MTN MoMo" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#FFCC00;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/mtn.jpg" alt="MTN"></div>
               <span>MTN MoMo</span>
             </div>
             <div class="prg-pay-card" data-pay="Moov Money" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#0066CC;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/moov.jpg" alt="Moov"></div>
               <span>Moov Money</span>
             </div>
             <div class="prg-pay-card" data-pay="Djamo" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#7c3aed;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/djamo.png" alt="Djamo"></div>
               <span>Djamo</span>
             </div>
             <div class="prg-pay-card" data-pay="Wave Business" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/wave.png" alt="Wave"></div>
               <span>Wave Business</span>
             </div>
             <div class="prg-pay-card" data-pay="Wave Normal" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#00c2f3;"></div>
+              <div class="prg-pay-logo"><img src="img/logos/wave.png" alt="Wave"></div>
               <span>Wave Normal</span>
-            </div>
-            <div class="prg-pay-card" data-pay="Compte bancaire" onclick="prgSelectPay('prg-pay-vers',this)">
-              <div class="prg-pay-dot" style="background:#374151;"></div>
-              <span>Compte bancaire</span>
             </div>
           </div>
         </div>
 
+        <!-- 10 chiffres espacés (voir formatPhoneInput(), js/auth.js), préfixe
+             réseau auto-inséré au choix du moyen de réception mobile money
+             (voir prgSelectPay()) et revérifié à la validation (prgValidate()). -->
         <div class="prg-field">
           <label class="prg-label">Numéro de compte *</label>
           <div class="prg-input-wrap">
             <i class="fa-solid fa-hashtag prg-ico"></i>
-            <input id="prg-numero-compte" class="prg-input prg-input--icon" type="text" placeholder="Numéro mobile money ou compte bancaire">
+            <input id="prg-numero-compte" class="prg-input prg-input--icon" type="tel" inputmode="numeric"
+              placeholder="Numéro mobile money" maxlength="14" oninput="formatPhoneInput(this)">
           </div>
         </div>
 
@@ -2466,6 +2468,20 @@
             <div class="prg-upload-lbl">Cliquez pour importer</div>
             <div class="prg-upload-fn" id="prg-fn-qr">Aucun fichier sélectionné</div>
           </div>
+        </div>
+
+        <!-- Code de parrainage (facultatif) — même principe que l'inscription
+             client (voir _parseParrainCode()/prgSubmit(), js/client.js) : si
+             la candidature est validée par l'admin, le client propriétaire du
+             code reçoit 1 000 FCFA sur son solde. -->
+        <div class="prg-field">
+          <label class="prg-label">Code de parrainage (facultatif)</label>
+          <div class="prg-input-wrap">
+            <i class="fa-solid fa-star prg-ico"></i>
+            <input id="prg-parrain-code" class="prg-input prg-input--icon" type="text"
+              placeholder="Ex : KP0575413584" maxlength="16" autocapitalize="characters">
+          </div>
+          <div id="prg-parrain-feedback" class="parrain-fb"></div>
         </div>
 
       </div>
@@ -2914,8 +2930,8 @@
             <button type="button" class="pln-back-btn" onclick="regGoStep(2)" title="Retour">
               <i class="fa-solid fa-arrow-left"></i>
             </button>
-            <div class="form-group">
-              <label class="ag-label">Choisissez votre code (4 chiffres)</label>
+            <div class="form-group reg3-pin-group">
+              <div class="reg3-pin-head"><span class="reg3-pin-ico"><i class="fa-solid fa-lock"></i></span><span class="reg3-pin-lbl">Votre code (4 chiffres)</span></div>
               <div class="pin-row" id="pin-register-row">
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
@@ -2923,14 +2939,30 @@
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
               </div>
             </div>
-            <div class="form-group">
-              <label class="ag-label">Confirmer le code</label>
+            <div class="form-group reg3-pin-group">
+              <div class="reg3-pin-head"><span class="reg3-pin-ico"><i class="fa-solid fa-check"></i></span><span class="reg3-pin-lbl">Confirmer le code</span></div>
               <div class="pin-row" id="pin-register-confirm-row">
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
                 <input class="pin-box" type="password" maxlength="1" inputmode="numeric" pattern="[0-9]" />
               </div>
+            </div>
+            <div class="reg3-divider">Facultatif</div>
+            <!-- Code de parrainage (facultatif) — voir handleAuthGateRegister()/
+                 _parseParrainCode() dans js/client.js, qui en extrait le numéro
+                 de téléphone du parrain (préfixe "KP"). -->
+            <div class="form-group">
+              <div class="reg3-coupon">
+                <span class="reg3-coupon-ico"><i class="fa-solid fa-star"></i></span>
+                <div class="reg3-coupon-body">
+                  <div class="reg3-coupon-lbl">Code de parrainage</div>
+                  <input type="text" class="reg3-coupon-input" id="ag-reg-parrain-code"
+                    placeholder="KP0575413584" maxlength="16"
+                    autocapitalize="characters" />
+                </div>
+              </div>
+              <div id="ag-reg-parrain-feedback" class="parrain-fb"></div>
             </div>
             <button type="submit" class="ag-submit-btn">
               <i class="fa-solid fa-user-plus"></i> Créer mon compte

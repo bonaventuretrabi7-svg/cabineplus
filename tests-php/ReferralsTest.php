@@ -5,8 +5,8 @@ declare(strict_types=1);
 // (api/orders_common.php, appelée depuis orders_accept.php) +
 // api/referrals_summary.php (Phase H) — le parrainage n'était même pas
 // implémenté en local (compteurs figés à 0, aucune règle nulle part).
-// Règle validée : 50 F crédités au parrain dès la 1re commande terminée
-// du filleul (montant déjà annoncé dans l'UI existante, "+50 F par ami
+// Règle validée : 25 F crédités au parrain dès la 1re commande terminée
+// du filleul (montant déjà annoncé dans l'UI existante, "+25 F par ami
 // inscrit").
 final class ReferralsTest extends ApiTestCase
 {
@@ -21,7 +21,7 @@ final class ReferralsTest extends ApiTestCase
 
         $row = Fixtures::pdo()->query("SELECT * FROM referrals WHERE referrer_id = '{$referrer['profile']['id']}'")->fetch();
         $this->assertNotFalse($row);
-        $this->assertSame(50, (int)$row['reward_montant']);
+        $this->assertSame(25, (int)$row['reward_montant']);
         $this->assertSame(0, (int)$row['reward_verse']);
     }
 
@@ -70,7 +70,7 @@ final class ReferralsTest extends ApiTestCase
         $this->assertTrue($accept->ok(), $accept->raw);
 
         $referrerAfter = Fixtures::fetchProfile($referrer['profile']['id']);
-        $this->assertSame(50, (int)$referrerAfter['solde'], 'le parrain doit avoir recu exactement 50 F');
+        $this->assertSame(25, (int)$referrerAfter['solde'], 'le parrain doit avoir recu exactement 25 F');
 
         $refRow = Fixtures::pdo()->query("SELECT reward_verse FROM referrals WHERE referred_id = '$referredId'")->fetch();
         $this->assertSame(1, (int)$refRow['reward_verse']);
@@ -96,7 +96,7 @@ final class ReferralsTest extends ApiTestCase
         }
 
         $referrerAfter = Fixtures::fetchProfile($referrer['profile']['id']);
-        $this->assertSame(50, (int)$referrerAfter['solde'], 'un seul versement, jamais un par commande');
+        $this->assertSame(25, (int)$referrerAfter['solde'], 'un seul versement, jamais un par commande');
     }
 
     public function testReferralsSummaryReturnsCountAndTotal(): void
