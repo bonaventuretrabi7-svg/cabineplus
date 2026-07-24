@@ -61,16 +61,21 @@ createNotification($targetId, 'Votre portefeuille a été rechargé de ' . numbe
 // ne doit jamais référencer un id de cabine (voir orders_list.php, scopé par
 // client_id pour le rôle client).
 if ($targetRole === 'client') {
-  // Réseau/numéro bénéficiaire : sans objet pour une recharge de
-  // portefeuille (pas d'opérateur mobile money ni de destinataire), mais
-  // laissés à NULL affichaient "—"/vide dans les tableaux admin/cabine au
-  // lieu d'expliquer de quoi il s'agit — valeur fixe explicite à la place.
-  db()->prepare("INSERT INTO transactions (id, client_id, type, operateur, numero_beneficiaire, moyen_paiement, montant, statut, date) VALUES (?, ?, 'recharge', 'Auto recharge', 'Auto recharge', ?, ?, 'terminé', NOW())")
-      ->execute([uuid4(), $targetId, $method, $montant]);
-
-  $nameStmt = $pdo->prepare('SELECT nom, prenom FROM profiles WHERE id = ?');
+  // Réseau/numéro bénéficiaire : une recharge de portefeuille crédite
+  // toujours le compte authentifié lui-même (jamais un autre destinataire)
+  // — affiche donc le réseau (déduit du préfixe, voir phoneNetwork(),
+  // bootstrap.php) et le numéro du client qui se recharge, plutôt que le
+  // texte technique "Auto recharge" qui n'expliquait pas de qui il
+  // s'agissait dans les tableaux admin/cabine.
+  $nameStmt = $pdo->prepare('SELECT nom, prenom, telephone FROM profiles WHERE id = ?');
   $nameStmt->execute([$targetId]);
-  $clientRow  = $nameStmt->fetch();
+  $clientRow = $nameStmt->fetch();
+  $clientTelephone = $clientRow['telephone'] ?? '';
+  $clientNetwork   = phoneNetwork($clientTelephone);
+
+  db()->prepare("INSERT INTO transactions (id, client_id, type, operateur, numero_beneficiaire, moyen_paiement, montant, statut, date) VALUES (?, ?, 'recharge', ?, ?, ?, ?, 'terminé', NOW())")
+      ->execute([uuid4(), $targetId, $clientNetwork, $clientTelephone, $method, $montant]);
+
   $clientName = $clientRow ? trim($clientRow['prenom'] . ' ' . $clientRow['nom']) : 'Un client';
   notifyAllCabines('Le client ' . $clientName . ' a rechargé son portefeuille de ' . number_format((float)$montant, 0, ',', ' ') . ' F.', 'info');
 } elseif ($targetRole === 'cabine') {
